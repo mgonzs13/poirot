@@ -49,7 +49,7 @@
   - Toggle individual functions on/off
   - Color-coded function traces with legend
 - **Mouse & Keyboard Support**:
-  - Click to navigate, sort, and select
+  - Click to navigate, sort and select
   - Keyboard shortcuts for all operations
   - Scroll wheel navigation
 - **Multiple Views**: Quick tab switching between table and graph views (9 tabs total)
@@ -156,13 +156,13 @@ The fastest way to see POIROT in action is to run the demo application with the 
 ros2 run poirot_demos demo_node
 ```
 
-**Terminal 2** - Launch the TUI monitor:
+**Terminal 2** - Run the TUI monitor:
 
 ```bash
 ros2 run poirot_tui poirot_tui
 ```
 
-You should see a live table displaying profiling metrics for the demo node's timer and subscription callbacks, including wall time, CPU usage, memory consumption, energy, and CO2 emissions.
+You should see a live table displaying profiling metrics for the demo node's timer and subscription callbacks, including wall time, CPU usage, memory consumption, energy and CO2 emissions.
 
 ### Running with TUI
 
