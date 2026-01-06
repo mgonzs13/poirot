@@ -191,6 +191,8 @@ ros2 run poirot_tui poirot_tui
 
 You should see a live table displaying profiling metrics for the demo node's timer and subscription callbacks, including wall time, CPU usage, memory consumption, energy and CO2 emissions.
 
+https://github.com/user-attachments/assets/d55aa278-0150-41a6-b064-2ef51294a8c5
+
 ### Running with TUI
 
 The TUI provides multiple views and interactive controls:
