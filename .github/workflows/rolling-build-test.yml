@@ -19,7 +19,6 @@ jobs:
       - name: Build and Test
         uses: ros-tooling/action-ros-ci@v0.4
         with:
-          vcs-repo-file-url: ${GITHUB_WORKSPACE}/dependencies.repos
           target-ros2-distro: rolling
           coverage-result: false
           skip-tests: true
