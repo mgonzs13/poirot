@@ -21,7 +21,7 @@
 
 #include "poirot_tui/tui_renderer.hpp"
 
-namespace poirot_tui {
+using namespace poirot_tui;
 
 TuiRenderer::TuiRenderer()
     : initialized_(false), mouse_enabled_(false), current_tab_(Tab::TABLE),
@@ -1407,5 +1407,3 @@ void TuiRenderer::set_sort_column(SortColumn col) { this->sort_column_ = col; }
 void TuiRenderer::toggle_sort_order() {
   this->sort_ascending_ = !this->sort_ascending_;
 }
-
-} // namespace poirot_tui

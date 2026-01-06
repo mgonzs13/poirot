@@ -18,8 +18,7 @@
 #include "poirot_tui/tui_node.hpp"
 
 using namespace std::chrono_literals;
-
-namespace poirot_tui {
+using namespace poirot_tui;
 
 TuiNode::TuiNode(const rclcpp::NodeOptions &options)
     : rclcpp::Node("poirot_tui", options), running_(false) {
@@ -93,5 +92,3 @@ void TuiNode::render_callback() {
   // Render
   this->renderer_->render(*this->data_manager_);
 }
-
-} // namespace poirot_tui

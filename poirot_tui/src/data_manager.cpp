@@ -17,7 +17,7 @@
 
 #include "poirot_tui/data_manager.hpp"
 
-namespace poirot_tui {
+using namespace poirot_tui;
 
 DataManager::DataManager() : start_time_(0.0), first_message_(true) {}
 
@@ -198,5 +198,3 @@ size_t DataManager::get_function_count() const {
   std::lock_guard<std::mutex> lock(this->mutex_);
   return this->function_rows_.size();
 }
-
-} // namespace poirot_tui

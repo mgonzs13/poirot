@@ -22,6 +22,8 @@
 #include "poirot_msgs/msg/profiling_data.hpp"
 #include "rclcpp/rclcpp.hpp"
 
+namespace poirot_recorder {
+
 /**
  * @brief Node that records profiling data to a CSV file.
  */
@@ -67,5 +69,7 @@ private:
   /// @brief Count of recorded entries.
   size_t record_count_;
 };
+
+} // namespace poirot_recorder
 
 #endif // POIROT_RECORDER__POIROT_RECORDER_NODE_HPP_

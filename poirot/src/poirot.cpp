@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <fstream>
 #include <random>
 #include <set>
 
@@ -27,7 +28,7 @@
 
 #include "poirot/poirot.hpp"
 
-namespace poirot {
+using namespace poirot;
 
 // ============================================================================
 // Constants
@@ -1352,5 +1353,3 @@ Poirot &Poirot::get_instance() {
   static Poirot profiler;
   return profiler;
 }
-
-} // namespace poirot

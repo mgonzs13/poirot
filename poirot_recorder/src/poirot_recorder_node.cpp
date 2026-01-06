@@ -17,6 +17,8 @@
 
 #include "poirot_recorder/poirot_recorder_node.hpp"
 
+using namespace poirot_recorder;
+
 PoirotRecorderNode::PoirotRecorderNode()
     : Node("poirot_recorder"), record_count_(0) {
   // Declare parameter for CSV file path

@@ -24,19 +24,11 @@
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
-#include <deque>
-#include <fstream>
-#include <functional>
-#include <iomanip>
-#include <iostream>
 #include <map>
-#include <memory>
 #include <mutex>
 #include <shared_mutex>
-#include <sstream>
 #include <string>
 #include <thread>
-#include <vector>
 
 #include "poirot_msgs/msg/function_stats.hpp"
 #include "poirot_msgs/msg/process_info.hpp"
