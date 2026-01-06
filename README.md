@@ -65,7 +65,7 @@
 ### Terminal User Interface (`poirot_tui`)
 
 - **htop-like Table View**: Real-time display of all profiled functions with sortable columns
-  - PID, Node Name, Function Name, Call Count
+  - PID, Function Name, Call Count
   - Wall Time, CPU Time, CPU%, Memory Usage
   - I/O Read/Write, Context Switches
   - Energy Consumption, CO2 Emissions
