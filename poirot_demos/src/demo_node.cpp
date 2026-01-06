@@ -23,8 +23,15 @@
 
 using namespace poirot;
 
+/**
+ * @brief Demo node that publishes and subscribes to a topic, simulating work
+ * to generate profiling data.
+ */
 class PublisherNode : public rclcpp::Node {
 public:
+  /**
+   * @brief Constructor
+   */
   PublisherNode() : Node("publisher_node") {
     // Create a publisher
     rclcpp::PublisherOptions pub_options;
@@ -63,13 +70,23 @@ public:
   }
 
 private:
+  /// @brief Timer for periodic publishing
   rclcpp::TimerBase::SharedPtr timer_;
+  /// @brief Publisher
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
-  std::vector<char> persistent_memory_; // Persistent memory that grows
+  /// @brief Persistent memory that grows
+  std::vector<char> persistent_memory_;
 };
 
+/**
+ * @brief Demo node that subscribes to a topic and simulates work upon
+ * receiving messages.
+ */
 class SubscriberNode : public rclcpp::Node {
 public:
+  /**
+   * @brief Constructor
+   */
   SubscriberNode() : Node("subscriber_node") {
     // Create a subscription
     rclcpp::SubscriptionOptions sub_options;
@@ -82,6 +99,10 @@ public:
   }
 
 private:
+  /**
+   * @brief Subscription callback function
+   * @param msg Received message
+   */
   void subscription_function(const std_msgs::msg::String::SharedPtr msg) {
     // Profile this subscription function
     PROFILE_FUNCTION();
@@ -104,8 +125,10 @@ private:
     std::this_thread::sleep_for(std::chrono::milliseconds(5));
   }
 
+  /// @brief Subscription
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_;
-  std::vector<char> persistent_memory_; // Persistent memory that grows
+  /// @brief Persistent memory that grows
+  std::vector<char> persistent_memory_;
 };
 
 int main(int argc, char *argv[]) {

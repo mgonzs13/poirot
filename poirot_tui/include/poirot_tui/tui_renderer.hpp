@@ -27,7 +27,7 @@
 
 namespace poirot_tui {
 
-/// Tab enumeration
+/// @brief Tab enumeration
 enum class Tab {
   TABLE,
   GRAPH_WALL_TIME,
@@ -40,136 +40,269 @@ enum class Tab {
   GRAPH_CO2
 };
 
-/// TUI Renderer using ncurses with mouse support
+/**
+ * @class TuiRenderer
+ * @brief Class responsible for rendering the TUI using ncurses
+ */
 class TuiRenderer {
 public:
+  /**
+   * @brief Constructor
+   */
   TuiRenderer();
+
+  /**
+   * @brief Destructor
+   */
   ~TuiRenderer();
 
-  /// Initialize ncurses
+  /**
+   * @brief Initialize ncurses
+   * @return True if successful, false otherwise
+   */
   bool initialize();
 
-  /// Shutdown ncurses
+  /**
+   * @brief Shutdown ncurses
+   */
   void shutdown();
 
-  /// Render the current view
+  /**
+   * @brief Render the TUI
+   * @param data_manager Reference to the DataManager
+   */
   void render(const DataManager &data_manager);
 
-  /// Handle input and return false if should quit
-  bool handleInput(DataManager &data_manager);
+  /**
+   * @brief Handle user input
+   * @param data_manager Reference to the DataManager
+   * @return True if the application should continue running, false to exit
+   */
+  bool handle_input(DataManager &data_manager);
 
-  /// Get current tab
-  Tab getCurrentTab() const { return this->current_tab_; }
+  /**
+   * @brief Get current tab
+   * @return Current Tab
+   */
+  Tab get_current_tab() const { return this->current_tab_; }
 
-  /// Check if initialized
-  bool isInitialized() const { return this->initialized_; }
+  /**
+   * @brief Check if TUI is initialized
+   * @return True if initialized, false otherwise
+   */
+  bool is_initialized() const { return this->initialized_; }
 
 private:
-  /// Render table view
-  void renderTableView(const DataManager &data_manager);
+  /**
+   * @brief Render table view
+   * @param data_manager Reference to the DataManager
+   */
+  void render_table_view(const DataManager &data_manager);
 
-  /// Render graph view
-  void renderGraphView(const DataManager &data_manager,
-                       GraphDataType data_type);
+  /**
+   * @brief Render graph view
+   * @param data_manager Reference to the DataManager
+   * @param data_type Type of data to graph
+   */
+  void render_graph_view(const DataManager &data_manager,
+                         GraphDataType data_type);
 
-  /// Render header bar with tabs
-  void renderHeader();
+  /**
+   * @brief Render header
+   */
+  void render_header();
 
-  /// Render footer with help
-  void renderFooter();
+  /**
+   * @brief Render footer
+   */
+  void render_footer();
 
-  /// Render function selector for graphs
-  void renderFunctionSelector(const DataManager &data_manager, int start_row,
-                              int width);
+  /**
+   * @brief Render function selector
+   * @param data_manager Reference to the DataManager
+   * @param start_row Starting row for rendering
+   * @param width Width of the selector
+   */
+  void render_function_selector(const DataManager &data_manager, int start_row,
+                                int width);
 
-  /// Draw ASCII graph
-  void drawGraph(
+  /**
+   * @brief Draw graph for given data
+   * @param data Vector of pairs of function name and their DataPoints
+   * @param data_type Type of data to graph
+   * @param start_row Starting row for rendering
+   * @param start_col Starting column for rendering
+   * @param height Height of the graph area
+   * @param width Width of the graph area
+   */
+  void draw_graph(
       const std::vector<std::pair<std::string, std::vector<DataPoint>>> &data,
       GraphDataType data_type, int start_row, int start_col, int height,
       int width);
 
-  /// Format number with appropriate units
-  std::string formatNumber(double value, const std::string &unit) const;
+  /**
+   * @brief Format number with unit
+   * @param value Numeric value
+   * @param unit Unit string
+   * @return Formatted string
+   */
+  std::string format_number(double value, const std::string &unit) const;
 
-  /// Format time in microseconds
-  std::string formatTime(double us) const;
+  /**
+   * @brief Format time in microseconds
+   * @param us Time in microseconds
+   * @return Formatted time string
+   */
+  std::string format_time(double us) const;
 
-  /// Format bytes
-  std::string formatBytes(int64_t bytes) const;
+  /**
+   * @brief Format bytes value
+   * @param bytes Bytes value
+   * @return Formatted bytes string
+   */
+  std::string format_bytes(int64_t bytes) const;
 
-  /// Get column name
-  std::string getColumnName(SortColumn col) const;
+  /**
+   * @brief Get column name
+   * @param col Column enum
+   * @return Column name string
+   */
+  std::string get_column_name(SortColumn col) const;
 
-  /// Get tab name
-  std::string getTabName(Tab tab) const;
+  /**
+   * @brief Get tab name
+   * @param tab Tab enum
+   * @return Tab name string
+   */
+  std::string get_tab_name(Tab tab) const;
 
-  /// Get data type name
-  std::string getDataTypeName(GraphDataType type) const;
+  /**
+   * @brief Get data type name
+   * @param type Data type enum
+   * @return Data type name string
+   */
+  std::string get_data_type_name(GraphDataType type) const;
 
-  /// Get value from data point by type
-  double getValueByType(const DataPoint &dp, GraphDataType type) const;
+  /**
+   * @brief Get value from data point by type
+   * @param dp DataPoint
+   * @param type Data type enum
+   * @return Value as double
+   */
+  double get_value_by_type(const DataPoint &dp, GraphDataType type) const;
 
-  /// Handle mouse input
-  bool handleMouseInput(DataManager &data_manager, MEVENT &event);
+  /**
+   * @brief Handle mouse input
+   * @param data_manager Reference to the DataManager
+   * @param event Mouse event
+   * @return True if handled, false otherwise
+   */
+  bool handle_mouse_input(DataManager &data_manager, MEVENT &event);
 
-  /// Get tab at x position
-  Tab getTabAtPosition(int x) const;
+  /**
+   * @brief Get tab at x position
+   * @param x X position
+   * @return Tab enum
+   */
+  Tab get_tab_at_position(int x) const;
 
-  /// Get column at x position for sorting
-  SortColumn getColumnAtPosition(int x) const;
+  /**
+   * @brief Get column at x position for sorting
+   * @param x X position
+   * @return SortColumn enum
+   */
+  SortColumn get_column_at_position(int x) const;
 
-  /// Cycle to next tab
-  void nextTab();
+  /**
+   * @brief Cycle to next tab
+   */
+  void next_tab();
 
-  /// Cycle to previous tab
-  void prevTab();
+  /**
+   * @brief Cycle to previous tab
+   */
+  void prev_tab();
 
-  /// Move selection up
-  void moveUp();
+  /**
+   * @brief Move selection up
+   */
+  void move_up();
 
-  /// Move selection down
-  void moveDown();
+  /**
+   * @brief Move selection down
+   */
+  void move_down();
 
-  /// Page up
-  void pageUp();
+  /**
+   * @brief Page up
+   */
+  void page_up();
 
-  /// Page down
-  void pageDown();
+  /**
+   * @brief Page down
+   */
+  void page_down();
 
-  /// Move to first row
-  void moveToFirst();
+  /**
+   * @brief Move to first row
+   */
+  void move_to_first();
 
-  /// Move to last row
-  void moveToLast(int total_rows);
+  /**
+   * @brief Move to last row
+   * @param total_rows
+   */
+  void move_to_last(int total_rows);
 
-  /// Cycle sort column
-  void cycleSortColumn();
+  /**
+   * @brief Cycle sort column
+   */
+  void cycle_sort_column();
 
-  /// Toggle sort order
-  void toggleSortOrder();
+  /**
+   * @brief Toggle sort order
+   */
+  void toggle_sort_order();
 
-  /// Set sort column directly
-  void setSortColumn(SortColumn col);
+  /**
+   * @brief Set sort column directly
+   * @param col Column to set
+   */
+  void set_sort_column(SortColumn col);
 
-  /// Select specific tab
-  void selectTab(Tab tab);
+  /**
+   * @brief Select specific tab
+   * @param tab Tab to select
+   */
+  void select_tab(Tab tab);
 
+  /// @brief Flag indicating if ncurses is initialized
   bool initialized_;
+  /// @brief Flag indicating if mouse support is enabled
   bool mouse_enabled_;
+  /// @brief Current active tab
   Tab current_tab_;
+  /// @brief Current sort column
   SortColumn sort_column_;
+  /// @brief Sort order flag
   bool sort_ascending_;
+  /// @brief Currently selected row in the table
   int selected_row_;
+  /// @brief Scroll offset for table view
   int scroll_offset_;
+  /// @brief Scroll offset for graph view
   int graph_scroll_offset_;
+  /// @brief Maximum number of rows that can be displayed
   int max_rows_;
+  /// @brief Terminal dimensions
   int terminal_width_;
+  /// @brief Terminal dimensions
   int terminal_height_;
 
-  // Tab positions for mouse click detection
+  /// @brief Tab positions for mouse click detection
   std::map<Tab, std::pair<int, int>> tab_positions_; // Tab -> (start_x, end_x)
 
-  // Column positions for mouse click detection
+  /// @brief Column positions for mouse click detection
   std::vector<std::pair<int, SortColumn>>
       column_positions_; // (start_x, column)
 

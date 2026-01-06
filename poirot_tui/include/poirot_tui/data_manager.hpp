@@ -27,7 +27,10 @@
 
 namespace poirot_tui {
 
-/// Represents a single data point for graphing
+/**
+ * @brief Represents a single data point in function history
+ */
+
 struct DataPoint {
   double timestamp;
   double wall_time_us;
@@ -40,7 +43,9 @@ struct DataPoint {
   double co2_ug;
 };
 
-/// Represents a function's profiling data row
+/**
+ * @brief Represents a row of function profiling data
+ */
 struct FunctionRow {
   int32_t pid;
   std::string function_name;
@@ -55,13 +60,15 @@ struct FunctionRow {
   double co2_ug;
   double last_update_time;
 
-  /// Unique key for identifying this function
-  std::string getKey() const {
+  /// @brief Unique key for identifying this function
+  std::string get_key() const {
     return std::to_string(pid) + "|" + function_name;
   }
 };
 
-/// Sort column enumeration
+/**
+ * @brief Sorting column enumeration
+ */
 enum class SortColumn {
   PID,
   FUNCTION_NAME,
@@ -76,7 +83,9 @@ enum class SortColumn {
   CO2
 };
 
-/// Graph data type enumeration
+/**
+ * @brief Graph data type enumeration
+ */
 enum class GraphDataType {
   WALL_TIME,
   CPU_TIME,
@@ -88,55 +97,108 @@ enum class GraphDataType {
   CO2
 };
 
-/// Manages profiling data storage and retrieval
+/**
+ * @class DataManager
+ * @brief Manages profiling data for the TUI
+ */
 class DataManager {
 public:
+  /// @brief Maximum number of historical data points to store per function
   static constexpr size_t MAX_HISTORY_SIZE = 1000;
 
+  /**
+   * @brief Constructor for DataManager
+   */
   DataManager();
+
+  /**
+   * @brief Destructor for DataManager
+   */
   ~DataManager() = default;
 
-  /// Process incoming profiling data
+  /**
+   * @brief Process incoming profiling data message
+   * @param msg Shared pointer to the profiling data message
+   */
   void
-  processProfilingData(const poirot_msgs::msg::ProfilingData::SharedPtr msg);
+  process_profiling_data(const poirot_msgs::msg::ProfilingData::SharedPtr msg);
 
-  /// Get sorted function rows
-  std::vector<FunctionRow> getSortedRows(SortColumn column,
-                                         bool ascending) const;
+  /**
+   * @brief Get sorted function rows
+   * @param column Column to sort by
+   * @param ascending Sort order
+   * @return Vector of sorted FunctionRows
+   */
+  std::vector<FunctionRow> get_sorted_rows(SortColumn column,
+                                           bool ascending) const;
 
-  /// Get historical data for a function
-  std::vector<DataPoint> getHistory(const std::string &function_key) const;
+  /**
+   * @brief Get historical data for a specific function
+   * @param function_key Unique key of the function
+   * @return Vector of DataPoints for the function
+   */
+  std::vector<DataPoint> get_history(const std::string &function_key) const;
 
-  /// Get all function keys
-  std::vector<std::string> getAllFunctionKeys() const;
+  /**
+   * @brief Get all function keys
+   * @return Vector of all function keys
+   */
+  std::vector<std::string> get_all_function_keys() const;
 
-  /// Check if a function is enabled for graphing
-  bool isFunctionEnabled(const std::string &function_key) const;
+  /**
+   * @brief Check if a function is enabled for graphing
+   * @param function_key Unique key of the function
+   * @return True if enabled, false otherwise
+   */
+  bool is_function_enabled(const std::string &function_key) const;
 
-  /// Enable a function for graphing
-  void enableFunction(const std::string &function_key);
+  /**
+   * @brief Enable a function for graphing
+   * @param function_key Unique key of the function
+   */
+  void enable_function(const std::string &function_key);
 
-  /// Disable a function for graphing
-  void disableFunction(const std::string &function_key);
+  /**
+   * @brief Disable a function for graphing
+   * @param function_key Unique key of the function
+   */
+  void disable_function(const std::string &function_key);
 
-  /// Toggle function graph visibility
-  void toggleFunction(const std::string &function_key);
+  /**
+   * @brief Toggle function's enabled state for graphing
+   * @param function_key Unique key of the function
+   */
+  void toggle_function(const std::string &function_key);
 
-  /// Get enabled functions
-  std::set<std::string> getEnabledFunctions() const;
+  /**
+   * @brief Get all enabled functions
+   * @return Set of enabled function keys
+   */
+  std::set<std::string> get_enabled_functions() const;
 
-  /// Clear all data
+  /**
+   * @brief Clear all stored data
+   */
   void clear();
 
-  /// Get total number of functions
-  size_t getFunctionCount() const;
+  /**
+   * @brief Get the count of tracked functions
+   * @return Number of tracked functions
+   */
+  size_t get_function_count() const;
 
 private:
+  /// @brief Mutex for thread-safe access
   mutable std::mutex mutex_;
+  /// @brief Map of function keys to their profiling data rows
   std::map<std::string, FunctionRow> function_rows_;
+  /// @brief Map of function keys to their historical data points
   std::map<std::string, std::deque<DataPoint>> function_history_;
+  /// @brief Set of enabled function keys for graphing
   std::set<std::string> enabled_functions_;
+  /// @brief Start time for relative timestamp calculations
   double start_time_;
+  /// @brief Flag to indicate if the first message has been processed
   bool first_message_;
 };
 

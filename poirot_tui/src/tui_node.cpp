@@ -35,7 +35,7 @@ TuiNode::TuiNode(const rclcpp::NodeOptions &options)
   this->subscription_ =
       this->create_subscription<poirot_msgs::msg::ProfilingData>(
           this->topic_name_, rclcpp::QoS(100).reliable(),
-          std::bind(&TuiNode::profilingCallback, this, std::placeholders::_1));
+          std::bind(&TuiNode::profiling_callback, this, std::placeholders::_1));
 
   RCLCPP_INFO(this->get_logger(), "Poirot TUI initialized, subscribing to: %s",
               this->topic_name_.c_str());
@@ -53,7 +53,7 @@ void TuiNode::run() {
 
   // Create a timer for rendering at ~30 FPS
   this->render_timer_ =
-      this->create_wall_timer(33ms, std::bind(&TuiNode::renderCallback, this));
+      this->create_wall_timer(33ms, std::bind(&TuiNode::render_callback, this));
 
   RCLCPP_INFO(this->get_logger(), "TUI running...");
 }
@@ -71,20 +71,20 @@ void TuiNode::stop() {
   }
 }
 
-void TuiNode::profilingCallback(
+void TuiNode::profiling_callback(
     const poirot_msgs::msg::ProfilingData::SharedPtr msg) {
   if (this->running_.load() && this->data_manager_) {
-    this->data_manager_->processProfilingData(msg);
+    this->data_manager_->process_profiling_data(msg);
   }
 }
 
-void TuiNode::renderCallback() {
+void TuiNode::render_callback() {
   if (!this->running_.load() || !this->renderer_ || !this->data_manager_) {
     return;
   }
 
   // Handle input
-  if (!this->renderer_->handleInput(*this->data_manager_)) {
+  if (!this->renderer_->handle_input(*this->data_manager_)) {
     this->stop();
     rclcpp::shutdown();
     return;

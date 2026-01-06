@@ -26,36 +26,65 @@
 
 namespace poirot_tui {
 
-/// ROS 2 Node for the TUI
+/**
+ * @class TuiNode
+ * @brief TUI Node for displaying profiling data
+ */
 class TuiNode : public rclcpp::Node {
 public:
+  /**
+   * @brief Constructor for TuiNode
+   * @param options Node options
+   */
   explicit TuiNode(const rclcpp::NodeOptions &options = rclcpp::NodeOptions());
+
+  /**
+   * @brief Destructor for TuiNode
+   */
   ~TuiNode() override;
 
-  /// Run the TUI main loop
+  /**
+   * @brief Run the TUI
+   */
   void run();
 
-  /// Stop the TUI
+  /**
+   * @brief Stop the TUI
+   */
   void stop();
 
-  /// Check if running
-  bool isRunning() const { return this->running_.load(); }
+  /**
+   * @brief Check if running
+   * @return True if running, false otherwise
+   */
+  bool is_running() const { return this->running_.load(); }
 
 private:
-  /// Callback for profiling data
-  void profilingCallback(const poirot_msgs::msg::ProfilingData::SharedPtr msg);
+  /**
+   * @brief Callback for profiling data subscription
+   * @param msg Shared pointer to the profiling data message
+   */
+  void profiling_callback(const poirot_msgs::msg::ProfilingData::SharedPtr msg);
 
-  /// Timer callback for rendering
-  void renderCallback();
+  /**
+   * @brief Timer callback for rendering
+   */
+  void render_callback();
 
+  /// @brief Subscription to profiling data
   rclcpp::Subscription<poirot_msgs::msg::ProfilingData>::SharedPtr
       subscription_;
+  /// @brief Timer for periodic rendering
   rclcpp::TimerBase::SharedPtr render_timer_;
 
+  /// @brief Data manager for profiling data
   std::unique_ptr<DataManager> data_manager_;
+  /// @brief TUI renderer
   std::unique_ptr<TuiRenderer> renderer_;
 
+  /// @brief Running state
   std::atomic<bool> running_;
+  /// @brief Topic name for profiling data
   std::string topic_name_;
 };
 

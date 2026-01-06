@@ -102,11 +102,11 @@ void TuiRenderer::render(const DataManager &data_manager) {
   erase();
 
   // Render header
-  this->renderHeader();
+  this->render_header();
 
   // Render current view
   if (this->current_tab_ == Tab::TABLE) {
-    this->renderTableView(data_manager);
+    this->render_table_view(data_manager);
   } else {
     GraphDataType data_type;
     switch (this->current_tab_) {
@@ -138,17 +138,17 @@ void TuiRenderer::render(const DataManager &data_manager) {
       data_type = GraphDataType::WALL_TIME;
       break;
     }
-    this->renderGraphView(data_manager, data_type);
+    this->render_graph_view(data_manager, data_type);
   }
 
   // Render footer
-  this->renderFooter();
+  this->render_footer();
 
   // Refresh screen
   refresh();
 }
 
-void TuiRenderer::renderHeader() {
+void TuiRenderer::render_header() {
   attron(COLOR_PAIR(COLOR_HEADER));
   mvhline(0, 0, ' ', this->terminal_width_);
 
@@ -175,7 +175,7 @@ void TuiRenderer::renderHeader() {
                            Tab::GRAPH_CO2};
 
   for (const auto &tab : tabs) {
-    std::string tab_name = this->getTabName(tab);
+    std::string tab_name = this->get_tab_name(tab);
     int tab_width = static_cast<int>(tab_name.length()) + 2;
 
     // Store tab position for mouse detection
@@ -196,9 +196,9 @@ void TuiRenderer::renderHeader() {
   }
 }
 
-void TuiRenderer::renderTableView(const DataManager &data_manager) {
+void TuiRenderer::render_table_view(const DataManager &data_manager) {
   auto rows =
-      data_manager.getSortedRows(this->sort_column_, this->sort_ascending_);
+      data_manager.get_sorted_rows(this->sort_column_, this->sort_ascending_);
 
   // Column header
   attron(COLOR_PAIR(COLOR_HEADER) | A_BOLD);
@@ -221,8 +221,8 @@ void TuiRenderer::renderTableView(const DataManager &data_manager) {
   this->column_positions_.clear();
   int x = 0;
 
-  auto printHeader = [this, &x](const std::string &name, int width,
-                                SortColumn col) {
+  auto print_header = [this, &x](const std::string &name, int width,
+                                 SortColumn col) {
     // Store column position
     this->column_positions_.push_back({x, col});
 
@@ -238,17 +238,17 @@ void TuiRenderer::renderTableView(const DataManager &data_manager) {
     x += width;
   };
 
-  printHeader("PID", col_pid, SortColumn::PID);
-  printHeader("Function", col_func, SortColumn::FUNCTION_NAME);
-  printHeader("Calls", col_calls, SortColumn::CALL_COUNT);
-  printHeader("Wall(us)", col_wall, SortColumn::WALL_TIME);
-  printHeader("CPU(us)", col_cpu, SortColumn::CPU_TIME);
-  printHeader("Mem(KB)", col_mem, SortColumn::MEMORY);
-  printHeader("IO-R(B)", col_ior, SortColumn::IO_READ);
-  printHeader("IO-W(B)", col_iow, SortColumn::IO_WRITE);
-  printHeader("CtxSw", col_ctx, SortColumn::CTX_SWITCHES);
-  printHeader("Energy(uJ)", col_energy, SortColumn::ENERGY);
-  printHeader("CO2(ug)", col_co2, SortColumn::CO2);
+  print_header("PID", col_pid, SortColumn::PID);
+  print_header("Function", col_func, SortColumn::FUNCTION_NAME);
+  print_header("Calls", col_calls, SortColumn::CALL_COUNT);
+  print_header("Wall(us)", col_wall, SortColumn::WALL_TIME);
+  print_header("CPU(us)", col_cpu, SortColumn::CPU_TIME);
+  print_header("Mem(KB)", col_mem, SortColumn::MEMORY);
+  print_header("IO-R(B)", col_ior, SortColumn::IO_READ);
+  print_header("IO-W(B)", col_iow, SortColumn::IO_WRITE);
+  print_header("CtxSw", col_ctx, SortColumn::CTX_SWITCHES);
+  print_header("Energy(uJ)", col_energy, SortColumn::ENERGY);
+  print_header("CO2(ug)", col_co2, SortColumn::CO2);
 
   attroff(COLOR_PAIR(COLOR_HEADER) | A_BOLD);
 
@@ -348,8 +348,8 @@ void TuiRenderer::renderTableView(const DataManager &data_manager) {
   }
 }
 
-void TuiRenderer::renderGraphView(const DataManager &data_manager,
-                                  GraphDataType data_type) {
+void TuiRenderer::render_graph_view(const DataManager &data_manager,
+                                    GraphDataType data_type) {
   // Split view: left side for function selector, right side for graph
   int selector_width = 60;
   int graph_start_col = selector_width + 1;
@@ -364,21 +364,21 @@ void TuiRenderer::renderGraphView(const DataManager &data_manager,
   attroff(COLOR_PAIR(COLOR_HEADER));
 
   // Render function selector
-  this->renderFunctionSelector(data_manager, 2, selector_width);
+  this->render_function_selector(data_manager, 2, selector_width);
 
   // Get enabled functions and their data
-  auto enabled = data_manager.getEnabledFunctions();
+  auto enabled = data_manager.get_enabled_functions();
   std::vector<std::pair<std::string, std::vector<DataPoint>>> graph_data;
 
   for (const auto &func_key : enabled) {
-    auto history = data_manager.getHistory(func_key);
+    auto history = data_manager.get_history(func_key);
     if (!history.empty()) {
       graph_data.emplace_back(func_key, history);
     }
   }
 
   // Draw graph title with decorative box
-  std::string graph_title = " " + this->getDataTypeName(data_type) + " ";
+  std::string graph_title = " " + this->get_data_type_name(data_type) + " ";
   int title_len = static_cast<int>(graph_title.length());
   int title_x = graph_start_col + (graph_width - title_len - 4) / 2;
 
@@ -439,19 +439,19 @@ void TuiRenderer::renderGraphView(const DataManager &data_manager,
              msg4.c_str());
     attroff(A_DIM);
   } else {
-    this->drawGraph(graph_data, data_type, 3, graph_start_col, graph_height,
-                    graph_width);
+    this->draw_graph(graph_data, data_type, 3, graph_start_col, graph_height,
+                     graph_width);
   }
 }
 
-void TuiRenderer::renderFunctionSelector(const DataManager &data_manager,
-                                         int start_row, int width) {
+void TuiRenderer::render_function_selector(const DataManager &data_manager,
+                                           int start_row, int width) {
   attron(A_BOLD | COLOR_PAIR(COLOR_HEADER));
   mvhline(start_row, 0, ' ', width - 1);
   mvprintw(start_row, 1, "Functions (Space/Enter/Click to toggle)");
   attroff(A_BOLD | COLOR_PAIR(COLOR_HEADER));
 
-  auto keys = data_manager.getAllFunctionKeys();
+  auto keys = data_manager.get_all_function_keys();
   int total_funcs = static_cast<int>(keys.size());
 
   // Ensure scroll offset is valid
@@ -475,7 +475,7 @@ void TuiRenderer::renderFunctionSelector(const DataManager &data_manager,
   for (int i = this->graph_scroll_offset_;
        i < total_funcs && row_y < this->terminal_height_ - 1; ++i, ++row_y) {
     const auto &key = keys[i];
-    bool enabled = data_manager.isFunctionEnabled(key);
+    bool enabled = data_manager.is_function_enabled(key);
 
     // Extract function name from key (format: "pid|function_name")
     size_t last_pipe = key.rfind('|');
@@ -536,7 +536,7 @@ void TuiRenderer::renderFunctionSelector(const DataManager &data_manager,
   }
 }
 
-void TuiRenderer::drawGraph(
+void TuiRenderer::draw_graph(
     const std::vector<std::pair<std::string, std::vector<DataPoint>>> &data,
     GraphDataType data_type, int start_row, int start_col, int height,
     int width) {
@@ -574,7 +574,7 @@ void TuiRenderer::drawGraph(
 
   for (const auto &pair : data) {
     for (const auto &dp : pair.second) {
-      double val = this->getValueByType(dp, data_type);
+      double val = this->get_value_by_type(dp, data_type);
       min_val = std::min(min_val, val);
       max_val = std::max(max_val, val);
       min_time = std::min(min_time, dp.timestamp);
@@ -731,7 +731,7 @@ void TuiRenderer::drawGraph(
   double avg_val = 0.0;
   for (const auto &pair : data) {
     for (const auto &dp : pair.second) {
-      avg_val += this->getValueByType(dp, data_type);
+      avg_val += this->get_value_by_type(dp, data_type);
     }
   }
   avg_val /= (total_points > 0 ? total_points : 1);
@@ -763,7 +763,7 @@ void TuiRenderer::drawGraph(
     std::vector<std::pair<int, int>> points;
 
     for (const auto &dp : pair.second) {
-      double val = this->getValueByType(dp, data_type);
+      double val = this->get_value_by_type(dp, data_type);
 
       // Calculate position
       double time_ratio =
@@ -920,14 +920,14 @@ void TuiRenderer::drawGraph(
   }
 }
 
-void TuiRenderer::renderFooter() {
+void TuiRenderer::render_footer() {
   attron(COLOR_PAIR(COLOR_HEADER));
   mvhline(this->terminal_height_ - 1, 0, ' ', this->terminal_width_);
 
   // Create help text with highlighted keys
   int x = 1;
 
-  auto printKey = [this, &x](const std::string &key, const std::string &desc) {
+  auto print_key = [this, &x](const std::string &key, const std::string &desc) {
     attron(COLOR_PAIR(COLOR_HELP_KEY) | A_BOLD);
     mvprintw(this->terminal_height_ - 1, x, "%s", key.c_str());
     attroff(COLOR_PAIR(COLOR_HELP_KEY) | A_BOLD);
@@ -938,31 +938,31 @@ void TuiRenderer::renderFooter() {
     x += static_cast<int>(desc.length()) + 2;
   };
 
-  printKey("Q", "Quit");
-  printKey("Tab", "Next Tab");
+  print_key("Q", "Quit");
+  print_key("Tab", "Next Tab");
 
   if (this->current_tab_ == Tab::TABLE) {
-    printKey("Up/Dn", "Navigate");
-    printKey("Home/End", "First/Last");
-    printKey("PgUp/Dn", "Page");
-    printKey("S", "Sort");
-    printKey("R", "Reverse");
-    printKey("C", "Clear");
+    print_key("Up/Dn", "Navigate");
+    print_key("Home/End", "First/Last");
+    print_key("PgUp/Dn", "Page");
+    print_key("S", "Sort");
+    print_key("R", "Reverse");
+    print_key("C", "Clear");
   } else {
-    printKey("Up/Dn", "Select");
-    printKey("Space/Enter", "Toggle");
-    printKey("A", "All");
-    printKey("N", "None");
+    print_key("Up/Dn", "Select");
+    print_key("Space/Enter", "Toggle");
+    print_key("A", "All");
+    print_key("N", "None");
   }
 
   if (this->mouse_enabled_) {
-    printKey("Mouse", "Click");
+    print_key("Mouse", "Click");
   }
 
   attroff(COLOR_PAIR(COLOR_HEADER));
 }
 
-bool TuiRenderer::handleInput(DataManager &data_manager) {
+bool TuiRenderer::handle_input(DataManager &data_manager) {
   int ch = getch();
   if (ch == ERR) {
     return true; // No input, continue
@@ -972,7 +972,7 @@ bool TuiRenderer::handleInput(DataManager &data_manager) {
   if (ch == KEY_MOUSE) {
     MEVENT event;
     if (getmouse(&event) == OK) {
-      return this->handleMouseInput(data_manager, event);
+      return this->handle_mouse_input(data_manager, event);
     }
     return true;
   }
@@ -985,50 +985,50 @@ bool TuiRenderer::handleInput(DataManager &data_manager) {
 
   case '\t':
   case KEY_RIGHT:
-    this->nextTab();
+    this->next_tab();
     break;
 
   case KEY_BTAB: // Shift+Tab
   case KEY_LEFT:
-    this->prevTab();
+    this->prev_tab();
     break;
 
   case KEY_UP:
   case 'k':
   case 'K':
-    this->moveUp();
+    this->move_up();
     break;
 
   case KEY_DOWN:
   case 'j':
   case 'J':
-    this->moveDown();
+    this->move_down();
     break;
 
   case KEY_PPAGE:
-    this->pageUp();
+    this->page_up();
     break;
 
   case KEY_NPAGE:
-    this->pageDown();
+    this->page_down();
     break;
 
   case KEY_HOME:
   case 'g':
-    this->moveToFirst();
+    this->move_to_first();
     break;
 
   case KEY_END:
   case 'G': {
     auto rows =
-        data_manager.getSortedRows(this->sort_column_, this->sort_ascending_);
-    this->moveToLast(static_cast<int>(rows.size()));
+        data_manager.get_sorted_rows(this->sort_column_, this->sort_ascending_);
+    this->move_to_last(static_cast<int>(rows.size()));
   } break;
 
   case 's':
   case 'S':
     if (this->current_tab_ == Tab::TABLE) {
-      this->cycleSortColumn();
+      this->cycle_sort_column();
     }
     break;
 
@@ -1037,7 +1037,7 @@ bool TuiRenderer::handleInput(DataManager &data_manager) {
   case 'o':
   case 'O':
     if (this->current_tab_ == Tab::TABLE) {
-      this->toggleSortOrder();
+      this->toggle_sort_order();
     }
     break;
 
@@ -1046,10 +1046,10 @@ bool TuiRenderer::handleInput(DataManager &data_manager) {
   case KEY_ENTER:
     if (this->current_tab_ != Tab::TABLE) {
       // Toggle function in graph view
-      auto keys = data_manager.getAllFunctionKeys();
+      auto keys = data_manager.get_all_function_keys();
       if (this->selected_row_ >= 0 &&
           this->selected_row_ < static_cast<int>(keys.size())) {
-        data_manager.toggleFunction(keys[this->selected_row_]);
+        data_manager.toggle_function(keys[this->selected_row_]);
       }
     }
     break;
@@ -1058,9 +1058,9 @@ bool TuiRenderer::handleInput(DataManager &data_manager) {
   case 'A':
     if (this->current_tab_ != Tab::TABLE) {
       // Enable all functions
-      auto keys = data_manager.getAllFunctionKeys();
+      auto keys = data_manager.get_all_function_keys();
       for (const auto &key : keys) {
-        data_manager.enableFunction(key);
+        data_manager.enable_function(key);
       }
     }
     break;
@@ -1069,9 +1069,9 @@ bool TuiRenderer::handleInput(DataManager &data_manager) {
   case 'N':
     if (this->current_tab_ != Tab::TABLE) {
       // Disable all functions
-      auto keys = data_manager.getAllFunctionKeys();
+      auto keys = data_manager.get_all_function_keys();
       for (const auto &key : keys) {
-        data_manager.disableFunction(key);
+        data_manager.disable_function(key);
       }
     }
     break;
@@ -1086,31 +1086,31 @@ bool TuiRenderer::handleInput(DataManager &data_manager) {
 
   // Number keys for quick tab switching
   case '1':
-    this->selectTab(Tab::TABLE);
+    this->select_tab(Tab::TABLE);
     break;
   case '2':
-    this->selectTab(Tab::GRAPH_WALL_TIME);
+    this->select_tab(Tab::GRAPH_WALL_TIME);
     break;
   case '3':
-    this->selectTab(Tab::GRAPH_CPU_TIME);
+    this->select_tab(Tab::GRAPH_CPU_TIME);
     break;
   case '4':
-    this->selectTab(Tab::GRAPH_MEMORY);
+    this->select_tab(Tab::GRAPH_MEMORY);
     break;
   case '5':
-    this->selectTab(Tab::GRAPH_IO_READ);
+    this->select_tab(Tab::GRAPH_IO_READ);
     break;
   case '6':
-    this->selectTab(Tab::GRAPH_IO_WRITE);
+    this->select_tab(Tab::GRAPH_IO_WRITE);
     break;
   case '7':
-    this->selectTab(Tab::GRAPH_CTX_SWITCHES);
+    this->select_tab(Tab::GRAPH_CTX_SWITCHES);
     break;
   case '8':
-    this->selectTab(Tab::GRAPH_ENERGY);
+    this->select_tab(Tab::GRAPH_ENERGY);
     break;
   case '9':
-    this->selectTab(Tab::GRAPH_CO2);
+    this->select_tab(Tab::GRAPH_CO2);
     break;
 
   default:
@@ -1120,27 +1120,27 @@ bool TuiRenderer::handleInput(DataManager &data_manager) {
   return true;
 }
 
-bool TuiRenderer::handleMouseInput(DataManager &data_manager, MEVENT &event) {
+bool TuiRenderer::handle_mouse_input(DataManager &data_manager, MEVENT &event) {
   int mx = event.x;
   int my = event.y;
 
   if (event.bstate & BUTTON1_CLICKED || event.bstate & BUTTON1_PRESSED) {
     // Check if clicked on tabs (row 1)
     if (my == 1) {
-      Tab clicked_tab = this->getTabAtPosition(mx);
+      Tab clicked_tab = this->get_tab_at_position(mx);
       if (clicked_tab != this->current_tab_) {
-        this->selectTab(clicked_tab);
+        this->select_tab(clicked_tab);
       }
       return true;
     }
 
     // Check if clicked on column headers (row 2) in table view
     if (my == 2 && this->current_tab_ == Tab::TABLE) {
-      SortColumn clicked_col = this->getColumnAtPosition(mx);
+      SortColumn clicked_col = this->get_column_at_position(mx);
       if (clicked_col == this->sort_column_) {
-        this->toggleSortOrder();
+        this->toggle_sort_order();
       } else {
-        this->setSortColumn(clicked_col);
+        this->set_sort_column(clicked_col);
       }
       return true;
     }
@@ -1150,8 +1150,8 @@ bool TuiRenderer::handleMouseInput(DataManager &data_manager, MEVENT &event) {
       if (this->current_tab_ == Tab::TABLE) {
         // Clicked on a data row
         int clicked_row = this->scroll_offset_ + (my - 3);
-        auto rows = data_manager.getSortedRows(this->sort_column_,
-                                               this->sort_ascending_);
+        auto rows = data_manager.get_sorted_rows(this->sort_column_,
+                                                 this->sort_ascending_);
         if (clicked_row >= 0 && clicked_row < static_cast<int>(rows.size())) {
           this->selected_row_ = clicked_row;
         }
@@ -1160,11 +1160,11 @@ bool TuiRenderer::handleMouseInput(DataManager &data_manager, MEVENT &event) {
         // side)
         if (mx < 60) {
           int clicked_row = this->graph_scroll_offset_ + (my - 3);
-          auto keys = data_manager.getAllFunctionKeys();
+          auto keys = data_manager.get_all_function_keys();
           if (clicked_row >= 0 && clicked_row < static_cast<int>(keys.size())) {
             this->selected_row_ = clicked_row;
             // Toggle the function
-            data_manager.toggleFunction(keys[clicked_row]);
+            data_manager.toggle_function(keys[clicked_row]);
           }
         }
       }
@@ -1174,22 +1174,22 @@ bool TuiRenderer::handleMouseInput(DataManager &data_manager, MEVENT &event) {
 
   // Handle scroll wheel
   if (event.bstate & BUTTON4_PRESSED) { // Scroll up
-    this->moveUp();
-    this->moveUp();
-    this->moveUp();
+    this->move_up();
+    this->move_up();
+    this->move_up();
     return true;
   }
   if (event.bstate & BUTTON5_PRESSED) { // Scroll down
-    this->moveDown();
-    this->moveDown();
-    this->moveDown();
+    this->move_down();
+    this->move_down();
+    this->move_down();
     return true;
   }
 
   return true;
 }
 
-Tab TuiRenderer::getTabAtPosition(int x) const {
+Tab TuiRenderer::get_tab_at_position(int x) const {
   for (const auto &entry : this->tab_positions_) {
     if (x >= entry.second.first && x < entry.second.second) {
       return entry.first;
@@ -1198,7 +1198,7 @@ Tab TuiRenderer::getTabAtPosition(int x) const {
   return this->current_tab_;
 }
 
-SortColumn TuiRenderer::getColumnAtPosition(int x) const {
+SortColumn TuiRenderer::get_column_at_position(int x) const {
   SortColumn result = this->sort_column_;
   for (size_t i = 0; i < this->column_positions_.size(); ++i) {
     int start_x = this->column_positions_[i].first;
@@ -1213,7 +1213,7 @@ SortColumn TuiRenderer::getColumnAtPosition(int x) const {
   return result;
 }
 
-std::string TuiRenderer::getTabName(Tab tab) const {
+std::string TuiRenderer::get_tab_name(Tab tab) const {
   switch (tab) {
   case Tab::TABLE:
     return "1:Table";
@@ -1238,7 +1238,7 @@ std::string TuiRenderer::getTabName(Tab tab) const {
   }
 }
 
-std::string TuiRenderer::getDataTypeName(GraphDataType type) const {
+std::string TuiRenderer::get_data_type_name(GraphDataType type) const {
   switch (type) {
   case GraphDataType::WALL_TIME:
     return "Wall Time (us)";
@@ -1261,8 +1261,8 @@ std::string TuiRenderer::getDataTypeName(GraphDataType type) const {
   }
 }
 
-double TuiRenderer::getValueByType(const DataPoint &dp,
-                                   GraphDataType type) const {
+double TuiRenderer::get_value_by_type(const DataPoint &dp,
+                                      GraphDataType type) const {
   switch (type) {
   case GraphDataType::WALL_TIME:
     return dp.wall_time_us;
@@ -1285,7 +1285,7 @@ double TuiRenderer::getValueByType(const DataPoint &dp,
   }
 }
 
-std::string TuiRenderer::getColumnName(SortColumn col) const {
+std::string TuiRenderer::get_column_name(SortColumn col) const {
   switch (col) {
   case SortColumn::PID:
     return "PID";
@@ -1314,36 +1314,36 @@ std::string TuiRenderer::getColumnName(SortColumn col) const {
   }
 }
 
-std::string TuiRenderer::formatNumber(double value,
-                                      const std::string &unit) const {
+std::string TuiRenderer::format_number(double value,
+                                       const std::string &unit) const {
   std::ostringstream oss;
   oss << std::fixed << std::setprecision(2) << value << " " << unit;
   return oss.str();
 }
 
-std::string TuiRenderer::formatTime(double us) const {
+std::string TuiRenderer::format_time(double us) const {
   if (us >= 1000000.0) {
-    return this->formatNumber(us / 1000000.0, "s");
+    return this->format_number(us / 1000000.0, "s");
   } else if (us >= 1000.0) {
-    return this->formatNumber(us / 1000.0, "ms");
+    return this->format_number(us / 1000.0, "ms");
   } else {
-    return this->formatNumber(us, "us");
+    return this->format_number(us, "us");
   }
 }
 
-std::string TuiRenderer::formatBytes(int64_t bytes) const {
+std::string TuiRenderer::format_bytes(int64_t bytes) const {
   if (bytes >= 1073741824) {
-    return this->formatNumber(static_cast<double>(bytes) / 1073741824.0, "GB");
+    return this->format_number(static_cast<double>(bytes) / 1073741824.0, "GB");
   } else if (bytes >= 1048576) {
-    return this->formatNumber(static_cast<double>(bytes) / 1048576.0, "MB");
+    return this->format_number(static_cast<double>(bytes) / 1048576.0, "MB");
   } else if (bytes >= 1024) {
-    return this->formatNumber(static_cast<double>(bytes) / 1024.0, "KB");
+    return this->format_number(static_cast<double>(bytes) / 1024.0, "KB");
   } else {
-    return this->formatNumber(static_cast<double>(bytes), "B");
+    return this->format_number(static_cast<double>(bytes), "B");
   }
 }
 
-void TuiRenderer::nextTab() {
+void TuiRenderer::next_tab() {
   int tab_int = static_cast<int>(this->current_tab_);
   tab_int = (tab_int + 1) % 9; // 9 tabs total
   this->current_tab_ = static_cast<Tab>(tab_int);
@@ -1352,7 +1352,7 @@ void TuiRenderer::nextTab() {
   this->graph_scroll_offset_ = 0;
 }
 
-void TuiRenderer::prevTab() {
+void TuiRenderer::prev_tab() {
   int tab_int = static_cast<int>(this->current_tab_);
   tab_int = (tab_int - 1 + 9) % 9; // 9 tabs total
   this->current_tab_ = static_cast<Tab>(tab_int);
@@ -1361,7 +1361,7 @@ void TuiRenderer::prevTab() {
   this->graph_scroll_offset_ = 0;
 }
 
-void TuiRenderer::selectTab(Tab tab) {
+void TuiRenderer::select_tab(Tab tab) {
   if (this->current_tab_ != tab) {
     this->current_tab_ = tab;
     this->selected_row_ = 0;
@@ -1370,41 +1370,41 @@ void TuiRenderer::selectTab(Tab tab) {
   }
 }
 
-void TuiRenderer::moveUp() {
+void TuiRenderer::move_up() {
   if (this->selected_row_ > 0) {
     this->selected_row_--;
   }
 }
 
-void TuiRenderer::moveDown() { this->selected_row_++; }
+void TuiRenderer::move_down() { this->selected_row_++; }
 
-void TuiRenderer::pageUp() {
+void TuiRenderer::page_up() {
   this->selected_row_ = std::max(0, this->selected_row_ - this->max_rows_);
 }
 
-void TuiRenderer::pageDown() { this->selected_row_ += this->max_rows_; }
+void TuiRenderer::page_down() { this->selected_row_ += this->max_rows_; }
 
-void TuiRenderer::moveToFirst() {
+void TuiRenderer::move_to_first() {
   this->selected_row_ = 0;
   this->scroll_offset_ = 0;
   this->graph_scroll_offset_ = 0;
 }
 
-void TuiRenderer::moveToLast(int total_rows) {
+void TuiRenderer::move_to_last(int total_rows) {
   if (total_rows > 0) {
     this->selected_row_ = total_rows - 1;
   }
 }
 
-void TuiRenderer::cycleSortColumn() {
+void TuiRenderer::cycle_sort_column() {
   int col_int = static_cast<int>(this->sort_column_);
   col_int = (col_int + 1) % 12; // 12 columns
   this->sort_column_ = static_cast<SortColumn>(col_int);
 }
 
-void TuiRenderer::setSortColumn(SortColumn col) { this->sort_column_ = col; }
+void TuiRenderer::set_sort_column(SortColumn col) { this->sort_column_ = col; }
 
-void TuiRenderer::toggleSortOrder() {
+void TuiRenderer::toggle_sort_order() {
   this->sort_ascending_ = !this->sort_ascending_;
 }
 

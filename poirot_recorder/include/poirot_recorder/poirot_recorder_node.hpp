@@ -22,21 +22,49 @@
 #include "poirot_msgs/msg/profiling_data.hpp"
 #include "rclcpp/rclcpp.hpp"
 
+/**
+ * @brief Node that records profiling data to a CSV file.
+ */
 class PoirotRecorderNode : public rclcpp::Node {
 public:
+  /**
+   * @brief Constructor for PoirotRecorderNode.
+   */
   PoirotRecorderNode();
+
+  /**
+   * @brief Destructor for PoirotRecorderNode.
+   */
   ~PoirotRecorderNode();
 
 private:
+  /**
+   * @brief Write the CSV header to the file.
+   */
   void write_csv_header();
+
+  /**
+   * @brief Callback function to handle incoming profiling data messages.
+   */
   void data_callback(const poirot_msgs::msg::ProfilingData::SharedPtr msg);
+
+  /**
+   * @brief Escape a field for CSV format.
+   * @param field The field to escape.
+   * @return The escaped field.
+   */
   std::string escape_csv(const std::string &field);
 
+  /// @brief Subscription to profiling data messages.
   rclcpp::Subscription<poirot_msgs::msg::ProfilingData>::SharedPtr
       subscription_;
+  /// @brief Output CSV file stream.
   std::ofstream csv_file_;
+  /// @brief Path to the CSV file.
   std::string csv_file_path_;
+  /// @brief Mutex for thread-safe CSV writing.
   std::mutex csv_mutex_;
+  /// @brief Count of recorded entries.
   size_t record_count_;
 };
 

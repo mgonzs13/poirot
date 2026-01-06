@@ -21,7 +21,7 @@ namespace poirot_tui {
 
 DataManager::DataManager() : start_time_(0.0), first_message_(true) {}
 
-void DataManager::processProfilingData(
+void DataManager::process_profiling_data(
     const poirot_msgs::msg::ProfilingData::SharedPtr msg) {
   std::lock_guard<std::mutex> lock(this->mutex_);
 
@@ -51,7 +51,7 @@ void DataManager::processProfilingData(
   row.co2_ug = msg->function.last_call.data.co2_ug;
   row.last_update_time = relative_time;
 
-  std::string key = row.getKey();
+  std::string key = row.get_key();
   this->function_rows_[key] = row;
 
   // Add to history
@@ -75,8 +75,8 @@ void DataManager::processProfilingData(
   }
 }
 
-std::vector<FunctionRow> DataManager::getSortedRows(SortColumn column,
-                                                    bool ascending) const {
+std::vector<FunctionRow> DataManager::get_sorted_rows(SortColumn column,
+                                                      bool ascending) const {
   std::lock_guard<std::mutex> lock(this->mutex_);
 
   std::vector<FunctionRow> rows;
@@ -132,7 +132,7 @@ std::vector<FunctionRow> DataManager::getSortedRows(SortColumn column,
 }
 
 std::vector<DataPoint>
-DataManager::getHistory(const std::string &function_key) const {
+DataManager::get_history(const std::string &function_key) const {
   std::lock_guard<std::mutex> lock(this->mutex_);
 
   auto it = this->function_history_.find(function_key);
@@ -142,7 +142,7 @@ DataManager::getHistory(const std::string &function_key) const {
   return {};
 }
 
-std::vector<std::string> DataManager::getAllFunctionKeys() const {
+std::vector<std::string> DataManager::get_all_function_keys() const {
   std::lock_guard<std::mutex> lock(this->mutex_);
 
   std::vector<std::string> keys;
@@ -154,23 +154,23 @@ std::vector<std::string> DataManager::getAllFunctionKeys() const {
   return keys;
 }
 
-bool DataManager::isFunctionEnabled(const std::string &function_key) const {
+bool DataManager::is_function_enabled(const std::string &function_key) const {
   std::lock_guard<std::mutex> lock(this->mutex_);
   return this->enabled_functions_.find(function_key) !=
          this->enabled_functions_.end();
 }
 
-void DataManager::enableFunction(const std::string &function_key) {
+void DataManager::enable_function(const std::string &function_key) {
   std::lock_guard<std::mutex> lock(this->mutex_);
   this->enabled_functions_.insert(function_key);
 }
 
-void DataManager::disableFunction(const std::string &function_key) {
+void DataManager::disable_function(const std::string &function_key) {
   std::lock_guard<std::mutex> lock(this->mutex_);
   this->enabled_functions_.erase(function_key);
 }
 
-void DataManager::toggleFunction(const std::string &function_key) {
+void DataManager::toggle_function(const std::string &function_key) {
   std::lock_guard<std::mutex> lock(this->mutex_);
   auto it = this->enabled_functions_.find(function_key);
   if (it != this->enabled_functions_.end()) {
@@ -180,7 +180,7 @@ void DataManager::toggleFunction(const std::string &function_key) {
   }
 }
 
-std::set<std::string> DataManager::getEnabledFunctions() const {
+std::set<std::string> DataManager::get_enabled_functions() const {
   std::lock_guard<std::mutex> lock(this->mutex_);
   return this->enabled_functions_;
 }
@@ -194,7 +194,7 @@ void DataManager::clear() {
   this->start_time_ = 0.0;
 }
 
-size_t DataManager::getFunctionCount() const {
+size_t DataManager::get_function_count() const {
   std::lock_guard<std::mutex> lock(this->mutex_);
   return this->function_rows_.size();
 }

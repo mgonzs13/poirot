@@ -21,7 +21,7 @@
 
 std::shared_ptr<poirot_tui::TuiNode> g_node = nullptr;
 
-void signalHandler(int signum) {
+void signal_handler(int signum) {
   (void)signum;
   if (g_node) {
     g_node->stop();
@@ -33,8 +33,8 @@ int main(int argc, char *argv[]) {
   rclcpp::init(argc, argv);
 
   // Set up signal handlers
-  std::signal(SIGINT, signalHandler);
-  std::signal(SIGTERM, signalHandler);
+  std::signal(SIGINT, signal_handler);
+  std::signal(SIGTERM, signal_handler);
 
   g_node = std::make_shared<poirot_tui::TuiNode>();
   g_node->run();
