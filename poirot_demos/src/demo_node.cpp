@@ -117,9 +117,6 @@ int main(int argc, char *argv[]) {
   auto publisher_node = std::make_shared<PublisherNode>();
   auto subscriber_node = std::make_shared<SubscriberNode>();
 
-  // Enable publishing profiling data for TUI
-  Poirot::enable_publishing(publisher_node);
-
   // Use standard executor - profiling is done via PROFILE_FUNCTION() macro
   rclcpp::executors::SingleThreadedExecutor executor;
   executor.add_node(publisher_node);
@@ -137,9 +134,6 @@ int main(int argc, char *argv[]) {
 
   Poirot::set_verbose(true);
   executor.spin();
-
-  // Disable publishing before shutdown to prevent errors
-  Poirot::disable_publishing();
 
   rclcpp::shutdown();
   return 0;

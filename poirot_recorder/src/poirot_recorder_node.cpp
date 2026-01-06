@@ -64,7 +64,7 @@ PoirotRecorderNode::~PoirotRecorderNode() {
 
 void PoirotRecorderNode::write_csv_header() {
   this->csv_file_
-      << "timestamp_sec,timestamp_nanosec,process_pid,node_name,function_name,"
+      << "timestamp_sec,timestamp_nanosec,process_pid,function_name,"
       << "call_count,wall_time_us,cpu_time_us,memory_kb,"
       << "io_read_bytes,call_io_write_bytes,"
       << "call_ctx_switches,energy_uj,co2_ug\n";
@@ -82,7 +82,6 @@ void PoirotRecorderNode::data_callback(
   // Write data row
   this->csv_file_ << msg->timestamp.sec << "," << msg->timestamp.nanosec << ","
                   << msg->process_info.pid << ","
-                  << this->escape_csv(msg->node_name) << ","
                   << this->escape_csv(msg->function.name) << ","
                   << msg->function.call_count
                   << ","

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef POIROT__FUNCTION_PROFILER_HPP_
-#define POIROT__FUNCTION_PROFILER_HPP_
+#ifndef POIROT__POIROT_HPP_
+#define POIROT__POIROT_HPP_
 
 #include <sys/resource.h>
 #include <sys/sysinfo.h>
@@ -89,8 +89,6 @@ public:
 
   // Static functions for external use
   static void set_verbose(bool verbose);
-  static void enable_publishing(rclcpp::Node::SharedPtr node);
-  static void disable_publishing();
   static void print_system_info();
 
 private:
@@ -173,7 +171,6 @@ private:
   rclcpp::Publisher<poirot_msgs::msg::ProfilingData>::SharedPtr
       profiling_data_publisher_;
   rclcpp::Node::SharedPtr node_;
-  std::atomic<bool> publishing_enabled_{false};
 };
 
 // ============================================================================
@@ -202,4 +199,4 @@ private:
 
 } // namespace poirot
 
-#endif // POIROT__FUNCTION_PROFILER_HPP_
+#endif // POIROT__POIROT_HPP_

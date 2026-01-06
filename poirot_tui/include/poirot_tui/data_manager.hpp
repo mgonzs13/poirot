@@ -43,7 +43,6 @@ struct DataPoint {
 /// Represents a function's profiling data row
 struct FunctionRow {
   int32_t pid;
-  std::string node_name;
   std::string function_name;
   int32_t call_count;
   double wall_time_us;
@@ -58,14 +57,13 @@ struct FunctionRow {
 
   /// Unique key for identifying this function
   std::string getKey() const {
-    return std::to_string(pid) + "|" + node_name + "|" + function_name;
+    return std::to_string(pid) + "|" + function_name;
   }
 };
 
 /// Sort column enumeration
 enum class SortColumn {
   PID,
-  NODE_NAME,
   FUNCTION_NAME,
   CALL_COUNT,
   WALL_TIME,

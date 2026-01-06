@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <random>
 #include <set>
 
 #include <poirot_msgs/msg/function_call.hpp>
@@ -51,7 +52,35 @@ static size_t WriteCallback(void *contents, size_t size, size_t nmemb,
 // ============================================================================
 // Poirot Implementation
 // ============================================================================
-Poirot::Poirot() { this->auto_configure(); }
+/**
+ * @brief Generates a unique UUID as a string.
+ *
+ * This function uses random numbers to generate a 16-character hexadecimal
+ * UUID.
+ *
+ * @return A string containing a 16-character hexadecimal UUID.
+ */
+inline std::string generateUUID() {
+  static constexpr char hex_digits[] = "0123456789abcdef";
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<> dis(0, 15);
+
+  std::string result;
+  result.reserve(16);
+  for (int i = 0; i < 16; ++i) {
+    result += hex_digits[dis(gen)];
+  }
+  return result;
+}
+
+Poirot::Poirot() {
+  this->node_ = rclcpp::Node::make_shared("yasmin_" + generateUUID() + "_node");
+  this->profiling_data_publisher_ =
+      this->node_->create_publisher<poirot_msgs::msg::ProfilingData>(
+          "poirot/data", rclcpp::QoS(10));
+  this->auto_configure();
+}
 
 Poirot::~Poirot() { this->print_summary(); }
 
@@ -1267,31 +1296,10 @@ void Poirot::print_system_info() {
 // ============================================================================
 // ROS 2 Publishing
 // ============================================================================
-void Poirot::enable_publishing(rclcpp::Node::SharedPtr node) {
-  Poirot &instance = get_instance();
-  instance.node_ = node;
-  instance.publishing_enabled_.store(true);
-  instance.profiling_data_publisher_ =
-      instance.node_->create_publisher<poirot_msgs::msg::ProfilingData>(
-          "/poirot/data", 10);
-}
-
-void Poirot::disable_publishing() {
-  Poirot &instance = get_instance();
-  instance.publishing_enabled_.store(false);
-  instance.profiling_data_publisher_.reset();
-  instance.node_.reset();
-}
-
 void Poirot::publish_stats(const std::string &function_name) {
-  if (!this->publishing_enabled_.load() || !this->node_) {
-    return;
-  }
-
   std::shared_lock<std::shared_mutex> lock(this->statistics_mutex_);
 
   auto msg = poirot_msgs::msg::ProfilingData();
-  msg.node_name = this->node_->get_name();
   msg.system_info = this->system_info_;
   msg.process_info = this->process_info_;
   msg.function = this->statistics_[function_name];

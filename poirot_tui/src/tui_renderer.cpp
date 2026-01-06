@@ -206,7 +206,6 @@ void TuiRenderer::renderTableView(const DataManager &data_manager) {
 
   // Define column widths
   int col_pid = 10;
-  int col_node = 20;
   int col_func = 50;
   int col_calls = 8;
   int col_wall = 12;
@@ -240,7 +239,6 @@ void TuiRenderer::renderTableView(const DataManager &data_manager) {
   };
 
   printHeader("PID", col_pid, SortColumn::PID);
-  printHeader("Node", col_node, SortColumn::NODE_NAME);
   printHeader("Function", col_func, SortColumn::FUNCTION_NAME);
   printHeader("Calls", col_calls, SortColumn::CALL_COUNT);
   printHeader("Wall(us)", col_wall, SortColumn::WALL_TIME);
@@ -285,17 +283,6 @@ void TuiRenderer::renderTableView(const DataManager &data_manager) {
     // PID
     mvprintw(row_y, x, "%-*d", col_pid, row.pid);
     x += col_pid;
-
-    // Node name (truncate if needed)
-    std::string node = row.node_name;
-    if (node.empty()) {
-      node = "<unknown>";
-    }
-    if (static_cast<int>(node.length()) > col_node - 1) {
-      node = node.substr(0, col_node - 2) + "~";
-    }
-    mvprintw(row_y, x, "%-*s", col_node, node.c_str());
-    x += col_node;
 
     // Function name (truncate if needed)
     std::string func = row.function_name;
@@ -490,7 +477,7 @@ void TuiRenderer::renderFunctionSelector(const DataManager &data_manager,
     const auto &key = keys[i];
     bool enabled = data_manager.isFunctionEnabled(key);
 
-    // Extract function name from key (format: "pid|node_name|function_name")
+    // Extract function name from key (format: "pid|function_name")
     size_t last_pipe = key.rfind('|');
     std::string display_name =
         (last_pipe != std::string::npos) ? key.substr(last_pipe + 1) : key;
@@ -1302,8 +1289,6 @@ std::string TuiRenderer::getColumnName(SortColumn col) const {
   switch (col) {
   case SortColumn::PID:
     return "PID";
-  case SortColumn::NODE_NAME:
-    return "Node";
   case SortColumn::FUNCTION_NAME:
     return "Function";
   case SortColumn::CALL_COUNT:

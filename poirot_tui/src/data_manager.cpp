@@ -38,7 +38,6 @@ void DataManager::processProfilingData(
 
   FunctionRow row;
   row.pid = msg->process_info.pid;
-  row.node_name = msg->node_name;
   row.function_name = msg->function.name;
   row.call_count = msg->function.call_count;
   // Use last_call data for display (most recent function call)
@@ -93,9 +92,6 @@ std::vector<FunctionRow> DataManager::getSortedRows(SortColumn column,
     switch (column) {
     case SortColumn::PID:
       result = a.pid < b.pid;
-      break;
-    case SortColumn::NODE_NAME:
-      result = a.node_name < b.node_name;
       break;
     case SortColumn::FUNCTION_NAME:
       result = a.function_name < b.function_name;

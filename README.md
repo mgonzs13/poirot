@@ -130,15 +130,8 @@
 
    int main(int argc, char* argv[]) {
      rclcpp::init(argc, argv);
-
      auto node = std::make_shared<MyNode>();
-
-     // Enable ROS 2 publishing for TUI/recorder
-     Poirot::enable_publishing(node);
-
      rclcpp::spin(node);
-     Poirot::disable_publishing();
-
      rclcpp::shutdown();
      return 0;
    }
