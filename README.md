@@ -10,6 +10,32 @@
 
 ---
 
+<div align="center">
+
+[![License: Apache-2](https://img.shields.io/badge/GitHub-Apache-2)](https://opensource.org/license/apache-2)
+[![GitHub release](https://img.shields.io/github/release/mgonzs13/poirot.svg)](https://github.com/mgonzs13/poirot/releases)
+[![Code Size](https://img.shields.io/github/languages/code-size/mgonzs13/poirot.svg?branch=main)](https://github.com/mgonzs13/poirot?branch=main)
+[![Last Commit](https://img.shields.io/github/last-commit/mgonzs13/poirot.svg)](https://github.com/mgonzs13/poirot/commits/main)
+
+[![GitHub issues](https://img.shields.io/github/issues/mgonzs13/poirot)](https://github.com/mgonzs13/poirot/issues)
+[![GitHub pull requests](https://img.shields.io/github/issues-pr/mgonzs13/poirot)](https://github.com/mgonzs13/poirot/pulls)
+[![Contributors](https://img.shields.io/github/contributors/mgonzs13/poirot.svg)](https://github.com/mgonzs13/poirot/graphs/contributors)
+
+[![Python Formatter Check](https://github.com/mgonzs13/poirot/actions/workflows/python-formatter.yml/badge.svg?branch=main)](https://github.com/mgonzs13/poirot/actions/workflows/python-formatter.yml?branch=main)
+[![C++ Formatter Check](https://github.com/mgonzs13/poirot/actions/workflows/cpp-formatter.yml/badge.svg?branch=main)](https://github.com/mgonzs13/poirot/actions/workflows/cpp-formatter.yml?branch=main)
+
+| ROS 2 Distro |                                                                                                    Build and Test                                                                                                    |
+| :----------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
+|   **Foxy**   |        [![Foxy Build](https://github.com/mgonzs13/poirot/actions/workflows/foxy-build-test.yml/badge.svg?branch=main)](https://github.com/mgonzs13/poirot/actions/workflows/foxy-build-test.yml?branch=main)         |
+| **Galatic**  |  [![Galactic Build](https://github.com/mgonzs13/poirot/actions/workflows/galactic-build-test.yml/badge.svg?branch=main)](https://github.com/mgonzs13/poirot/actions/workflows/galactic-build-test.yml?branch=main)   |
+|  **Humble**  | [![Humble Build and Test](https://github.com/mgonzs13/poirot/actions/workflows/humble-build-test.yml/badge.svg?branch=main)](https://github.com/mgonzs13/poirot/actions/workflows/humble-build-test.yml?branch=main) |
+|   **Iron**   |        [![Iron Build](https://github.com/mgonzs13/poirot/actions/workflows/iron-build-test.yml/badge.svg?branch=main)](https://github.com/mgonzs13/poirot/actions/workflows/iron-build-test.yml?branch=main)         |
+|  **Jazzy**   |       [![Jazzy Build](https://github.com/mgonzs13/poirot/actions/workflows/jazzy-build-test.yml/badge.svg?branch=main)](https://github.com/mgonzs13/poirot/actions/workflows/jazzy-build-test.yml?branch=main)       |
+|  **Kilted**  |     [![Kilted Build](https://github.com/mgonzs13/poirot/actions/workflows/kilted-build-test.yml/badge.svg?branch=main)](https://github.com/mgonzs13/poirot/actions/workflows/kilted-build-test.yml?branch=main)      |
+| **Rolling**  |    [![Rolling Build](https://github.com/mgonzs13/poirot/actions/workflows/rolling-build-test.yml/badge.svg?branch=main)](https://github.com/mgonzs13/poirot/actions/workflows/rolling-build-test.yml?branch=main)    |
+
+</div align="center">
+
 ## Table of Contents
 
 - [Features](#features)
@@ -82,6 +108,14 @@
   - `SystemInfo`: System-level configuration
 
 ## Installation
+
+```shell
+cd ~/ros2_ws/src
+git clone https://github.com/mgonzs13/poirot
+cd ~/ros2_ws
+rosdep install --from-paths src --ignore-src -r -y
+colcon build
+```
 
 ## Usage
 
