@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
     <name>poirot_tui</name>
-    <version>0.0.0</version>
+    <version>1.0.0</version>
     <description>ROS 2 TUI for visualizing profiling data from poirot</description>
     <maintainer email="miguel@example.com">Miguel</maintainer>
     <license>Apache-2.0</license>
