@@ -84,8 +84,6 @@ Poirot::Poirot() {
   this->auto_configure();
 }
 
-Poirot::~Poirot() { this->print_summary(); }
-
 void Poirot::auto_configure() {
   this->download_co2_factors();
   this->detect_system_info();
@@ -1176,13 +1174,7 @@ void Poirot::stop_profiling() {
     auto &stats = this->statistics_[ctx.function_name];
     stats.name = ctx.function_name;
     stats.call_count++;
-    stats.total_data.wall_time_us += call.data.wall_time_us;
-    stats.total_data.cpu_time_us += call.data.cpu_time_us;
-    stats.total_data.io_read_bytes += call.data.io_read_bytes;
-    stats.total_data.io_write_bytes += call.data.io_write_bytes;
-    stats.total_data.energy_uj += call.data.energy_uj;
-    stats.total_data.co2_ug += call.data.co2_ug;
-    stats.last_call = call;
+    stats.call = call;
   }
 
   if (this->verbose_.load()) {
@@ -1231,44 +1223,6 @@ void Poirot::set_verbose(bool verbose) {
 // ============================================================================
 // Output
 // ============================================================================
-void Poirot::print_summary() const {
-  if (!this->verbose_.load()) {
-    return;
-  }
-
-  std::shared_lock<std::shared_mutex> lock(this->statistics_mutex_);
-  if (this->statistics_.empty()) {
-    return;
-  }
-
-  std::cout << "\n=========================================="
-            << "=========================\n";
-  std::cout << "           ROS 2 FUNCTION PROFILING SUMMARY\n";
-  std::cout << "============================================"
-            << "=======================\n";
-  std::cout << std::fixed << std::setprecision(2);
-
-  double total_energy_uj = 0;
-  for (const auto &[name, s] : this->statistics_) {
-    std::cout << "\n[" << name << "]\n";
-    std::cout << "  Calls:     " << s.call_count << "\n";
-    std::cout << "  Wall Time: " << s.total_data.wall_time_us / 1000.0
-              << " ms total, " << s.total_data.wall_time_us << " us\n";
-    std::cout << "  CPU Time:  " << s.total_data.cpu_time_us / 1000.0
-              << " ms total\n";
-    std::cout << "  Energy:    " << s.total_data.energy_uj / 1000.0 << " mJ\n";
-    total_energy_uj += s.total_data.energy_uj;
-  }
-
-  constexpr double UJ_TO_KWH = 1.0 / 1e6 / 3600000.0;
-  double energy_kwh = total_energy_uj * UJ_TO_KWH;
-  double co2_g = energy_kwh * this->system_info_.co2_factor_kg_per_kwh * 1000.0;
-  std::cout << "\nTotal Energy: " << total_energy_uj / 1e6 << " J"
-            << " | CO2: " << co2_g * 1000.0 << " mg\n";
-  std::cout << "============================================"
-            << "=======================\n";
-}
-
 void Poirot::print_system_info() {
   const Poirot &instance = get_instance();
   std::cout << "\n=========================================="
@@ -1305,7 +1259,7 @@ void Poirot::publish_stats(const std::string &function_name) {
   msg.system_info = this->system_info_;
   msg.process_info = this->process_info_;
   msg.function = this->statistics_[function_name];
-  msg.timestamp = msg.function.last_call.timestamp;
+  msg.timestamp = msg.function.call.timestamp;
 
   this->profiling_data_publisher_->publish(msg);
 }

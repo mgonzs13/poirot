@@ -40,15 +40,15 @@ void DataManager::process_profiling_data(
   row.pid = msg->process_info.pid;
   row.function_name = msg->function.name;
   row.call_count = msg->function.call_count;
-  // Use last_call data for display (most recent function call)
-  row.wall_time_us = msg->function.last_call.data.wall_time_us;
-  row.cpu_time_us = msg->function.last_call.data.cpu_time_us;
-  row.memory_kb = msg->function.last_call.data.memory_kb;
-  row.io_read_bytes = msg->function.last_call.data.io_read_bytes;
-  row.io_write_bytes = msg->function.last_call.data.io_write_bytes;
-  row.ctx_switches = msg->function.last_call.data.ctx_switches;
-  row.energy_uj = msg->function.last_call.data.energy_uj;
-  row.co2_ug = msg->function.last_call.data.co2_ug;
+  // Use call data for display (most recent function call)
+  row.wall_time_us = msg->function.call.data.wall_time_us;
+  row.cpu_time_us = msg->function.call.data.cpu_time_us;
+  row.memory_kb = msg->function.call.data.memory_kb;
+  row.io_read_bytes = msg->function.call.data.io_read_bytes;
+  row.io_write_bytes = msg->function.call.data.io_write_bytes;
+  row.ctx_switches = msg->function.call.data.ctx_switches;
+  row.energy_uj = msg->function.call.data.energy_uj;
+  row.co2_ug = msg->function.call.data.co2_ug;
   row.last_update_time = relative_time;
 
   std::string key = row.get_key();
@@ -57,14 +57,14 @@ void DataManager::process_profiling_data(
   // Add to history
   DataPoint dp;
   dp.timestamp = relative_time;
-  dp.wall_time_us = msg->function.last_call.data.wall_time_us;
-  dp.cpu_time_us = msg->function.last_call.data.cpu_time_us;
-  dp.memory_kb = msg->function.last_call.data.memory_kb;
-  dp.io_read_bytes = msg->function.last_call.data.io_read_bytes;
-  dp.io_write_bytes = msg->function.last_call.data.io_write_bytes;
-  dp.ctx_switches = msg->function.last_call.data.ctx_switches;
-  dp.energy_uj = msg->function.last_call.data.energy_uj;
-  dp.co2_ug = msg->function.last_call.data.co2_ug;
+  dp.wall_time_us = msg->function.call.data.wall_time_us;
+  dp.cpu_time_us = msg->function.call.data.cpu_time_us;
+  dp.memory_kb = msg->function.call.data.memory_kb;
+  dp.io_read_bytes = msg->function.call.data.io_read_bytes;
+  dp.io_write_bytes = msg->function.call.data.io_write_bytes;
+  dp.ctx_switches = msg->function.call.data.ctx_switches;
+  dp.energy_uj = msg->function.call.data.energy_uj;
+  dp.co2_ug = msg->function.call.data.co2_ug;
 
   auto &history = this->function_history_[key];
   history.push_back(dp);

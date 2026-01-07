@@ -83,7 +83,7 @@ public:
   /**
    * @brief Destructor for the Poirot profiler.
    */
-  ~Poirot();
+  ~Poirot() = default;
 
   /**
    * @brief Start profiling a function.
@@ -113,11 +113,6 @@ public:
    * @return Process information message.
    */
   poirot_msgs::msg::ProcessInfo get_process_info() const;
-
-  /**
-   * @brief Print a summary of the collected statistics to the console.
-   */
-  void print_summary() const;
 
   /**
    * @brief Get the singleton instance of the Poirot profiler.

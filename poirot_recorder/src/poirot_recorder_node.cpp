@@ -89,14 +89,14 @@ void PoirotRecorderNode::data_callback(
                   << ","
 
                   // Last call
-                  << msg->function.last_call.data.wall_time_us << ","
-                  << msg->function.last_call.data.cpu_time_us << ","
-                  << msg->function.last_call.data.memory_kb << ","
-                  << msg->function.last_call.data.io_read_bytes << ","
-                  << msg->function.last_call.data.io_write_bytes << ","
-                  << msg->function.last_call.data.ctx_switches << ","
-                  << msg->function.last_call.data.energy_uj << ","
-                  << msg->function.last_call.data.co2_ug << "\n";
+                  << msg->function.call.data.wall_time_us << ","
+                  << msg->function.call.data.cpu_time_us << ","
+                  << msg->function.call.data.memory_kb << ","
+                  << msg->function.call.data.io_read_bytes << ","
+                  << msg->function.call.data.io_write_bytes << ","
+                  << msg->function.call.data.ctx_switches << ","
+                  << msg->function.call.data.energy_uj << ","
+                  << msg->function.call.data.co2_ug << "\n";
 
   this->csv_file_.flush(); // Ensure data is written to disk
 
