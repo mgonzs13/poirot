@@ -1,0 +1,21 @@
+var searchData=
+[
+  ['read_5fenergy_5fuj_0',['read_energy_uj',['../classpoirot_1_1Poirot.html#abd62100fe438667f9508a0e6f046521f',1,'poirot::Poirot']]],
+  ['read_5fprocess_5fcpu_5fpercent_1',['read_process_cpu_percent',['../classpoirot_1_1Poirot.html#ac9a9e30e571d601912c36078c1e1063a',1,'poirot::Poirot']]],
+  ['read_5fprocess_5fcpu_5ftime_5fus_2',['read_process_cpu_time_us',['../classpoirot_1_1Poirot.html#a5b07837a5142d59b8aa98ee7ba183cd8',1,'poirot::Poirot']]],
+  ['read_5fprocess_5fdata_3',['read_process_data',['../classpoirot_1_1Poirot.html#a70f0322dd512f1a5cf49ff94fd696c50',1,'poirot::Poirot']]],
+  ['read_5fprocess_5fthread_5fcount_4',['read_process_thread_count',['../classpoirot_1_1Poirot.html#a275dd2ba305221725da7c9ebc7a79dc3',1,'poirot::Poirot']]],
+  ['read_5fsystem_5fcpu_5ftime_5fus_5',['read_system_cpu_time_us',['../classpoirot_1_1Poirot.html#a60729719d198b8eab2d010236adf19e0',1,'poirot::Poirot']]],
+  ['read_5fthread_5fcpu_5ftime_5fus_6',['read_thread_cpu_time_us',['../classpoirot_1_1Poirot.html#acf1a6fe9fb621f42f83f0198b9e21dc2',1,'poirot::Poirot']]],
+  ['read_5fthread_5fctx_5fswitches_7',['read_thread_ctx_switches',['../classpoirot_1_1Poirot.html#a9f327ae59a6bb67ee7b18c8caffabc68',1,'poirot::Poirot']]],
+  ['read_5fthread_5fio_5fbytes_8',['read_thread_io_bytes',['../classpoirot_1_1Poirot.html#ae56368d3e12a73e406518ff98d75073a',1,'poirot::Poirot']]],
+  ['read_5fthread_5fmemory_5fkb_9',['read_thread_memory_kb',['../classpoirot_1_1Poirot.html#a99ebe142a92ba1237b2c21ee93f15c3d',1,'poirot::Poirot']]],
+  ['render_10',['render',['../classpoirot__tui_1_1TuiRenderer.html#a0c8d8e8f971428262ce998269dd0abb9',1,'poirot_tui::TuiRenderer']]],
+  ['render_5fcallback_11',['render_callback',['../classpoirot__tui_1_1TuiNode.html#a59653e67cd588372b7ae62856fbe99fb',1,'poirot_tui::TuiNode']]],
+  ['render_5ffooter_12',['render_footer',['../classpoirot__tui_1_1TuiRenderer.html#a634f331c538e78f2d2aa9b9f7eebfeb3',1,'poirot_tui::TuiRenderer']]],
+  ['render_5ffunction_5fselector_13',['render_function_selector',['../classpoirot__tui_1_1TuiRenderer.html#a456e1acdbf80504893978b69d6118a06',1,'poirot_tui::TuiRenderer']]],
+  ['render_5fgraph_5fview_14',['render_graph_view',['../classpoirot__tui_1_1TuiRenderer.html#af3e5826ff19944c5736e852f6c28f52c',1,'poirot_tui::TuiRenderer']]],
+  ['render_5fheader_15',['render_header',['../classpoirot__tui_1_1TuiRenderer.html#a88a62577fa8b03c4ef87f9c8aab74ca5',1,'poirot_tui::TuiRenderer']]],
+  ['render_5ftable_5fview_16',['render_table_view',['../classpoirot__tui_1_1TuiRenderer.html#a392ff3eeea69ec4752f7ca030b1e73bc',1,'poirot_tui::TuiRenderer']]],
+  ['run_17',['run',['../classpoirot__tui_1_1TuiNode.html#ac41c52503612d9156d239b8f5251e07e',1,'poirot_tui::TuiNode']]]
+];

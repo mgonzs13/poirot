@@ -1,0 +1,19 @@
+<map id="poirot_recorder/src/poirot_recorder_node.cpp" name="poirot_recorder/src/poirot_recorder_node.cpp">
+<area shape="rect" id="Node000001" title=" " alt="" coords="57,5,228,46"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,102,85,127"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="122,49,71,93,68,89,118,45"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="109,102,176,127"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="145,47,145,86,140,86,140,47"/>
+<area shape="rect" id="Node000004" href="$poirot__recorder__node_8hpp.html" title=" " alt="" coords="200,94,343,135"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="173,44,231,83,228,87,170,49"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="75,190,140,216"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="236,138,145,185,143,180,233,133"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="165,190,221,216"/>
+<area shape="poly" id="edge5_Node000004_Node000006" title=" " alt="" coords="256,137,216,180,212,177,252,133"/>
+<area shape="rect" id="Node000007" title=" " alt="" coords="245,190,298,216"/>
+<area shape="poly" id="edge6_Node000004_Node000007" title=" " alt="" coords="274,135,274,175,269,175,269,135"/>
+<area shape="rect" id="Node000008" title=" " alt="" coords="323,183,492,223"/>
+<area shape="poly" id="edge7_Node000004_Node000008" title=" " alt="" coords="304,133,366,172,363,176,301,137"/>
+<area shape="rect" id="Node000009" title=" " alt="" coords="516,190,635,216"/>
+<area shape="poly" id="edge8_Node000004_Node000009" title=" " alt="" coords="342,133,519,183,518,188,340,138"/>
+</map>
