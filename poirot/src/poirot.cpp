@@ -1256,15 +1256,15 @@ double Poirot::read_energy_uj() {
   };
 
   // 1. Try Intel RAPL (most accurate for Intel CPUs)
-  double energy = this->read_rapl_energy(
-      "/sys/class/powercap/intel-rapl/intel-rapl:0/energy_uj");
+  double energy =
+      read_rapl_energy("/sys/class/powercap/intel-rapl/intel-rapl:0/energy_uj");
   if (energy >= 0) {
     return energy;
   }
 
   // 2. Try AMD RAPL
-  energy = this->read_rapl_energy(
-      "/sys/class/powercap/amd-rapl/amd-rapl:0/energy_uj");
+  energy =
+      read_rapl_energy("/sys/class/powercap/amd-rapl/amd-rapl:0/energy_uj");
   if (energy >= 0) {
     return energy;
   }
