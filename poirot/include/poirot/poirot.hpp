@@ -188,6 +188,49 @@ private:
   double estimate_watts_per_core();
 
   /**
+   * @brief Read a long value from a sysfs file.
+   * @param path Path to the sysfs file.
+   * @param default_value Value to return if file cannot be read.
+   * @return The value read from file or default_value.
+   */
+  static long read_sysfs_long(const std::string &path, long default_value = 0);
+
+  /**
+   * @brief Read a double value from a sysfs file.
+   * @param path Path to the sysfs file.
+   * @param default_value Value to return if file cannot be read.
+   * @return The value read from file or default_value.
+   */
+  static double read_sysfs_double(const std::string &path,
+                                  double default_value = 0.0);
+
+  /**
+   * @brief Read a string from a sysfs file.
+   * @param path Path to the sysfs file.
+   * @return The string read from file or empty string.
+   */
+  static std::string read_sysfs_string(const std::string &path);
+
+  /**
+   * @brief Read power from RAPL power limit files.
+   * @return Power in watts or 0.0 if not available.
+   */
+  double read_rapl_power_limit_w();
+
+  /**
+   * @brief Read power from hwmon sensors.
+   * @return Power in watts or 0.0 if not available.
+   */
+  double read_hwmon_power_w();
+
+  /**
+   * @brief Get the thread status file path.
+   * @param filename The filename within the task directory.
+   * @return Path to the thread-specific file or process-level fallback.
+   */
+  static std::string get_thread_status_path(const std::string &filename);
+
+  /**
    * @brief Read current thread's CPU time in microseconds.
    * @return CPU time in microseconds.
    */

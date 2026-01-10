@@ -22,6 +22,7 @@
 #include <iomanip>
 #include <random>
 #include <set>
+#include <vector>
 
 #include "poirot_msgs/msg/function_call.hpp"
 #include "poirot_msgs/msg/function_stats.hpp"
@@ -44,6 +45,76 @@ static constexpr double MAX_TDP_WATTS = 400.0;
 static constexpr double IDLE_POWER_FACTOR = 0.15;
 /// @brief CURL timeout in seconds for downloading CO2 factors
 static constexpr long CURL_TIMEOUT_SECONDS = 10L;
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+long Poirot::read_sysfs_long(const std::string &path, long default_value) {
+  std::ifstream file(path);
+  if (file.is_open()) {
+    long value = default_value;
+    file >> value;
+    return value;
+  }
+  return default_value;
+}
+
+double Poirot::read_sysfs_double(const std::string &path,
+                                 double default_value) {
+  std::ifstream file(path);
+  if (file.is_open()) {
+    double value = default_value;
+    file >> value;
+    return value;
+  }
+  return default_value;
+}
+
+std::string Poirot::read_sysfs_string(const std::string &path) {
+  std::ifstream file(path);
+  if (file.is_open()) {
+    std::string value;
+    std::getline(file, value);
+    return value;
+  }
+  return "";
+}
+
+std::string Poirot::get_thread_status_path(const std::string &filename) {
+  pid_t tid = static_cast<pid_t>(syscall(SYS_gettid));
+  std::string thread_path =
+      "/proc/self/task/" + std::to_string(tid) + "/" + filename;
+  std::ifstream test(thread_path);
+  if (test.is_open()) {
+    return thread_path;
+  }
+  return "/proc/self/" + filename;
+}
+
+double Poirot::read_rapl_power_limit_w() {
+  static const std::vector<std::string> rapl_paths = {
+      "/sys/class/powercap/intel-rapl/intel-rapl:0/constraint_0_power_limit_uw",
+      "/sys/class/powercap/intel-rapl/intel-rapl:0/constraint_1_power_limit_uw",
+      "/sys/class/powercap/amd-rapl/amd-rapl:0/constraint_0_power_limit_uw"};
+
+  for (const auto &path : rapl_paths) {
+    long power_uw = this->read_sysfs_long(path);
+    if (power_uw > 0) {
+      return static_cast<double>(power_uw) / 1e6;
+    }
+  }
+  return 0.0;
+}
+
+double Poirot::read_hwmon_power_w() {
+  if (!this->cached_hwmon_power_path_.empty()) {
+    long power_uw = this->read_sysfs_long(this->cached_hwmon_power_path_);
+    if (power_uw > 0) {
+      return static_cast<double>(power_uw) / 1e6;
+    }
+  }
+  return 0.0;
+}
 
 // ============================================================================
 // CURL callback for downloading CO2 factors
@@ -255,19 +326,12 @@ void Poirot::detect_system_info() {
   this->system_info_.cpu_tdp_watts = 0.0;
   this->system_info_.rapl_available = false;
 
-  // Also read RAPL max energy range for wraparound detection
-  {
-    std::ifstream max_range(
-        "/sys/class/powercap/intel-rapl/intel-rapl:0/max_energy_range_uj");
-    if (max_range.is_open()) {
-      max_range >> this->rapl_max_energy_uj_;
-    } else {
-      std::ifstream amd_max_range(
-          "/sys/class/powercap/amd-rapl/amd-rapl:0/max_energy_range_uj");
-      if (amd_max_range.is_open()) {
-        amd_max_range >> this->rapl_max_energy_uj_;
-      }
-    }
+  // Read RAPL max energy range for wraparound detection
+  this->rapl_max_energy_uj_ = this->read_sysfs_double(
+      "/sys/class/powercap/intel-rapl/intel-rapl:0/max_energy_range_uj");
+  if (this->rapl_max_energy_uj_ == 0.0) {
+    this->rapl_max_energy_uj_ = this->read_sysfs_double(
+        "/sys/class/powercap/amd-rapl/amd-rapl:0/max_energy_range_uj");
   }
 
   // 1. Intel RAPL PL1 (long-term power limit = TDP)
@@ -275,33 +339,25 @@ void Poirot::detect_system_info() {
                                 "constraint_0_power_limit_uw",
                                 "/sys/class/powercap/intel-rapl/intel-rapl:0/"
                                 "constraint_1_power_limit_uw"}) {
-    std::ifstream tdp_file(rapl_path);
-    if (tdp_file.is_open()) {
-      long tdp_uw = 0;
-      tdp_file >> tdp_uw;
-      if (tdp_uw > 0) {
-        this->system_info_.cpu_tdp_watts = static_cast<double>(tdp_uw) / 1e6;
-        this->system_info_.cpu_tdp_watts_type =
-            poirot_msgs::msg::SystemInfo::INTEL_RAPL_TDP_TYPE;
-        this->system_info_.rapl_available = true;
-        break;
-      }
+    long tdp_uw = this->read_sysfs_long(rapl_path);
+    if (tdp_uw > 0) {
+      this->system_info_.cpu_tdp_watts = static_cast<double>(tdp_uw) / 1e6;
+      this->system_info_.cpu_tdp_watts_type =
+          poirot_msgs::msg::SystemInfo::INTEL_RAPL_TDP_TYPE;
+      this->system_info_.rapl_available = true;
+      break;
     }
   }
 
   // 2. AMD RAPL power limit
   if (this->system_info_.cpu_tdp_watts == 0.0) {
-    std::ifstream amd_tdp(
+    long tdp_uw = this->read_sysfs_long(
         "/sys/class/powercap/amd-rapl/amd-rapl:0/constraint_0_power_limit_uw");
-    if (amd_tdp.is_open()) {
-      long tdp_uw = 0;
-      amd_tdp >> tdp_uw;
-      if (tdp_uw > 0) {
-        this->system_info_.cpu_tdp_watts = static_cast<double>(tdp_uw) / 1e6;
-        this->system_info_.cpu_tdp_watts_type =
-            poirot_msgs::msg::SystemInfo::AMD_RAPL_TDP_TYPE;
-        this->system_info_.rapl_available = true;
-      }
+    if (tdp_uw > 0) {
+      this->system_info_.cpu_tdp_watts = static_cast<double>(tdp_uw) / 1e6;
+      this->system_info_.cpu_tdp_watts_type =
+          poirot_msgs::msg::SystemInfo::AMD_RAPL_TDP_TYPE;
+      this->system_info_.rapl_available = true;
     }
   }
 
@@ -310,49 +366,39 @@ void Poirot::detect_system_info() {
 
     DIR *hwmon_dir = opendir("/sys/class/hwmon");
     if (hwmon_dir) {
-
       struct dirent *entry;
-      // Look for energy drivers with power limit files
       while ((entry = readdir(hwmon_dir)) != nullptr) {
         if (entry->d_name[0] == '.') {
           continue;
         }
 
         std::string base = std::string("/sys/class/hwmon/") + entry->d_name;
-        std::ifstream name_file(base + "/name");
-        std::string name;
+        std::string name = this->read_sysfs_string(base + "/name");
 
-        if (name_file.is_open()) {
-          std::getline(name_file, name);
-          // Check for CPU power monitoring drivers
-          if (name == "zenpower" || name == "amd_energy" ||
-              name == "coretemp" || name == "k10temp" ||
-              name.find("power") != std::string::npos) {
+        // Check for CPU power monitoring drivers
+        if (name == "zenpower" || name == "amd_energy" || name == "coretemp" ||
+            name == "k10temp" || name.find("power") != std::string::npos) {
 
-            // Try various power limit files
-            for (const auto &power_file :
-                 {"power1_cap", "power1_max", "power1_cap_max",
-                  "power1_rated_max"}) {
-              std::ifstream pf(base + "/" + power_file);
-              if (pf.is_open()) {
-                long power_uw = 0;
-                pf >> power_uw;
-                if (power_uw > 0) {
-                  this->system_info_.cpu_tdp_watts =
-                      static_cast<double>(power_uw) / 1e6;
-                  this->system_info_.cpu_tdp_watts_type =
-                      poirot_msgs::msg::SystemInfo::HWMON_RAPL_TDP_TYPE;
-                  break;
-                }
-              }
-            }
+          static const std::vector<std::string> power_files = {
+              "power1_cap", "power1_max", "power1_cap_max", "power1_rated_max"};
 
-            if (this->system_info_.cpu_tdp_watts > 0) {
+          for (const auto &power_file : power_files) {
+            long power_uw = this->read_sysfs_long(base + "/" + power_file);
+            if (power_uw > 0) {
+              this->system_info_.cpu_tdp_watts =
+                  static_cast<double>(power_uw) / 1e6;
+              this->system_info_.cpu_tdp_watts_type =
+                  poirot_msgs::msg::SystemInfo::HWMON_RAPL_TDP_TYPE;
               break;
             }
           }
+
+          if (this->system_info_.cpu_tdp_watts > 0) {
+            break;
+          }
         }
       }
+
       closedir(hwmon_dir);
     }
   }
@@ -361,75 +407,85 @@ void Poirot::detect_system_info() {
   if (this->system_info_.cpu_tdp_watts == 0.0) {
 
     DIR *thermal_dir = opendir("/sys/class/thermal");
+
     if (thermal_dir) {
 
       struct dirent *entry;
-      // Look for cooling devices related to CPU
+      // Look for cooling devices related to the CPU
       while ((entry = readdir(thermal_dir)) != nullptr) {
 
         if (strncmp(entry->d_name, "cooling_device", 14) == 0) {
           std::string base = std::string("/sys/class/thermal/") + entry->d_name;
-          std::ifstream type_file(base + "/type");
-          std::string type;
+          std::string type = this->read_sysfs_string(base + "/type");
 
-          if (type_file.is_open()) {
+          if (type.find("Processor") != std::string::npos ||
+              type.find("processor") != std::string::npos) {
 
-            std::getline(type_file, type);
-            if (type.find("Processor") != std::string::npos ||
-                type.find("processor") != std::string::npos) {
+            long max_pstate = this->read_sysfs_long(base + "/max_state");
+            if (max_pstate > 0) {
+              // Try sustainable power from thermal zone
+              long power_mw = this->read_sysfs_long(
+                  "/sys/class/thermal/thermal_zone0/sustainable_power");
 
-              std::ifstream max_state(base + "/max_state");
-              if (max_state.is_open()) {
+              if (power_mw > 0) {
+                this->system_info_.cpu_tdp_watts =
+                    static_cast<double>(power_mw) / 1000.0;
+              }
 
-                long max_pstate = 0;
-                max_state >> max_pstate;
-                // P-states roughly correlate to power levels
-                if (max_pstate > 0) {
-                  // Read sustainable power from thermal zone if available
-                  std::ifstream sustainable_power(
-                      "/sys/class/thermal/thermal_zone0/sustainable_power");
-                  if (sustainable_power.is_open()) {
-                    long power_mw = 0;
-                    sustainable_power >> power_mw;
-                    if (power_mw > 0) {
-                      this->system_info_.cpu_tdp_watts =
-                          static_cast<double>(power_mw) / 1000.0;
-                    }
-                  }
-
-                  if (this->system_info_.cpu_tdp_watts == 0.0) {
-                    // Estimate based on typical TDP per P-state
-                    this->system_info_.cpu_tdp_watts =
-                        static_cast<double>(max_pstate) * 10.0;
-                  }
-
-                  this->system_info_.cpu_tdp_watts_type =
-                      poirot_msgs::msg::SystemInfo::THERMAL_POWER_TDP_TYPE;
-                  break;
+              // Try cooling device power
+              if (this->system_info_.cpu_tdp_watts == 0.0) {
+                power_mw = this->read_sysfs_long(base + "/power");
+                if (power_mw > 0) {
+                  this->system_info_.cpu_tdp_watts =
+                      static_cast<double>(power_mw) / 1000.0;
                 }
               }
+
+              // Try ACPI max power
+              if (this->system_info_.cpu_tdp_watts == 0.0) {
+                long power_uw = this->read_sysfs_long(
+                    "/sys/class/powercap/intel-rapl/intel-rapl:0/"
+                    "constraint_0_max_power_uw");
+                if (power_uw > 0) {
+                  this->system_info_.cpu_tdp_watts =
+                      static_cast<double>(power_uw) / 1e6;
+                }
+              }
+
+              // Derive from CPU frequency
+              if (this->system_info_.cpu_tdp_watts == 0.0) {
+                long max_freq_khz = this->read_sysfs_long(
+                    "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
+                if (max_freq_khz > 0 && this->system_info_.cpu_cores > 0) {
+                  double max_freq_ghz = static_cast<double>(max_freq_khz) / 1e6;
+                  double watts_per_core_at_max = max_freq_ghz * 3.5;
+                  this->system_info_.cpu_tdp_watts =
+                      this->system_info_.cpu_cores * watts_per_core_at_max;
+                  this->system_info_.cpu_tdp_watts = std::min(
+                      std::max(this->system_info_.cpu_tdp_watts, MIN_TDP_WATTS),
+                      MAX_TDP_WATTS);
+                }
+              }
+
+              this->system_info_.cpu_tdp_watts_type =
+                  poirot_msgs::msg::SystemInfo::THERMAL_POWER_TDP_TYPE;
+              break;
             }
           }
         }
       }
+
       closedir(thermal_dir);
     }
   }
 
   // 5. Estimate from CPU frequency and core count (physics-based)
   if (this->system_info_.cpu_tdp_watts == 0.0) {
-    double max_freq_ghz = 0.0;
-    std::ifstream freq_file(
+    long freq_khz = this->read_sysfs_long(
         "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
-    if (freq_file.is_open()) {
-      long freq_khz = 0;
-      freq_file >> freq_khz;
-      max_freq_ghz = static_cast<double>(freq_khz) / 1e6;
-    }
+    double max_freq_ghz = static_cast<double>(freq_khz) / 1e6;
 
     if (max_freq_ghz > 0 && this->system_info_.cpu_cores > 0) {
-      // Formula: TDP = cores * freq_ghz * power_per_core_per_ghz
-      // Derive power_factor from CPU model characteristics
       double power_factor = this->estimate_power_per_core_per_ghz();
 
       this->system_info_.cpu_tdp_watts =
@@ -484,35 +540,34 @@ void Poirot::search_hwmon_paths() {
     }
 
     std::string base = std::string("/sys/class/hwmon/") + entry->d_name;
-    std::ifstream name_file(base + "/name");
-    std::string name;
-    if (!name_file.is_open()) {
+    std::string name = this->read_sysfs_string(base + "/name");
+    if (name.empty()) {
       continue;
     }
 
-    std::getline(name_file, name);
-
     // Check for energy monitoring drivers
-    if (name == "zenpower" || name == "amd_energy" ||
-        name.find("energy") != std::string::npos) {
+    bool is_energy_driver = (name == "zenpower" || name == "amd_energy" ||
+                             name.find("energy") != std::string::npos);
+    bool is_power_driver =
+        (name == "zenpower" || name == "amd_energy" || name == "coretemp" ||
+         name == "k10temp" || name.find("power") != std::string::npos);
+
+    if (is_energy_driver && this->cached_hwmon_energy_path_.empty()) {
       for (int i = 1; i <= 10; ++i) {
         std::string energy_path =
             base + "/energy" + std::to_string(i) + "_input";
-        std::ifstream ef(energy_path);
-        if (ef.is_open()) {
+        if (this->read_sysfs_long(energy_path) >= 0 ||
+            std::ifstream(energy_path).is_open()) {
           this->cached_hwmon_energy_path_ = energy_path;
           break;
         }
       }
     }
 
-    // Check for power monitoring drivers
-    if (name == "zenpower" || name == "amd_energy" || name == "coretemp" ||
-        name == "k10temp" || name.find("power") != std::string::npos) {
+    if (is_power_driver && this->cached_hwmon_power_path_.empty()) {
       for (int i = 1; i <= 10; ++i) {
         std::string power_path = base + "/power" + std::to_string(i) + "_input";
-        std::ifstream pf(power_path);
-        if (pf.is_open()) {
+        if (std::ifstream(power_path).is_open()) {
           this->cached_hwmon_power_path_ = power_path;
           break;
         }
@@ -529,74 +584,35 @@ void Poirot::search_hwmon_paths() {
 
 double Poirot::estimate_power_per_core_per_ghz() {
   // Read actual power consumption from system and calculate real power per core
-  // per GHz This provides accurate measurements instead of estimates
+  // per GHz
+  double current_power_w = this->read_hwmon_power_w();
 
-  double current_power_w = 0.0;
-
-  // 1. Try to read actual power from hwmon
-  if (!this->cached_hwmon_power_path_.empty()) {
-    std::ifstream power_file(this->cached_hwmon_power_path_);
-    if (power_file.is_open()) {
-      long power_uw = 0;
-      power_file >> power_uw;
-      if (power_uw > 0) {
-        current_power_w = static_cast<double>(power_uw) / 1e6;
-      }
-    }
-  }
-
-  // 2. Try Intel/AMD RAPL average power
   if (current_power_w == 0.0) {
-    for (const auto &rapl_path : {"/sys/class/powercap/intel-rapl/intel-rapl:0/"
-                                  "constraint_0_power_limit_uw",
-                                  "/sys/class/powercap/amd-rapl/amd-rapl:0/"
-                                  "constraint_0_power_limit_uw"}) {
-      std::ifstream rapl_file(rapl_path);
-      if (rapl_file.is_open()) {
-        long power_uw = 0;
-        rapl_file >> power_uw;
-        if (power_uw > 0) {
-          current_power_w = static_cast<double>(power_uw) / 1e6;
-          break;
-        }
-      }
-    }
+    current_power_w = this->read_rapl_power_limit_w();
   }
 
-  // 3. Read current CPU frequency
-  double current_freq_ghz = 0.0;
-  std::ifstream scaling_freq(
+  // Read current CPU frequency
+  long freq_khz = this->read_sysfs_long(
       "/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq");
-  if (scaling_freq.is_open()) {
-    long freq_khz = 0;
-    scaling_freq >> freq_khz;
-    current_freq_ghz = static_cast<double>(freq_khz) / 1e6;
-  }
+  double current_freq_ghz = static_cast<double>(freq_khz) / 1e6;
 
-  // If power and frequency, calculate actual power per core per GHz
+  // Calculate actual power per core per GHz if we have valid data
   if (current_power_w > 0 && current_freq_ghz > 0 &&
       this->system_info_.cpu_cores > 0) {
-    double power_per_core_per_ghz =
-        current_power_w / (this->system_info_.cpu_cores * current_freq_ghz);
-    return power_per_core_per_ghz;
+    return current_power_w / (this->system_info_.cpu_cores * current_freq_ghz);
   }
 
-  // 4. Try reading from DMI/SMBIOS for manufacturer specifications
-  std::ifstream dmi_power("/sys/class/dmi/id/processor_max_speed");
-  if (dmi_power.is_open()) {
-    long max_speed_mhz = 0;
-    dmi_power >> max_speed_mhz;
-    if (max_speed_mhz > 0) {
-      double max_freq_ghz = static_cast<double>(max_speed_mhz) / 1000.0;
-
-      // Try to get TDP if already detected
-      if (this->system_info_.cpu_tdp_watts > 0 &&
-          this->system_info_.cpu_cores > 0) {
-        double calculated = this->system_info_.cpu_tdp_watts /
-                            (this->system_info_.cpu_cores * max_freq_ghz);
-        if (calculated >= 4.0 && calculated <= 15.0) {
-          return calculated;
-        }
+  // Try reading from DMI/SMBIOS for manufacturer specifications
+  long max_speed_mhz =
+      this->read_sysfs_long("/sys/class/dmi/id/processor_max_speed");
+  if (max_speed_mhz > 0) {
+    double max_freq_ghz = static_cast<double>(max_speed_mhz) / 1000.0;
+    if (this->system_info_.cpu_tdp_watts > 0 &&
+        this->system_info_.cpu_cores > 0) {
+      double calculated = this->system_info_.cpu_tdp_watts /
+                          (this->system_info_.cpu_cores * max_freq_ghz);
+      if (calculated >= 4.0 && calculated <= 15.0) {
+        return calculated;
       }
     }
   }
@@ -607,66 +623,34 @@ double Poirot::estimate_power_per_core_per_ghz() {
 
 double Poirot::estimate_watts_per_core() {
   // Read actual watts per core from system measurements
+  double total_power_w = this->read_hwmon_power_w();
 
-  double total_power_w = 0.0;
-
-  // 1. Try reading current power consumption from hwmon
-  if (!this->cached_hwmon_power_path_.empty()) {
-    std::ifstream power_file(this->cached_hwmon_power_path_);
-    if (power_file.is_open()) {
-      long power_uw = 0;
-      power_file >> power_uw;
-      if (power_uw > 0) {
-        total_power_w = static_cast<double>(power_uw) / 1e6;
-      }
+  if (total_power_w == 0.0) {
+    double battery_power = this->get_battery_power_w();
+    if (battery_power > 0) {
+      total_power_w = battery_power;
     }
   }
 
-  // 2. Try battery power if on laptop
   if (total_power_w == 0.0) {
-    total_power_w = this->get_battery_power_w();
+    total_power_w = this->read_rapl_power_limit_w();
   }
 
-  // 3. Try RAPL power limits (TDP)
   if (total_power_w == 0.0) {
-    for (const auto &rapl_path : {"/sys/class/powercap/intel-rapl/intel-rapl:0/"
-                                  "constraint_0_power_limit_uw",
-                                  "/sys/class/powercap/amd-rapl/amd-rapl:0/"
-                                  "constraint_0_power_limit_uw"}) {
-      std::ifstream rapl_file(rapl_path);
-      if (rapl_file.is_open()) {
-        long power_uw = 0;
-        rapl_file >> power_uw;
-        if (power_uw > 0) {
-          total_power_w = static_cast<double>(power_uw) / 1e6;
-          break;
-        }
-      }
-    }
-  }
-
-  // 4. Try reading from thermal zone sustainable power
-  if (total_power_w == 0.0) {
-    std::ifstream sustainable(
+    long power_mw = this->read_sysfs_long(
         "/sys/class/thermal/thermal_zone0/sustainable_power");
-    if (sustainable.is_open()) {
-      long power_mw = 0;
-      sustainable >> power_mw;
-      if (power_mw > 0) {
-        total_power_w = static_cast<double>(power_mw) / 1000.0;
-      }
+    if (power_mw > 0) {
+      total_power_w = static_cast<double>(power_mw) / 1000.0;
     }
   }
 
-  // 5. Use already detected TDP if available
   if (total_power_w == 0.0 && this->system_info_.cpu_tdp_watts > 0) {
     total_power_w = this->system_info_.cpu_tdp_watts;
   }
 
   // Calculate watts per core from total power
   if (total_power_w > 0 && this->system_info_.cpu_cores > 0) {
-    double watts_per_core = total_power_w / this->system_info_.cpu_cores;
-    return watts_per_core;
+    return total_power_w / this->system_info_.cpu_cores;
   }
 
   // Fallback: conservative default
@@ -881,17 +865,10 @@ double Poirot::calculate_thread_energy_uj(double thread_cpu_delta_us,
 }
 
 long Poirot::read_thread_memory_kb() {
-  // Read thread-specific memory from /proc/self/task/[tid]/status
-  pid_t tid = static_cast<pid_t>(syscall(SYS_gettid));
-  std::string path = "/proc/self/task/" + std::to_string(tid) + "/status";
+  std::string path = this->get_thread_status_path("status");
   std::ifstream file(path);
-
   if (!file.is_open()) {
-    // Fallback to process-level memory
-    file.open("/proc/self/status");
-    if (!file.is_open()) {
-      return 0;
-    }
+    return 0;
   }
 
   std::string line;
@@ -912,16 +889,10 @@ void Poirot::read_thread_io_bytes(long &read_bytes, long &write_bytes) {
   read_bytes = 0;
   write_bytes = 0;
 
-  pid_t tid = static_cast<pid_t>(syscall(SYS_gettid));
-  std::string path = "/proc/self/task/" + std::to_string(tid) + "/io";
+  std::string path = this->get_thread_status_path("io");
   std::ifstream file(path);
-
   if (!file.is_open()) {
-    // Fallback to process-level I/O
-    file.open("/proc/self/io");
-    if (!file.is_open()) {
-      return;
-    }
+    return;
   }
 
   std::string line;
@@ -946,15 +917,10 @@ void Poirot::read_thread_io_bytes(long &read_bytes, long &write_bytes) {
 }
 
 long Poirot::read_thread_ctx_switches() {
-  pid_t tid = static_cast<pid_t>(syscall(SYS_gettid));
-  std::string path = "/proc/self/task/" + std::to_string(tid) + "/status";
+  std::string path = this->get_thread_status_path("status");
   std::ifstream file(path);
-
   if (!file.is_open()) {
-    file.open("/proc/self/status");
-    if (!file.is_open()) {
-      return 0;
-    }
+    return 0;
   }
 
   long total = 0;
