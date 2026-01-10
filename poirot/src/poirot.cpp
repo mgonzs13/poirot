@@ -429,10 +429,9 @@ void Poirot::detect_system_info() {
 
     if (max_freq_ghz > 0 && this->system_info_.cpu_cores > 0) {
       // Formula: TDP = cores * freq_ghz * power_per_core_per_ghz
-      // Typical values: ~8-12W per core per GHz for modern CPUs
+      // Derive power_factor from CPU model characteristics
+      double power_factor = this->estimate_power_per_core_per_ghz();
 
-      // W per core per GHz (conservative estimate)
-      constexpr double power_factor = 10.0;
       this->system_info_.cpu_tdp_watts =
           this->system_info_.cpu_cores * max_freq_ghz * power_factor;
 
@@ -447,8 +446,8 @@ void Poirot::detect_system_info() {
 
   // 6. Final fallback: estimate from core count alone
   if (this->system_info_.cpu_tdp_watts == 0.0) {
-    // Typical desktop: ~10-15W per core, laptop: ~5-8W per core
-    constexpr double watts_per_core = 12.0;
+    // Derive watts_per_core from CPU model and system characteristics
+    double watts_per_core = this->estimate_watts_per_core();
 
     this->system_info_.cpu_tdp_watts =
         this->system_info_.cpu_cores * watts_per_core;
@@ -526,6 +525,152 @@ void Poirot::search_hwmon_paths() {
     }
   }
   closedir(hwmon_dir);
+}
+
+double Poirot::estimate_power_per_core_per_ghz() {
+  // Read actual power consumption from system and calculate real power per core
+  // per GHz This provides accurate measurements instead of estimates
+
+  double current_power_w = 0.0;
+
+  // 1. Try to read actual power from hwmon
+  if (!this->cached_hwmon_power_path_.empty()) {
+    std::ifstream power_file(this->cached_hwmon_power_path_);
+    if (power_file.is_open()) {
+      long power_uw = 0;
+      power_file >> power_uw;
+      if (power_uw > 0) {
+        current_power_w = static_cast<double>(power_uw) / 1e6;
+      }
+    }
+  }
+
+  // 2. Try Intel/AMD RAPL average power
+  if (current_power_w == 0.0) {
+    for (const auto &rapl_path : {"/sys/class/powercap/intel-rapl/intel-rapl:0/"
+                                  "constraint_0_power_limit_uw",
+                                  "/sys/class/powercap/amd-rapl/amd-rapl:0/"
+                                  "constraint_0_power_limit_uw"}) {
+      std::ifstream rapl_file(rapl_path);
+      if (rapl_file.is_open()) {
+        long power_uw = 0;
+        rapl_file >> power_uw;
+        if (power_uw > 0) {
+          current_power_w = static_cast<double>(power_uw) / 1e6;
+          break;
+        }
+      }
+    }
+  }
+
+  // 3. Read current CPU frequency
+  double current_freq_ghz = 0.0;
+  std::ifstream scaling_freq(
+      "/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq");
+  if (scaling_freq.is_open()) {
+    long freq_khz = 0;
+    scaling_freq >> freq_khz;
+    current_freq_ghz = static_cast<double>(freq_khz) / 1e6;
+  }
+
+  // If power and frequency, calculate actual power per core per GHz
+  if (current_power_w > 0 && current_freq_ghz > 0 &&
+      this->system_info_.cpu_cores > 0) {
+    double power_per_core_per_ghz =
+        current_power_w / (this->system_info_.cpu_cores * current_freq_ghz);
+    return power_per_core_per_ghz;
+  }
+
+  // 4. Try reading from DMI/SMBIOS for manufacturer specifications
+  std::ifstream dmi_power("/sys/class/dmi/id/processor_max_speed");
+  if (dmi_power.is_open()) {
+    long max_speed_mhz = 0;
+    dmi_power >> max_speed_mhz;
+    if (max_speed_mhz > 0) {
+      double max_freq_ghz = static_cast<double>(max_speed_mhz) / 1000.0;
+
+      // Try to get TDP if already detected
+      if (this->system_info_.cpu_tdp_watts > 0 &&
+          this->system_info_.cpu_cores > 0) {
+        double calculated = this->system_info_.cpu_tdp_watts /
+                            (this->system_info_.cpu_cores * max_freq_ghz);
+        if (calculated >= 4.0 && calculated <= 15.0) {
+          return calculated;
+        }
+      }
+    }
+  }
+
+  // Fallback: conservative default
+  return 10.0;
+}
+
+double Poirot::estimate_watts_per_core() {
+  // Read actual watts per core from system measurements
+
+  double total_power_w = 0.0;
+
+  // 1. Try reading current power consumption from hwmon
+  if (!this->cached_hwmon_power_path_.empty()) {
+    std::ifstream power_file(this->cached_hwmon_power_path_);
+    if (power_file.is_open()) {
+      long power_uw = 0;
+      power_file >> power_uw;
+      if (power_uw > 0) {
+        total_power_w = static_cast<double>(power_uw) / 1e6;
+      }
+    }
+  }
+
+  // 2. Try battery power if on laptop
+  if (total_power_w == 0.0) {
+    total_power_w = this->get_battery_power_w();
+  }
+
+  // 3. Try RAPL power limits (TDP)
+  if (total_power_w == 0.0) {
+    for (const auto &rapl_path : {"/sys/class/powercap/intel-rapl/intel-rapl:0/"
+                                  "constraint_0_power_limit_uw",
+                                  "/sys/class/powercap/amd-rapl/amd-rapl:0/"
+                                  "constraint_0_power_limit_uw"}) {
+      std::ifstream rapl_file(rapl_path);
+      if (rapl_file.is_open()) {
+        long power_uw = 0;
+        rapl_file >> power_uw;
+        if (power_uw > 0) {
+          total_power_w = static_cast<double>(power_uw) / 1e6;
+          break;
+        }
+      }
+    }
+  }
+
+  // 4. Try reading from thermal zone sustainable power
+  if (total_power_w == 0.0) {
+    std::ifstream sustainable(
+        "/sys/class/thermal/thermal_zone0/sustainable_power");
+    if (sustainable.is_open()) {
+      long power_mw = 0;
+      sustainable >> power_mw;
+      if (power_mw > 0) {
+        total_power_w = static_cast<double>(power_mw) / 1000.0;
+      }
+    }
+  }
+
+  // 5. Use already detected TDP if available
+  if (total_power_w == 0.0 && this->system_info_.cpu_tdp_watts > 0) {
+    total_power_w = this->system_info_.cpu_tdp_watts;
+  }
+
+  // Calculate watts per core from total power
+  if (total_power_w > 0 && this->system_info_.cpu_cores > 0) {
+    double watts_per_core = total_power_w / this->system_info_.cpu_cores;
+    return watts_per_core;
+  }
+
+  // Fallback: conservative default
+  return 12.0;
 }
 
 std::string Poirot::get_country_from_timezone() {

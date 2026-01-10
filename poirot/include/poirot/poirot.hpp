@@ -174,6 +174,20 @@ private:
   void set_co2_factor(double factor);
 
   /**
+   * @brief Estimate power consumption per core per GHz based on CPU
+   * characteristics.
+   * @return Estimated power in watts per core per GHz.
+   */
+  double estimate_power_per_core_per_ghz();
+
+  /**
+   * @brief Estimate watts per core based on system type and CPU
+   * characteristics.
+   * @return Estimated power in watts per core.
+   */
+  double estimate_watts_per_core();
+
+  /**
    * @brief Read current thread's CPU time in microseconds.
    * @return CPU time in microseconds.
    */
