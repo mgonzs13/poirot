@@ -1,0 +1,21 @@
+var searchData=
+[
+  ['scroll_5foffset_5f_0',['scroll_offset_',['../classpoirot__tui_1_1TuiRenderer.html#a97db754d1fc861fd28168f170fc17ed0',1,'poirot_tui::TuiRenderer']]],
+  ['selected_5frow_5f_1',['selected_row_',['../classpoirot__tui_1_1TuiRenderer.html#a67f3f185c3d9b49d332ae52d1c6c8831',1,'poirot_tui::TuiRenderer']]],
+  ['sort_5fascending_5f_2',['sort_ascending_',['../classpoirot__tui_1_1TuiRenderer.html#a547884d281fd077704bcfba8905751a1',1,'poirot_tui::TuiRenderer']]],
+  ['sort_5fcolumn_5f_3',['sort_column_',['../classpoirot__tui_1_1TuiRenderer.html#a625a9cc57a31ce36ace2249f070972f7',1,'poirot_tui::TuiRenderer']]],
+  ['start_5fcpu_5ftime_5fus_4',['start_cpu_time_us',['../structpoirot_1_1ThreadProfilingContext.html#ae62fe84a17db21c3fa69cb6c111d3982',1,'poirot::ThreadProfilingContext']]],
+  ['start_5fctx_5fswitches_5',['start_ctx_switches',['../structpoirot_1_1ThreadProfilingContext.html#a6df85a81d7603fa9e1917ef8b373c676',1,'poirot::ThreadProfilingContext']]],
+  ['start_5fenergy_5fuj_6',['start_energy_uj',['../structpoirot_1_1ThreadProfilingContext.html#aa06c1693a3673c419236a88c9d05c3f7',1,'poirot::ThreadProfilingContext']]],
+  ['start_5fio_5fread_5fbytes_7',['start_io_read_bytes',['../structpoirot_1_1ThreadProfilingContext.html#a005bb5c34a6cec509da9785fa9b1d58b',1,'poirot::ThreadProfilingContext']]],
+  ['start_5fio_5fwrite_5fbytes_8',['start_io_write_bytes',['../structpoirot_1_1ThreadProfilingContext.html#aa8bab6a5340b30f81ca16a76f60723bd',1,'poirot::ThreadProfilingContext']]],
+  ['start_5fmemory_5fkb_9',['start_memory_kb',['../structpoirot_1_1ThreadProfilingContext.html#a62ccab0f42771a8b171a0f7e699907ec',1,'poirot::ThreadProfilingContext']]],
+  ['start_5fprocess_5fcpu_5ftime_5fus_10',['start_process_cpu_time_us',['../structpoirot_1_1ThreadProfilingContext.html#ad81614555715a9ba05efc3e296713219',1,'poirot::ThreadProfilingContext']]],
+  ['start_5fsystem_5fcpu_5ftime_5fus_11',['start_system_cpu_time_us',['../structpoirot_1_1ThreadProfilingContext.html#a003930aedddfcb249c451f2f9000e273',1,'poirot::ThreadProfilingContext']]],
+  ['start_5ftime_12',['start_time',['../structpoirot_1_1ThreadProfilingContext.html#a6ce2231b5eea413d6742958b5c8402ff',1,'poirot::ThreadProfilingContext']]],
+  ['start_5ftime_5f_13',['start_time_',['../classpoirot__tui_1_1DataManager.html#a5b2530f5f2b3fc2845cc97fc0f4048aa',1,'poirot_tui::DataManager']]],
+  ['statistics_5f_14',['statistics_',['../classpoirot_1_1Poirot.html#a71adc89fe6c70482b30c1652f32fcce5',1,'poirot::Poirot']]],
+  ['statistics_5fmutex_5f_15',['statistics_mutex_',['../classpoirot_1_1Poirot.html#a4d0c39e4ea8af41b9bed47f7217d4a40',1,'poirot::Poirot']]],
+  ['subscription_5f_16',['subscription_',['../classpoirot__tui_1_1TuiNode.html#a84c54361618b0d9e58f070ac7703ea6b',1,'poirot_tui::TuiNode::subscription_'],['../classpoirot__recorder_1_1PoirotRecorderNode.html#aaeaf7fe599973b40b738b10f761caeea',1,'poirot_recorder::PoirotRecorderNode::subscription_'],['../classSubscriberNode.html#aafe13271f69bc51a50edd55e79753009',1,'SubscriberNode::subscription_']]],
+  ['system_5finfo_5f_17',['system_info_',['../classpoirot_1_1Poirot.html#ac97449d30fb856263431a897f5e811fb',1,'poirot::Poirot']]]
+];
