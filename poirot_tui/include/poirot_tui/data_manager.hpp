@@ -35,7 +35,7 @@ struct DataPoint {
   double timestamp;
   double wall_time_us;
   double cpu_time_us;
-  int64_t memory_kb;
+  int64_t mem_kb;
   int64_t io_read_bytes;
   int64_t io_write_bytes;
   int64_t ctx_switches;
@@ -52,7 +52,7 @@ struct FunctionRow {
   int32_t call_count;
   double wall_time_us;
   double cpu_time_us;
-  int64_t memory_kb;
+  int64_t mem_kb;
   int64_t io_read_bytes;
   int64_t io_write_bytes;
   int64_t ctx_switches;

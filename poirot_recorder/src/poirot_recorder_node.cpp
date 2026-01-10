@@ -14,6 +14,7 @@
 
 #include <filesystem>
 #include <iomanip>
+#include <string>
 
 #include "poirot_recorder/poirot_recorder_node.hpp"
 
@@ -66,8 +67,13 @@ PoirotRecorderNode::~PoirotRecorderNode() {
 
 void PoirotRecorderNode::write_csv_header() {
   this->csv_file_
-      << "timestamp_sec,timestamp_nanosec,process_pid,function_name,"
-      << "call_count,wall_time_us,cpu_time_us,memory_kb,"
+      << "timestamp_sec,timestamp_nanosec,"
+      << "os_name,os_version,hostname,cpu_model,cpu_cores,mem_total_kb,"
+      << "rapl_available,cpu_tdp_watts,cpu_tdp_watts_type,country_code,co2_"
+         "factor_kg_per_kwh,"
+      << "process_pid,process_cpu_percent,process_mem_kb,process_io_bytes,"
+         "process_threads,"
+      << "function_name,call_count,wall_time_us,cpu_time_us,memory_kb,"
       << "io_read_bytes,call_io_write_bytes,"
       << "call_ctx_switches,energy_uj,co2_ug\n";
 }
@@ -82,8 +88,32 @@ void PoirotRecorderNode::data_callback(
   }
 
   // Write data row
-  this->csv_file_ << msg->timestamp.sec << "," << msg->timestamp.nanosec << ","
+  this->csv_file_ << msg->timestamp.sec << "," << msg->timestamp.nanosec
+                  << ","
+
+                  // System Info
+                  << this->escape_csv(msg->system_info.os_name) << ","
+                  << this->escape_csv(msg->system_info.os_version) << ","
+                  << this->escape_csv(msg->system_info.hostname) << ","
+                  << this->escape_csv(msg->system_info.cpu_model) << ","
+                  << msg->system_info.cpu_cores << ","
+                  << msg->system_info.mem_total_kb << ","
+                  << (msg->system_info.rapl_available ? "1" : "0") << ","
+                  << msg->system_info.cpu_tdp_watts << ","
+                  << static_cast<int>(msg->system_info.cpu_tdp_watts_type)
+                  << "," << this->escape_csv(msg->system_info.country_code)
+                  << "," << msg->system_info.co2_factor_kg_per_kwh
+                  << ","
+
+                  // Process Info
                   << msg->process_info.pid << ","
+                  << msg->process_info.cpu_percent << ","
+                  << msg->process_info.mem_kb << ","
+                  << msg->process_info.io_bytes << ","
+                  << std::to_string(msg->process_info.threads)
+                  << ","
+
+                  // Function Call Info
                   << this->escape_csv(msg->function.name) << ","
                   << msg->function.call_count
                   << ","
@@ -91,7 +121,7 @@ void PoirotRecorderNode::data_callback(
                   // Last call
                   << msg->function.call.data.wall_time_us << ","
                   << msg->function.call.data.cpu_time_us << ","
-                  << msg->function.call.data.memory_kb << ","
+                  << msg->function.call.data.mem_kb << ","
                   << msg->function.call.data.io_read_bytes << ","
                   << msg->function.call.data.io_write_bytes << ","
                   << msg->function.call.data.ctx_switches << ","

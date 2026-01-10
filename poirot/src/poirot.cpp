@@ -1345,7 +1345,7 @@ double Poirot::read_energy_uj() {
 
   // Estimate from TDP and CPU utilization
   if (power_w <= 0) {
-    double cpu_pct = this->process_info_.process_cpu_percent;
+    double cpu_pct = this->process_info_.cpu_percent;
 
     // Apply utilization factor with idle power baseline
     double idle_factor = this->idle_power_factor_;
@@ -1363,7 +1363,7 @@ double Poirot::read_energy_uj() {
 // ============================================================================
 // System-Level Measurements
 // ============================================================================
-double Poirot::read_process_cpu_percent() {
+double Poirot::read_cpu_percent() {
   std::lock_guard<std::mutex> lock(this->cpu_read_mutex_);
 
   std::ifstream stat("/proc/self/stat");
@@ -1457,15 +1457,15 @@ int Poirot::read_process_thread_count() {
 void Poirot::read_process_data() {
   this->process_info_.pid = getpid();
 
-  this->process_info_.process_cpu_percent = this->read_process_cpu_percent();
-  this->process_info_.process_mem_kb = this->read_thread_memory_kb();
+  this->process_info_.cpu_percent = this->read_cpu_percent();
+  this->process_info_.mem_kb = this->read_thread_memory_kb();
 
   long io_read = 0;
   long io_write = 0;
   this->read_thread_io_bytes(io_read, io_write);
 
-  this->process_info_.process_io_bytes = io_read + io_write;
-  this->process_info_.process_threads = this->read_process_thread_count();
+  this->process_info_.io_bytes = io_read + io_write;
+  this->process_info_.threads = this->read_process_thread_count();
 }
 
 // ============================================================================
@@ -1527,7 +1527,7 @@ void Poirot::stop_profiling() {
                               end_time - ctx.start_time)
                               .count());
   call.data.cpu_time_us = thread_cpu_delta_us;
-  call.data.memory_kb = end_memory_kb - ctx.start_memory_kb;
+  call.data.mem_kb = end_memory_kb - ctx.start_memory_kb;
   call.data.io_read_bytes = end_io_read_bytes - ctx.start_io_read_bytes;
   call.data.io_write_bytes = end_io_write_bytes - ctx.start_io_write_bytes;
   call.data.ctx_switches = end_ctx_switches - ctx.start_ctx_switches;
@@ -1556,7 +1556,7 @@ void Poirot::stop_profiling() {
     std::cout << "[PROFILE] " << ctx.function_name
               << " | Wall: " << call.data.wall_time_us << "us"
               << " | CPU: " << call.data.cpu_time_us << "us"
-              << " | Mem: " << call.data.memory_kb << "KB"
+              << " | Mem: " << call.data.mem_kb << "KB"
               << " | IO R/W: " << call.data.io_read_bytes << "/"
               << call.data.io_write_bytes << "B"
               << " | CtxSw: " << call.data.ctx_switches

@@ -42,7 +42,7 @@ void DataManager::process_profiling_data(
   row.call_count = msg->function.call_count;
   row.wall_time_us = msg->function.call.data.wall_time_us;
   row.cpu_time_us = msg->function.call.data.cpu_time_us;
-  row.memory_kb = msg->function.call.data.memory_kb;
+  row.mem_kb = msg->function.call.data.mem_kb;
   row.io_read_bytes = msg->function.call.data.io_read_bytes;
   row.io_write_bytes = msg->function.call.data.io_write_bytes;
   row.ctx_switches = msg->function.call.data.ctx_switches;
@@ -58,7 +58,7 @@ void DataManager::process_profiling_data(
   dp.timestamp = relative_time;
   dp.wall_time_us = msg->function.call.data.wall_time_us;
   dp.cpu_time_us = msg->function.call.data.cpu_time_us;
-  dp.memory_kb = msg->function.call.data.memory_kb;
+  dp.mem_kb = msg->function.call.data.mem_kb;
   dp.io_read_bytes = msg->function.call.data.io_read_bytes;
   dp.io_write_bytes = msg->function.call.data.io_write_bytes;
   dp.ctx_switches = msg->function.call.data.ctx_switches;
@@ -105,7 +105,7 @@ std::vector<FunctionRow> DataManager::get_sorted_rows(SortColumn column,
       result = a.cpu_time_us < b.cpu_time_us;
       break;
     case SortColumn::MEMORY:
-      result = a.memory_kb < b.memory_kb;
+      result = a.mem_kb < b.mem_kb;
       break;
     case SortColumn::IO_READ:
       result = a.io_read_bytes < b.io_read_bytes;

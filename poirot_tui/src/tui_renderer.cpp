@@ -310,7 +310,7 @@ void TuiRenderer::render_table_view(const DataManager &data_manager) {
     x += col_cpu;
 
     // Memory
-    mvprintw(row_y, x, "%-*ld", col_mem, static_cast<long>(row.memory_kb));
+    mvprintw(row_y, x, "%-*ld", col_mem, static_cast<long>(row.mem_kb));
     x += col_mem;
 
     // IO Read
@@ -1288,7 +1288,7 @@ double TuiRenderer::get_value_by_type(const DataPoint &dp,
   case GraphDataType::CPU_TIME:
     return dp.cpu_time_us;
   case GraphDataType::MEMORY:
-    return static_cast<double>(dp.memory_kb);
+    return static_cast<double>(dp.mem_kb);
   case GraphDataType::IO_READ:
     return static_cast<double>(dp.io_read_bytes);
   case GraphDataType::IO_WRITE:

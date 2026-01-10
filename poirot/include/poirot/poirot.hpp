@@ -335,7 +335,7 @@ private:
    * @brief Read process CPU usage percentage.
    * @return CPU usage percentage.
    */
-  double read_process_cpu_percent();
+  double read_cpu_percent();
 
   /**
    * @brief Read number of threads in the process.
