@@ -126,6 +126,35 @@ double Poirot::read_hwmon_power_w() {
   return 0.0;
 }
 
+void Poirot::iterate_hwmon_devices(
+    std::function<bool(const std::string &, const std::string &)> callback) {
+  DIR *hwmon_dir = opendir("/sys/class/hwmon");
+  if (!hwmon_dir) {
+    return;
+  }
+
+  struct dirent *entry;
+  while ((entry = readdir(hwmon_dir)) != nullptr) {
+    if (entry->d_name[0] == '.') {
+      continue;
+    }
+
+    std::string base = std::string("/sys/class/hwmon/") + entry->d_name;
+    std::string name = this->read_sysfs_string(base + "/name");
+    if (name.empty()) {
+      continue;
+    }
+
+    // Call callback with base path and device name
+    // If callback returns true, stop iteration
+    if (callback(base, name)) {
+      break;
+    }
+  }
+
+  closedir(hwmon_dir);
+}
+
 double Poirot::read_min_tdp_watts() {
   // Try RAPL constraint minimum power
   static const std::vector<std::string> min_power_paths = {
@@ -171,27 +200,22 @@ double Poirot::read_max_tdp_watts() {
   }
 
   // Try hwmon power cap
-  DIR *hwmon_dir = opendir("/sys/class/hwmon");
-  if (hwmon_dir) {
-    struct dirent *entry;
-    while ((entry = readdir(hwmon_dir)) != nullptr) {
-      if (entry->d_name[0] == '.') {
-        continue;
-      }
-
-      std::string base = std::string("/sys/class/hwmon/") + entry->d_name;
-      std::string name = this->read_sysfs_string(base + "/name");
-      if (name == "zenpower" || name == "amd_energy" || name == "coretemp" ||
-          name == "k10temp") {
-        long power_uw = this->read_sysfs_long(base + "/power1_cap_max");
-        if (power_uw > 0) {
-          closedir(hwmon_dir);
-          return static_cast<double>(power_uw) / 1e6;
+  double max_tdp_w = 0.0;
+  this->iterate_hwmon_devices(
+      [this, &max_tdp_w](const std::string &base, const std::string &name) {
+        if (name == "zenpower" || name == "amd_energy" || name == "coretemp" ||
+            name == "k10temp") {
+          long power_uw = this->read_sysfs_long(base + "/power1_cap_max");
+          if (power_uw > 0) {
+            max_tdp_w = static_cast<double>(power_uw) / 1e6;
+            return true; // Stop iteration
+          }
         }
-      }
-    }
+        return false; // Continue iteration
+      });
 
-    closedir(hwmon_dir);
+  if (max_tdp_w > 0.0) {
+    return max_tdp_w;
   }
 
   // Estimate from max CPU frequency
@@ -592,44 +616,28 @@ void Poirot::detect_system_info() {
 
   // 3. Scan hwmon for power-related interfaces (zenpower, amd_energy, etc.)
   if (this->system_info_.cpu_tdp_watts == 0.0) {
+    this->iterate_hwmon_devices([this](const std::string &base,
+                                       const std::string &name) {
+      // Check for CPU power monitoring drivers
+      if (name == "zenpower" || name == "amd_energy" || name == "coretemp" ||
+          name == "k10temp" || name.find("power") != std::string::npos) {
 
-    DIR *hwmon_dir = opendir("/sys/class/hwmon");
-    if (hwmon_dir) {
-      struct dirent *entry;
-      while ((entry = readdir(hwmon_dir)) != nullptr) {
-        if (entry->d_name[0] == '.') {
-          continue;
-        }
+        static const std::vector<std::string> power_files = {
+            "power1_cap", "power1_max", "power1_cap_max", "power1_rated_max"};
 
-        std::string base = std::string("/sys/class/hwmon/") + entry->d_name;
-        std::string name = this->read_sysfs_string(base + "/name");
-
-        // Check for CPU power monitoring drivers
-        if (name == "zenpower" || name == "amd_energy" || name == "coretemp" ||
-            name == "k10temp" || name.find("power") != std::string::npos) {
-
-          static const std::vector<std::string> power_files = {
-              "power1_cap", "power1_max", "power1_cap_max", "power1_rated_max"};
-
-          for (const auto &power_file : power_files) {
-            long power_uw = this->read_sysfs_long(base + "/" + power_file);
-            if (power_uw > 0) {
-              this->system_info_.cpu_tdp_watts =
-                  static_cast<double>(power_uw) / 1e6;
-              this->system_info_.cpu_tdp_watts_type =
-                  poirot_msgs::msg::SystemInfo::HWMON_RAPL_TDP_TYPE;
-              break;
-            }
-          }
-
-          if (this->system_info_.cpu_tdp_watts > 0) {
-            break;
+        for (const auto &power_file : power_files) {
+          long power_uw = this->read_sysfs_long(base + "/" + power_file);
+          if (power_uw > 0) {
+            this->system_info_.cpu_tdp_watts =
+                static_cast<double>(power_uw) / 1e6;
+            this->system_info_.cpu_tdp_watts_type =
+                poirot_msgs::msg::SystemInfo::HWMON_RAPL_TDP_TYPE;
+            return true; // Stop iteration
           }
         }
       }
-
-      closedir(hwmon_dir);
-    }
+      return false; // Continue iteration
+    });
   }
 
   // 4. Try thermal zone power budget
@@ -755,24 +763,9 @@ void Poirot::search_hwmon_paths() {
 
   this->hwmon_paths_searched_ = true;
 
-  DIR *hwmon_dir = opendir("/sys/class/hwmon");
-  if (!hwmon_dir) {
-    return;
-  }
-
-  struct dirent *entry;
   // Look for energy and power monitoring drivers
-  while ((entry = readdir(hwmon_dir)) != nullptr) {
-    if (entry->d_name[0] == '.') {
-      continue;
-    }
-
-    std::string base = std::string("/sys/class/hwmon/") + entry->d_name;
-    std::string name = this->read_sysfs_string(base + "/name");
-    if (name.empty()) {
-      continue;
-    }
-
+  this->iterate_hwmon_devices([this](const std::string &base,
+                                     const std::string &name) {
     // Check for energy monitoring drivers
     bool is_energy_driver = (name == "zenpower" || name == "amd_energy" ||
                              name.find("energy") != std::string::npos);
@@ -802,12 +795,10 @@ void Poirot::search_hwmon_paths() {
       }
     }
 
-    if (!this->cached_hwmon_energy_path_.empty() &&
-        !this->cached_hwmon_power_path_.empty()) {
-      break;
-    }
-  }
-  closedir(hwmon_dir);
+    // Stop iteration if both paths are found
+    return !this->cached_hwmon_energy_path_.empty() &&
+           !this->cached_hwmon_power_path_.empty();
+  });
 }
 
 double Poirot::estimate_power_per_core_per_ghz() {
@@ -1330,17 +1321,8 @@ double Poirot::read_energy_uj() {
   double power_w = this->get_battery_power_w();
 
   // Try hwmon power sensors
-  if (power_w <= 0 && !this->cached_hwmon_power_path_.empty()) {
-
-    std::ifstream file(this->cached_hwmon_power_path_);
-    if (file.is_open()) {
-
-      long power_uw = 0;
-      file >> power_uw;
-      if (power_uw > 0) {
-        power_w = static_cast<double>(power_uw) / 1e6;
-      }
-    }
+  if (power_w <= 0) {
+    power_w = this->read_hwmon_power_w();
   }
 
   // Estimate from TDP and CPU utilization

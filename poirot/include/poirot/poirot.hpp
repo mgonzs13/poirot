@@ -162,6 +162,14 @@ private:
   void search_hwmon_paths();
 
   /**
+   * @brief Iterate through hwmon devices and apply a callback function.
+   * @param callback Function that receives (base_path, device_name) and
+   * returns true to stop iteration, false to continue.
+   */
+  void iterate_hwmon_devices(
+      std::function<bool(const std::string &, const std::string &)> callback);
+
+  /**
    * @brief Download CO2 factors from an external source.
    * @return True if download was successful, false otherwise.
    */
