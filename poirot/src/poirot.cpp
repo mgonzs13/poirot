@@ -23,9 +23,9 @@
 #include <random>
 #include <set>
 
-#include <poirot_msgs/msg/function_call.hpp>
-#include <poirot_msgs/msg/function_stats.hpp>
-#include <poirot_msgs/msg/profiling_data.hpp>
+#include "poirot_msgs/msg/function_call.hpp"
+#include "poirot_msgs/msg/function_stats.hpp"
+#include "poirot_msgs/msg/profiling_data.hpp"
 
 #include "poirot/poirot.hpp"
 
@@ -34,11 +34,15 @@ using namespace poirot;
 // ============================================================================
 // Constants
 // ============================================================================
-static constexpr double DEFAULT_CO2_FACTOR_KG_PER_KWH = 0.475; // World average
+/// @brief Default CO2 factor in kg per kWh
+static constexpr double DEFAULT_CO2_FACTOR_KG_PER_KWH = 0.475;
+/// @brief Minimum and maximum TDP values in watts for sanity checks
 static constexpr double MIN_TDP_WATTS = 15.0;
+/// @brief Maximum TDP values in watts for sanity checks
 static constexpr double MAX_TDP_WATTS = 400.0;
-static constexpr double IDLE_POWER_FACTOR =
-    0.15; // CPUs consume ~15% TDP at idle
+/// @brief CPUs consume ~15% TDP at idle
+static constexpr double IDLE_POWER_FACTOR = 0.15;
+/// @brief CURL timeout in seconds for downloading CO2 factors
 static constexpr long CURL_TIMEOUT_SECONDS = 10L;
 
 // ============================================================================
@@ -173,7 +177,7 @@ bool Poirot::download_co2_factors() {
 }
 
 void Poirot::detect_system_info() {
-  // CPU info - get real core count from /proc/cpuinfo
+  // CPU info: get real core count from /proc/cpuinfo
   this->system_info_.cpu_cores = 0;
   std::ifstream cpuinfo("/proc/cpuinfo");
   if (cpuinfo.is_open()) {
@@ -188,11 +192,13 @@ void Poirot::detect_system_info() {
         if (pos != std::string::npos && this->system_info_.cpu_model.empty()) {
           this->system_info_.cpu_model = line.substr(pos + 2);
         }
+
       } else if (line.find("physical id") != std::string::npos) {
         size_t pos = line.find(':');
         if (pos != std::string::npos) {
           current_physical_id = std::stoi(line.substr(pos + 2));
         }
+
       } else if (line.find("core id") != std::string::npos) {
         size_t pos = line.find(':');
         if (pos != std::string::npos) {
@@ -203,6 +209,7 @@ void Poirot::detect_system_info() {
         }
       }
     }
+
     this->system_info_.cpu_cores =
         physical_cores.empty()
             ? static_cast<int>(std::thread::hardware_concurrency())
@@ -244,7 +251,7 @@ void Poirot::detect_system_info() {
     }
   }
 
-  // TDP detection - try multiple sources in order of reliability
+  // TDP detection: try multiple sources in order of reliability
   this->system_info_.cpu_tdp_watts = 0.0;
   this->system_info_.rapl_available = false;
 
@@ -300,22 +307,28 @@ void Poirot::detect_system_info() {
 
   // 3. Scan hwmon for power-related interfaces (zenpower, amd_energy, etc.)
   if (this->system_info_.cpu_tdp_watts == 0.0) {
+
     DIR *hwmon_dir = opendir("/sys/class/hwmon");
     if (hwmon_dir) {
+
       struct dirent *entry;
+      // Look for energy drivers with power limit files
       while ((entry = readdir(hwmon_dir)) != nullptr) {
         if (entry->d_name[0] == '.') {
           continue;
         }
+
         std::string base = std::string("/sys/class/hwmon/") + entry->d_name;
         std::ifstream name_file(base + "/name");
         std::string name;
+
         if (name_file.is_open()) {
           std::getline(name_file, name);
           // Check for CPU power monitoring drivers
           if (name == "zenpower" || name == "amd_energy" ||
               name == "coretemp" || name == "k10temp" ||
               name.find("power") != std::string::npos) {
+
             // Try various power limit files
             for (const auto &power_file :
                  {"power1_cap", "power1_max", "power1_cap_max",
@@ -333,6 +346,7 @@ void Poirot::detect_system_info() {
                 }
               }
             }
+
             if (this->system_info_.cpu_tdp_watts > 0) {
               break;
             }
@@ -345,20 +359,28 @@ void Poirot::detect_system_info() {
 
   // 4. Try thermal zone power budget
   if (this->system_info_.cpu_tdp_watts == 0.0) {
+
     DIR *thermal_dir = opendir("/sys/class/thermal");
     if (thermal_dir) {
+
       struct dirent *entry;
+      // Look for cooling devices related to CPU
       while ((entry = readdir(thermal_dir)) != nullptr) {
+
         if (strncmp(entry->d_name, "cooling_device", 14) == 0) {
           std::string base = std::string("/sys/class/thermal/") + entry->d_name;
           std::ifstream type_file(base + "/type");
           std::string type;
+
           if (type_file.is_open()) {
+
             std::getline(type_file, type);
             if (type.find("Processor") != std::string::npos ||
                 type.find("processor") != std::string::npos) {
+
               std::ifstream max_state(base + "/max_state");
               if (max_state.is_open()) {
+
                 long max_pstate = 0;
                 max_state >> max_pstate;
                 // P-states roughly correlate to power levels
@@ -374,11 +396,13 @@ void Poirot::detect_system_info() {
                           static_cast<double>(power_mw) / 1000.0;
                     }
                   }
+
                   if (this->system_info_.cpu_tdp_watts == 0.0) {
                     // Estimate based on typical TDP per P-state
                     this->system_info_.cpu_tdp_watts =
                         static_cast<double>(max_pstate) * 10.0;
                   }
+
                   this->system_info_.cpu_tdp_watts_type =
                       poirot_msgs::msg::SystemInfo::THERMAL_POWER_TDP_TYPE;
                   break;
@@ -404,12 +428,14 @@ void Poirot::detect_system_info() {
     }
 
     if (max_freq_ghz > 0 && this->system_info_.cpu_cores > 0) {
-      // Empirical formula: TDP ≈ cores × freq_ghz × power_per_core_per_ghz
+      // Formula: TDP = cores * freq_ghz * power_per_core_per_ghz
       // Typical values: ~8-12W per core per GHz for modern CPUs
-      constexpr double power_factor =
-          10.0; // W per core per GHz (conservative estimate)
+
+      // W per core per GHz (conservative estimate)
+      constexpr double power_factor = 10.0;
       this->system_info_.cpu_tdp_watts =
-          this->system_info_.cpu_cores * max_freq_ghz * power_factor * 0.5;
+          this->system_info_.cpu_cores * max_freq_ghz * power_factor;
+
       // Cap at reasonable values
       this->system_info_.cpu_tdp_watts =
           std::min(std::max(this->system_info_.cpu_tdp_watts, MIN_TDP_WATTS),
@@ -423,6 +449,7 @@ void Poirot::detect_system_info() {
   if (this->system_info_.cpu_tdp_watts == 0.0) {
     // Typical desktop: ~10-15W per core, laptop: ~5-8W per core
     constexpr double watts_per_core = 12.0;
+
     this->system_info_.cpu_tdp_watts =
         this->system_info_.cpu_cores * watts_per_core;
     this->system_info_.cpu_tdp_watts =
@@ -442,6 +469,7 @@ void Poirot::search_hwmon_paths() {
   if (this->hwmon_paths_searched_) {
     return;
   }
+
   this->hwmon_paths_searched_ = true;
 
   DIR *hwmon_dir = opendir("/sys/class/hwmon");
@@ -450,6 +478,7 @@ void Poirot::search_hwmon_paths() {
   }
 
   struct dirent *entry;
+  // Look for energy and power monitoring drivers
   while ((entry = readdir(hwmon_dir)) != nullptr) {
     if (entry->d_name[0] == '.') {
       continue;
@@ -536,7 +565,6 @@ std::string Poirot::get_country_from_timezone() {
   }
 
   // Parse zone.tab to get country code from timezone
-  // zone.tab format: CC coordinates TZ/Name comments
   std::ifstream zone_tab("/usr/share/zoneinfo/zone.tab");
   if (zone_tab.is_open()) {
     std::string line;
@@ -633,8 +661,7 @@ double Poirot::read_process_cpu_time_us() {
 
 double Poirot::read_system_cpu_time_us() {
   // Read system-wide CPU time from /proc/stat
-  // This gives us total CPU time across all cores and all processes
-  // Format: cpu user nice system idle iowait irq softirq steal guest guest_nice
+  // This gives total CPU time across all cores and all processes
   std::ifstream stat("/proc/stat");
   if (!stat.is_open()) {
     return 0.0;
@@ -673,31 +700,6 @@ double Poirot::calculate_thread_energy_uj(double thread_cpu_delta_us,
                                           double process_cpu_delta_us,
                                           double system_cpu_delta_us,
                                           double total_energy_delta_uj) {
-  // Thread-level energy estimation using hierarchical CPU time attribution
-  //
-  // This method uses a two-level attribution model:
-  // 1. First, determine what fraction of package energy our process consumed
-  //    based on process CPU time vs system-wide CPU time
-  // 2. Then, determine what fraction of that process energy this thread
-  // consumed
-  //    based on thread CPU time vs process CPU time
-  //
-  // Formula:
-  //   process_energy = (process_cpu_delta / system_cpu_delta) * package_energy
-  //   thread_energy  = (thread_cpu_delta / process_cpu_delta) * process_energy
-  //
-  // Simplified:
-  //   thread_energy = (thread_cpu_delta / system_cpu_delta) * package_energy
-  //
-  // Why system CPU time matters:
-  // - RAPL measures energy for the entire CPU package (all cores, all
-  // processes)
-  // - If other processes are running, they consume part of that energy
-  // - Using only process CPU time would over-attribute energy to our threads
-  //
-  // Fallback strategy:
-  // - If system CPU is unavailable, fall back to process-level attribution
-  // - If process CPU is unavailable, attribute all energy to the thread
 
   if (total_energy_delta_uj <= 0.0) {
     return 0.0;
@@ -711,24 +713,25 @@ double Poirot::calculate_thread_energy_uj(double thread_cpu_delta_us,
 
   double cpu_ratio = 0.0;
 
-  // Prefer system-wide attribution (most accurate)
+  // System-wide attribution is most accurate
   if (system_cpu_delta_us > 0.0) {
-    // Direct attribution: thread's share of system-wide CPU = thread's share of
-    // package energy
+    // Thread's share of system-wide CPU = thread's share of package energy
     cpu_ratio = thread_cpu_delta_us / system_cpu_delta_us;
+
   } else if (process_cpu_delta_us > 0.0) {
-    // Fallback: use process-level attribution (less accurate when other
-    // processes are active)
+    // Use process-level attribution (less accurate when other processes are
+    // active)
     cpu_ratio = thread_cpu_delta_us / process_cpu_delta_us;
+
   } else {
     // No reference available, attribute all measured energy to thread
     return total_energy_delta_uj;
   }
 
   // Clamp ratio to [0, 1] to handle measurement anomalies
-  // In rare cases, timing differences can cause ratio > 1
   cpu_ratio = std::max(0.0, std::min(1.0, cpu_ratio));
 
+  // Calculate thread's energy consumption
   return total_energy_delta_uj * cpu_ratio;
 }
 
@@ -747,6 +750,7 @@ long Poirot::read_thread_memory_kb() {
   }
 
   std::string line;
+  // Look for VmRSS line
   while (std::getline(file, line)) {
     if (line.compare(0, 6, "VmRSS:") == 0) {
       std::istringstream iss(line);
@@ -766,6 +770,7 @@ void Poirot::read_thread_io_bytes(long &read_bytes, long &write_bytes) {
   pid_t tid = static_cast<pid_t>(syscall(SYS_gettid));
   std::string path = "/proc/self/task/" + std::to_string(tid) + "/io";
   std::ifstream file(path);
+
   if (!file.is_open()) {
     // Fallback to process-level I/O
     file.open("/proc/self/io");
@@ -776,12 +781,15 @@ void Poirot::read_thread_io_bytes(long &read_bytes, long &write_bytes) {
 
   std::string line;
   while (std::getline(file, line)) {
+    // Look for read_bytes and write_bytes lines
     if (line.compare(0, 11, "read_bytes:") == 0) {
       try {
         read_bytes = std::stol(line.substr(12));
       } catch (...) {
         read_bytes = 0;
       }
+
+      // Look for write_bytes and write_bytes lines
     } else if (line.compare(0, 12, "write_bytes:") == 0) {
       try {
         write_bytes = std::stol(line.substr(13));
@@ -796,6 +804,7 @@ long Poirot::read_thread_ctx_switches() {
   pid_t tid = static_cast<pid_t>(syscall(SYS_gettid));
   std::string path = "/proc/self/task/" + std::to_string(tid) + "/status";
   std::ifstream file(path);
+
   if (!file.is_open()) {
     file.open("/proc/self/status");
     if (!file.is_open()) {
@@ -806,11 +815,15 @@ long Poirot::read_thread_ctx_switches() {
   long total = 0;
   std::string line;
   while (std::getline(file, line)) {
+
+    // Look for voluntary and nonvoluntary context switches
     if (line.compare(0, 24, "voluntary_ctxt_switches:") == 0) {
       std::istringstream iss(line.substr(24));
       long val = 0;
       iss >> val;
       total += val;
+
+      // Look for nonvoluntary context switches
     } else if (line.compare(0, 27, "nonvoluntary_ctxt_switches:") == 0) {
       std::istringstream iss(line.substr(27));
       long val = 0;
@@ -852,9 +865,10 @@ double Poirot::get_battery_power_w() {
         long current_ua = 0;
         voltage_file >> voltage_uv;
         current_file >> current_ua;
+
         if (voltage_uv > 0 && current_ua > 0) {
-          // P = V * I (both in micro units -> result in pW, divide by 1e12 for
-          // W)
+          // P = V * I
+          // Both are in micro units -> result in pW, divide by 1e12 for W
           double power_w = (static_cast<double>(voltage_uv) *
                             static_cast<double>(current_ua)) /
                            1e12;
@@ -864,6 +878,7 @@ double Poirot::get_battery_power_w() {
       }
     }
   }
+
   closedir(dir);
   return -1.0;
 }
@@ -894,11 +909,13 @@ double Poirot::read_energy_uj() {
               current_energy;
           this->accumulated_energy_uj_ += delta;
         }
+
       } else {
         this->accumulated_energy_uj_ +=
             (current_energy - this->last_rapl_energy_uj_);
       }
     }
+
     this->last_rapl_energy_uj_ = current_energy;
     return this->accumulated_energy_uj_;
   };
@@ -919,11 +936,14 @@ double Poirot::read_energy_uj() {
 
   // 3. Try cached hwmon energy path
   if (!this->cached_hwmon_energy_path_.empty()) {
+
     std::ifstream file(this->cached_hwmon_energy_path_);
     if (file.is_open()) {
+
       double hwmon_energy = 0.0;
       file >> hwmon_energy;
       if (hwmon_energy > 0) {
+
         // Handle wraparound for hwmon too
         if (this->last_rapl_energy_uj_ > 0 &&
             hwmon_energy < this->last_rapl_energy_uj_) {
@@ -932,10 +952,12 @@ double Poirot::read_energy_uj() {
           double delta =
               (max_32bit - this->last_rapl_energy_uj_) + hwmon_energy;
           this->accumulated_energy_uj_ += delta;
+
         } else if (this->last_rapl_energy_uj_ > 0) {
           this->accumulated_energy_uj_ +=
               (hwmon_energy - this->last_rapl_energy_uj_);
         }
+
         this->last_rapl_energy_uj_ = hwmon_energy;
         return this->accumulated_energy_uj_;
       }
@@ -965,8 +987,10 @@ double Poirot::read_energy_uj() {
 
   // Try hwmon power sensors
   if (power_w <= 0 && !this->cached_hwmon_power_path_.empty()) {
+
     std::ifstream file(this->cached_hwmon_power_path_);
     if (file.is_open()) {
+
       long power_uw = 0;
       file >> power_uw;
       if (power_uw > 0) {
@@ -1006,7 +1030,8 @@ double Poirot::read_process_cpu_percent() {
   std::string line;
   std::getline(stat, line);
 
-  // Parse /proc/self/stat - handle process names with spaces/parentheses
+  // Parse /proc/self/stat
+  // Handle process names with spaces/parentheses
   // Format: pid (comm) state ppid pgrp session tty_nr tpgid flags minflt ...
   // Fields 14 (utime) and 15 (stime) are 0-indexed from the end of comm
   size_t comm_start = line.find('(');
@@ -1015,13 +1040,13 @@ double Poirot::read_process_cpu_percent() {
     return 0.0;
   }
 
-  std::string after_comm = line.substr(comm_end + 2); // Skip ") "
+  std::string after_comm = line.substr(comm_end + 2); // Skip the ") "
   std::istringstream iss(after_comm);
   std::string token;
 
   // Skip state(1), ppid(2), pgrp(3), session(4), tty_nr(5), tpgid(6),
   // flags(7), minflt(8), cminflt(9), majflt(10), cmajflt(11)
-  // Then read utime(12) and stime(13) - these are indices after comm
+  // Then read utime(12) and stime(13) -> these are indices after comm
   unsigned long long utime = 0;
   unsigned long long stime = 0;
 
@@ -1029,12 +1054,14 @@ double Poirot::read_process_cpu_percent() {
     if (!(iss >> token)) {
       return 0.0;
     }
+
     if (i == 12) {
       try {
         utime = std::stoull(token);
       } catch (...) {
         return 0.0;
       }
+
     } else if (i == 13) {
       try {
         stime = std::stoull(token);
@@ -1050,6 +1077,7 @@ double Poirot::read_process_cpu_percent() {
 
   double pct = 0.0;
   unsigned long long prev_cpu = this->prev_process_cpu_.load();
+
   if (time_diff > 0 && prev_cpu > 0) {
     unsigned long long cpu_diff = (utime + stime) - prev_cpu;
     long sc_clk_tck = sysconf(_SC_CLK_TCK);
@@ -1078,6 +1106,7 @@ int Poirot::read_process_thread_count() {
       return threads;
     }
   }
+
   return 1;
 }
 
@@ -1090,6 +1119,7 @@ void Poirot::read_process_data() {
   long io_read = 0;
   long io_write = 0;
   this->read_thread_io_bytes(io_read, io_write);
+
   this->process_info_.process_io_bytes = io_read + io_write;
   this->process_info_.process_threads = this->read_process_thread_count();
 }
@@ -1145,6 +1175,7 @@ void Poirot::stop_profiling() {
       thread_cpu_delta_us, process_cpu_delta_us, system_cpu_delta_us,
       total_energy_delta_uj);
 
+  // Prepare FunctionCall message
   poirot_msgs::msg::FunctionCall call;
   call.timestamp = rclcpp::Clock().now();
   call.data.wall_time_us =

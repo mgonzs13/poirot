@@ -257,9 +257,11 @@ void TuiRenderer::render_table_view(const DataManager &data_manager) {
   if (this->selected_row_ >= total_rows) {
     this->selected_row_ = std::max(0, total_rows - 1);
   }
+
   if (this->scroll_offset_ > this->selected_row_) {
     this->scroll_offset_ = this->selected_row_;
   }
+
   if (this->selected_row_ >= this->scroll_offset_ + this->max_rows_) {
     this->scroll_offset_ = this->selected_row_ - this->max_rows_ + 1;
   }
@@ -358,9 +360,11 @@ void TuiRenderer::render_graph_view(const DataManager &data_manager,
 
   // Draw divider
   attron(COLOR_PAIR(COLOR_HEADER));
+
   for (int y = 2; y < this->terminal_height_ - 1; ++y) {
     mvaddch(y, selector_width, ACS_VLINE);
   }
+
   attroff(COLOR_PAIR(COLOR_HEADER));
 
   // Render function selector
@@ -459,9 +463,11 @@ void TuiRenderer::render_function_selector(const DataManager &data_manager,
   if (this->graph_scroll_offset_ > this->selected_row_) {
     this->graph_scroll_offset_ = this->selected_row_;
   }
+
   if (this->selected_row_ >= this->graph_scroll_offset_ + max_visible) {
     this->graph_scroll_offset_ = this->selected_row_ - max_visible + 1;
   }
+
   if (this->selected_row_ >= total_funcs) {
     this->selected_row_ = std::max(0, total_funcs - 1);
   }
@@ -529,6 +535,7 @@ void TuiRenderer::render_function_selector(const DataManager &data_manager,
     mvprintw(start_row + 1, width - 3, "^");
     attroff(A_BOLD);
   }
+
   if (this->graph_scroll_offset_ + max_visible < total_funcs) {
     attron(A_BOLD);
     mvprintw(this->terminal_height_ - 2, width - 3, "v");
@@ -630,18 +637,22 @@ void TuiRenderer::draw_graph(
 
   // Draw graph frame/border
   attron(COLOR_PAIR(COLOR_HEADER));
+
   // Top border
   mvaddch(graph_top - 1, graph_left - 1, ACS_ULCORNER);
   mvhline(graph_top - 1, graph_left, ACS_HLINE, actual_graph_width);
   mvaddch(graph_top - 1, graph_right + 1, ACS_URCORNER);
+
   // Left border (Y axis)
   for (int y = graph_top; y <= graph_bottom; ++y) {
     mvaddch(y, graph_left - 1, ACS_VLINE);
   }
+
   // Right border
   for (int y = graph_top; y <= graph_bottom; ++y) {
     mvaddch(y, graph_right + 1, ACS_VLINE);
   }
+
   // Bottom border (X axis)
   mvaddch(graph_bottom + 1, graph_left - 1, ACS_LLCORNER);
   mvhline(graph_bottom + 1, graph_left, ACS_HLINE, actual_graph_width);
@@ -725,6 +736,7 @@ void TuiRenderer::draw_graph(
     mvaddch(graph_bottom + 1, x, ACS_BTEE);
     attroff(COLOR_PAIR(COLOR_HEADER));
   }
+
   attroff(COLOR_PAIR(COLOR_GRAPH_4));
 
   // Draw info line with stats
@@ -734,6 +746,7 @@ void TuiRenderer::draw_graph(
       avg_val += this->get_value_by_type(dp, data_type);
     }
   }
+
   avg_val /= (total_points > 0 ? total_points : 1);
 
   char info_buf[128];
@@ -805,12 +818,15 @@ void TuiRenderer::draw_graph(
       while (true) {
         // Skip the endpoints (we'll draw markers there)
         if (!((x == x0 && y == y0) || (x == x1 && y == y1))) {
+
           // Determine line character based on direction
           chtype line_char;
           if (dx == 0) {
             line_char = ACS_VLINE; // Vertical line: │
+
           } else if (dy == 0) {
             line_char = ACS_HLINE; // Horizontal line: ─
+
           } else {
             // Calculate local slope for character selection
             double local_slope = static_cast<double>(y1 - y0) / (x1 - x0);
@@ -1155,6 +1171,7 @@ bool TuiRenderer::handle_mouse_input(DataManager &data_manager, MEVENT &event) {
         if (clicked_row >= 0 && clicked_row < static_cast<int>(rows.size())) {
           this->selected_row_ = clicked_row;
         }
+
       } else {
         // In graph view - check if clicked in function selector area (left
         // side)
@@ -1168,6 +1185,7 @@ bool TuiRenderer::handle_mouse_input(DataManager &data_manager, MEVENT &event) {
           }
         }
       }
+
       return true;
     }
   }
@@ -1179,6 +1197,7 @@ bool TuiRenderer::handle_mouse_input(DataManager &data_manager, MEVENT &event) {
     this->move_up();
     return true;
   }
+
   if (event.bstate & BUTTON5_PRESSED) { // Scroll down
     this->move_down();
     this->move_down();

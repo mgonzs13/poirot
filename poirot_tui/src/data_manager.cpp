@@ -40,7 +40,6 @@ void DataManager::process_profiling_data(
   row.pid = msg->process_info.pid;
   row.function_name = msg->function.name;
   row.call_count = msg->function.call_count;
-  // Use call data for display (most recent function call)
   row.wall_time_us = msg->function.call.data.wall_time_us;
   row.cpu_time_us = msg->function.call.data.cpu_time_us;
   row.memory_kb = msg->function.call.data.memory_kb;

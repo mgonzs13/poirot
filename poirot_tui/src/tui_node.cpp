@@ -22,6 +22,7 @@ using namespace poirot_tui;
 
 TuiNode::TuiNode(const rclcpp::NodeOptions &options)
     : rclcpp::Node("poirot_tui", options), running_(false) {
+
   // Declare and get parameters
   this->declare_parameter<std::string>("topic", "/poirot/data");
   this->topic_name_ = this->get_parameter("topic").as_string();
