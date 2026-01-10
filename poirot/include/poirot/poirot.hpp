@@ -224,6 +224,42 @@ private:
   double read_hwmon_power_w();
 
   /**
+   * @brief Read minimum TDP from system files.
+   * @return Minimum TDP in watts or fallback value.
+   */
+  double read_min_tdp_watts();
+
+  /**
+   * @brief Read maximum TDP from system files.
+   * @return Maximum TDP in watts or fallback value.
+   */
+  double read_max_tdp_watts();
+
+  /**
+   * @brief Read idle power factor from system measurements.
+   * @return Idle power factor (ratio of idle to max power).
+   */
+  double read_idle_power_factor();
+
+  /**
+   * @brief Read watts per GHz from system measurements.
+   * @return Power per core per GHz in watts.
+   */
+  double read_watts_per_ghz();
+
+  /**
+   * @brief Read minimum watts per GHz from system characteristics.
+   * @return Minimum reasonable power per core per GHz.
+   */
+  double read_min_watts_per_ghz();
+
+  /**
+   * @brief Read maximum watts per GHz from system characteristics.
+   * @return Maximum reasonable power per core per GHz.
+   */
+  double read_max_watts_per_ghz();
+
+  /**
    * @brief Get the thread status file path.
    * @param filename The filename within the task directory.
    * @return Path to the thread-specific file or process-level fallback.
@@ -361,6 +397,9 @@ private:
   std::string cached_hwmon_power_path_;
   /// @brief Flag indicating if hwmon paths have been searched
   bool hwmon_paths_searched_ = false;
+
+  /// @brief Cached idle power factor (ratio of idle to max power)
+  double idle_power_factor_ = 0.15;
 
   /// @brief CO2 factors (dynamically loaded)
   mutable std::shared_mutex co2_factors_mutex_;

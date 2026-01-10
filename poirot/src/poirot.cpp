@@ -37,12 +37,22 @@ using namespace poirot;
 // ============================================================================
 /// @brief Default CO2 factor in kg per kWh
 static constexpr double DEFAULT_CO2_FACTOR_KG_PER_KWH = 0.475;
-/// @brief Minimum and maximum TDP values in watts for sanity checks
-static constexpr double MIN_TDP_WATTS = 15.0;
-/// @brief Maximum TDP values in watts for sanity checks
-static constexpr double MAX_TDP_WATTS = 400.0;
-/// @brief CPUs consume ~15% TDP at idle
-static constexpr double IDLE_POWER_FACTOR = 0.15;
+/// @brief Fallback minimum TDP in watts if system detection fails
+static constexpr double FALLBACK_MIN_TDP_WATTS = 15.0;
+/// @brief Fallback maximum TDP in watts if system detection fails
+static constexpr double FALLBACK_MAX_TDP_WATTS = 400.0;
+/// @brief Fallback idle power factor if measurement fails
+static constexpr double FALLBACK_IDLE_POWER_FACTOR = 0.15;
+/// @brief Fallback watts per core per GHz if calculation fails
+static constexpr double FALLBACK_WATTS_PER_GHZ = 4.0;
+/// @brief Fallback minimum watts per GHz for validation
+static constexpr double FALLBACK_MIN_WATTS_PER_GHZ = 2.0;
+/// @brief Fallback maximum watts per GHz for validation
+static constexpr double FALLBACK_MAX_WATTS_PER_GHZ = 20.0;
+/// @brief Fallback power per core per GHz if all measurements fail
+static constexpr double FALLBACK_POWER_PER_CORE_PER_GHZ = 10.0;
+/// @brief Fallback watts per core if all measurements fail
+static constexpr double FALLBACK_WATTS_PER_CORE = 12.0;
 /// @brief CURL timeout in seconds for downloading CO2 factors
 static constexpr long CURL_TIMEOUT_SECONDS = 10L;
 
@@ -114,6 +124,225 @@ double Poirot::read_hwmon_power_w() {
     }
   }
   return 0.0;
+}
+
+double Poirot::read_min_tdp_watts() {
+  // Try RAPL constraint minimum power
+  static const std::vector<std::string> min_power_paths = {
+      "/sys/class/powercap/intel-rapl/intel-rapl:0/constraint_0_min_power_uw",
+      "/sys/class/powercap/intel-rapl/intel-rapl:0/constraint_1_min_power_uw",
+      "/sys/class/powercap/amd-rapl/amd-rapl:0/constraint_0_min_power_uw"};
+
+  for (const auto &path : min_power_paths) {
+    long power_uw = this->read_sysfs_long(path);
+    if (power_uw > 0) {
+      return static_cast<double>(power_uw) / 1e6;
+    }
+  }
+
+  // Estimate from minimum CPU frequency
+  long min_freq_khz = this->read_sysfs_long(
+      "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_min_freq");
+  if (min_freq_khz > 0 && this->system_info_.cpu_cores > 0) {
+    double min_freq_ghz = static_cast<double>(min_freq_khz) / 1e6;
+    double watts_per_ghz = this->read_watts_per_ghz();
+    double min_tdp =
+        this->system_info_.cpu_cores * min_freq_ghz * watts_per_ghz;
+    if (min_tdp > 0) {
+      return min_tdp;
+    }
+  }
+
+  return FALLBACK_MIN_TDP_WATTS;
+}
+
+double Poirot::read_max_tdp_watts() {
+  // Try RAPL max power constraint
+  static const std::vector<std::string> max_power_paths = {
+      "/sys/class/powercap/intel-rapl/intel-rapl:0/constraint_0_max_power_uw",
+      "/sys/class/powercap/intel-rapl/intel-rapl:0/constraint_1_max_power_uw",
+      "/sys/class/powercap/amd-rapl/amd-rapl:0/constraint_0_max_power_uw"};
+
+  for (const auto &path : max_power_paths) {
+    long power_uw = this->read_sysfs_long(path);
+    if (power_uw > 0) {
+      return static_cast<double>(power_uw) / 1e6;
+    }
+  }
+
+  // Try hwmon power cap
+  DIR *hwmon_dir = opendir("/sys/class/hwmon");
+  if (hwmon_dir) {
+    struct dirent *entry;
+    while ((entry = readdir(hwmon_dir)) != nullptr) {
+      if (entry->d_name[0] == '.') {
+        continue;
+      }
+
+      std::string base = std::string("/sys/class/hwmon/") + entry->d_name;
+      std::string name = this->read_sysfs_string(base + "/name");
+      if (name == "zenpower" || name == "amd_energy" || name == "coretemp" ||
+          name == "k10temp") {
+        long power_uw = this->read_sysfs_long(base + "/power1_cap_max");
+        if (power_uw > 0) {
+          closedir(hwmon_dir);
+          return static_cast<double>(power_uw) / 1e6;
+        }
+      }
+    }
+
+    closedir(hwmon_dir);
+  }
+
+  // Estimate from max CPU frequency
+  long max_freq_khz = this->read_sysfs_long(
+      "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
+  if (max_freq_khz > 0 && this->system_info_.cpu_cores > 0) {
+    double max_freq_ghz = static_cast<double>(max_freq_khz) / 1e6;
+    double watts_per_ghz = this->read_watts_per_ghz();
+    double max_tdp =
+        this->system_info_.cpu_cores * max_freq_ghz * watts_per_ghz;
+    if (max_tdp > 0) {
+      return max_tdp * 1.5; // Allow headroom for turbo boost
+    }
+  }
+
+  return FALLBACK_MAX_TDP_WATTS;
+}
+
+double Poirot::read_idle_power_factor() {
+  // Try to read actual idle power from RAPL or hwmon
+  double idle_power_w = 0.0;
+  double max_power_w = this->read_max_tdp_watts();
+
+  // Read RAPL idle power (constraint_1 is often the idle/efficiency constraint)
+  long idle_uw =
+      this->read_sysfs_long("/sys/class/powercap/intel-rapl/intel-rapl:0/"
+                            "constraint_1_power_limit_uw");
+  if (idle_uw > 0) {
+    idle_power_w = static_cast<double>(idle_uw) / 1e6;
+  }
+
+  // Try sustainable power as idle indicator
+  if (idle_power_w == 0.0) {
+    long sustainable_mw = this->read_sysfs_long(
+        "/sys/class/thermal/thermal_zone0/sustainable_power");
+    if (sustainable_mw > 0) {
+      idle_power_w = static_cast<double>(sustainable_mw) / 1000.0;
+    }
+  }
+
+  // Calculate ratio from min/max frequency
+  if (idle_power_w == 0.0 || max_power_w <= 0.0) {
+    long min_freq_khz = this->read_sysfs_long(
+        "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_min_freq");
+    long max_freq_khz = this->read_sysfs_long(
+        "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
+    if (min_freq_khz > 0 && max_freq_khz > 0) {
+      // Power scales roughly with frequency squared (voltage scaling)
+      double freq_ratio =
+          static_cast<double>(min_freq_khz) / static_cast<double>(max_freq_khz);
+      return freq_ratio * freq_ratio;
+    }
+  }
+
+  if (idle_power_w > 0.0 && max_power_w > 0.0) {
+    double factor = idle_power_w / max_power_w;
+    // Clamp to reasonable range [0.05, 0.5]
+    return std::max(0.05, std::min(0.5, factor));
+  }
+
+  return FALLBACK_IDLE_POWER_FACTOR;
+}
+
+double Poirot::read_watts_per_ghz() {
+  // Try to calculate from actual power and frequency measurements
+  double current_power_w = this->read_hwmon_power_w();
+  if (current_power_w == 0.0) {
+    current_power_w = this->read_rapl_power_limit_w();
+  }
+
+  long freq_khz = this->read_sysfs_long(
+      "/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq");
+  double current_freq_ghz = static_cast<double>(freq_khz) / 1e6;
+
+  if (current_power_w > 0 && current_freq_ghz > 0 &&
+      this->system_info_.cpu_cores > 0) {
+    return current_power_w / (this->system_info_.cpu_cores * current_freq_ghz);
+  }
+
+  // Try from TDP and max frequency
+  if (this->system_info_.cpu_tdp_watts > 0) {
+    long max_freq_khz = this->read_sysfs_long(
+        "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
+    if (max_freq_khz > 0 && this->system_info_.cpu_cores > 0) {
+      double max_freq_ghz = static_cast<double>(max_freq_khz) / 1e6;
+      return this->system_info_.cpu_tdp_watts /
+             (this->system_info_.cpu_cores * max_freq_ghz);
+    }
+  }
+
+  // Fallback: typical value for modern CPUs (3-5 W/GHz/core)
+  return FALLBACK_WATTS_PER_GHZ;
+}
+
+double Poirot::read_min_watts_per_ghz() {
+  // Calculate minimum watts per GHz from system characteristics
+  // Try to derive from minimum TDP and maximum frequency
+  double min_tdp = this->read_min_tdp_watts();
+  long max_freq_khz = this->read_sysfs_long(
+      "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
+
+  if (min_tdp > 0 && max_freq_khz > 0 && this->system_info_.cpu_cores > 0) {
+    double max_freq_ghz = static_cast<double>(max_freq_khz) / 1e6;
+    double min_watts_per_ghz =
+        min_tdp / (this->system_info_.cpu_cores * max_freq_ghz);
+    if (min_watts_per_ghz > 0) {
+      return min_watts_per_ghz;
+    }
+  }
+
+  // Try from idle power factor
+  double watts_per_ghz = this->read_watts_per_ghz();
+  double idle_factor = this->read_idle_power_factor();
+  if (watts_per_ghz > 0 && idle_factor > 0) {
+    return watts_per_ghz * idle_factor;
+  }
+
+  // Fallback: minimum reasonable value for modern CPUs
+  return FALLBACK_MIN_WATTS_PER_GHZ;
+}
+
+double Poirot::read_max_watts_per_ghz() {
+  // Calculate maximum watts per GHz from system characteristics
+  // Try to derive from max TDP and base/min frequency (since turbo uses more)
+  double max_tdp = this->read_max_tdp_watts();
+  long base_freq_khz = this->read_sysfs_long(
+      "/sys/devices/system/cpu/cpu0/cpufreq/base_frequency");
+
+  // Fall back to scaling_max_freq if base_frequency not available
+  if (base_freq_khz <= 0) {
+    base_freq_khz = this->read_sysfs_long(
+        "/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq");
+  }
+
+  if (max_tdp > 0 && base_freq_khz > 0 && this->system_info_.cpu_cores > 0) {
+    double base_freq_ghz = static_cast<double>(base_freq_khz) / 1e6;
+    double max_watts_per_ghz =
+        max_tdp / (this->system_info_.cpu_cores * base_freq_ghz);
+    if (max_watts_per_ghz > 0) {
+      return max_watts_per_ghz;
+    }
+  }
+
+  // Try from current measurements with turbo headroom
+  double watts_per_ghz = this->read_watts_per_ghz();
+  if (watts_per_ghz > 0) {
+    return watts_per_ghz * 2.0; // Allow 2x headroom for turbo
+  }
+
+  // Fallback: maximum reasonable value for modern CPUs
+  return FALLBACK_MAX_WATTS_PER_GHZ;
 }
 
 // ============================================================================
@@ -458,12 +687,10 @@ void Poirot::detect_system_info() {
                     "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
                 if (max_freq_khz > 0 && this->system_info_.cpu_cores > 0) {
                   double max_freq_ghz = static_cast<double>(max_freq_khz) / 1e6;
-                  double watts_per_core_at_max = max_freq_ghz * 3.5;
+                  double watts_per_ghz = this->read_watts_per_ghz();
+                  double watts_per_core_at_max = max_freq_ghz * watts_per_ghz;
                   this->system_info_.cpu_tdp_watts =
                       this->system_info_.cpu_cores * watts_per_core_at_max;
-                  this->system_info_.cpu_tdp_watts = std::min(
-                      std::max(this->system_info_.cpu_tdp_watts, MIN_TDP_WATTS),
-                      MAX_TDP_WATTS);
                 }
               }
 
@@ -490,11 +717,6 @@ void Poirot::detect_system_info() {
 
       this->system_info_.cpu_tdp_watts =
           this->system_info_.cpu_cores * max_freq_ghz * power_factor;
-
-      // Cap at reasonable values
-      this->system_info_.cpu_tdp_watts =
-          std::min(std::max(this->system_info_.cpu_tdp_watts, MIN_TDP_WATTS),
-                   MAX_TDP_WATTS);
       this->system_info_.cpu_tdp_watts_type =
           poirot_msgs::msg::SystemInfo::CPU_CORES_FREQUENCY_TYPE;
     }
@@ -507,12 +729,18 @@ void Poirot::detect_system_info() {
 
     this->system_info_.cpu_tdp_watts =
         this->system_info_.cpu_cores * watts_per_core;
-    this->system_info_.cpu_tdp_watts =
-        std::min(std::max(this->system_info_.cpu_tdp_watts, MIN_TDP_WATTS),
-                 MAX_TDP_WATTS);
     this->system_info_.cpu_tdp_watts_type =
         poirot_msgs::msg::SystemInfo::CPU_CORES_TYPE;
   }
+
+  // Final sanity check: clamp TDP to system-derived bounds
+  double min_tdp = this->read_min_tdp_watts();
+  double max_tdp = this->read_max_tdp_watts();
+  this->system_info_.cpu_tdp_watts =
+      std::min(std::max(this->system_info_.cpu_tdp_watts, min_tdp), max_tdp);
+
+  // Cache idle power factor for later use
+  this->idle_power_factor_ = this->read_idle_power_factor();
 
   // CO2 factor from timezone
   this->system_info_.country_code = this->get_country_from_timezone();
@@ -599,7 +827,14 @@ double Poirot::estimate_power_per_core_per_ghz() {
   // Calculate actual power per core per GHz if we have valid data
   if (current_power_w > 0 && current_freq_ghz > 0 &&
       this->system_info_.cpu_cores > 0) {
-    return current_power_w / (this->system_info_.cpu_cores * current_freq_ghz);
+    double calculated =
+        current_power_w / (this->system_info_.cpu_cores * current_freq_ghz);
+    // Validate calculated value is in reasonable range
+    double min_watts_per_ghz = this->read_min_watts_per_ghz();
+    double max_watts_per_ghz = this->read_max_watts_per_ghz();
+    if (calculated >= min_watts_per_ghz && calculated <= max_watts_per_ghz) {
+      return calculated;
+    }
   }
 
   // Try reading from DMI/SMBIOS for manufacturer specifications
@@ -611,14 +846,12 @@ double Poirot::estimate_power_per_core_per_ghz() {
         this->system_info_.cpu_cores > 0) {
       double calculated = this->system_info_.cpu_tdp_watts /
                           (this->system_info_.cpu_cores * max_freq_ghz);
-      if (calculated >= 4.0 && calculated <= 15.0) {
-        return calculated;
-      }
+      return calculated;
     }
   }
 
   // Fallback: conservative default
-  return 10.0;
+  return FALLBACK_POWER_PER_CORE_PER_GHZ;
 }
 
 double Poirot::estimate_watts_per_core() {
@@ -654,7 +887,7 @@ double Poirot::estimate_watts_per_core() {
   }
 
   // Fallback: conservative default
-  return 12.0;
+  return FALLBACK_WATTS_PER_CORE;
 }
 
 std::string Poirot::get_country_from_timezone() {
@@ -1115,9 +1348,9 @@ double Poirot::read_energy_uj() {
     double cpu_pct = this->process_info_.process_cpu_percent;
 
     // Apply utilization factor with idle power baseline
-    double util_factor =
-        IDLE_POWER_FACTOR + (1.0 - IDLE_POWER_FACTOR) * (cpu_pct / 100.0);
-    util_factor = std::max(IDLE_POWER_FACTOR, std::min(1.0, util_factor));
+    double idle_factor = this->idle_power_factor_;
+    double util_factor = idle_factor + (1.0 - idle_factor) * (cpu_pct / 100.0);
+    util_factor = std::max(idle_factor, std::min(1.0, util_factor));
 
     power_w = this->system_info_.cpu_tdp_watts * util_factor;
   }
