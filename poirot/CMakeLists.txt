@@ -17,6 +17,14 @@ find_package(CURL REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
   src/poirot.cpp
+  src/utils/sysfs_reader.cpp
+  src/utils/thread_metrics.cpp
+  src/utils/process_metrics.cpp
+  src/utils/energy_monitor.cpp
+  src/utils/hwmon_scanner.cpp
+  src/utils/power_estimator.cpp
+  src/utils/co2_manager.cpp
+  src/utils/string.cpp
 )
 target_include_directories(${PROJECT_NAME} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

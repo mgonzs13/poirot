@@ -30,11 +30,21 @@
 #include <string>
 #include <thread>
 
+#include "rclcpp/rclcpp.hpp"
+
+#include "poirot/utils/co2_manager.hpp"
+#include "poirot/utils/energy_monitor.hpp"
+#include "poirot/utils/hwmon_scanner.hpp"
+#include "poirot/utils/power_estimator.hpp"
+#include "poirot/utils/process_metrics.hpp"
+#include "poirot/utils/string.hpp"
+#include "poirot/utils/sysfs_reader.hpp"
+#include "poirot/utils/thread_metrics.hpp"
+
 #include "poirot_msgs/msg/function_stats.hpp"
 #include "poirot_msgs/msg/process_info.hpp"
 #include "poirot_msgs/msg/profiling_data.hpp"
 #include "poirot_msgs/msg/system_info.hpp"
-#include "rclcpp/rclcpp.hpp"
 
 namespace poirot {
 
@@ -126,206 +136,9 @@ private:
   void detect_system_info();
 
   /**
-   * @brief Get country code from system timezone.
-   * @return Country code as a string.
-   */
-  std::string get_country_from_timezone();
-
-  /**
-   * @brief Get CO2 factor for a given country.
-   * @param country Country code.
-   * @return CO2 factor in gCO2/kWh.
-   */
-  double get_co2_factor_for_country(const std::string &country);
-
-  /**
-   * @brief Search for hwmon paths for energy and power readings.
-   */
-  void search_hwmon_paths();
-
-  /**
-   * @brief Iterate through hwmon devices and apply a callback function.
-   * @param callback Function that receives (base_path, device_name) and
-   * returns true to stop iteration, false to continue.
-   */
-  void iterate_hwmon_devices(
-      std::function<bool(const std::string &, const std::string &)> callback);
-
-  /**
-   * @brief Download CO2 factors from an external source.
-   * @return True if download was successful, false otherwise.
-   */
-  bool download_co2_factors();
-
-  /**
-   * @brief Estimate power consumption per core per GHz based on CPU
-   * characteristics.
-   * @return Estimated power in watts per core per GHz.
-   */
-  double estimate_power_per_core_per_ghz();
-
-  /**
-   * @brief Estimate watts per core based on system type and CPU
-   * characteristics.
-   * @return Estimated power in watts per core.
-   */
-  double estimate_watts_per_core();
-
-  /**
-   * @brief Read a long value from a sysfs file.
-   * @param path Path to the sysfs file.
-   * @param default_value Value to return if file cannot be read.
-   * @return The value read from file or default_value.
-   */
-  static long read_sysfs_long(const std::string &path, long default_value = 0);
-
-  /**
-   * @brief Read a double value from a sysfs file.
-   * @param path Path to the sysfs file.
-   * @param default_value Value to return if file cannot be read.
-   * @return The value read from file or default_value.
-   */
-  static double read_sysfs_double(const std::string &path,
-                                  double default_value = 0.0);
-
-  /**
-   * @brief Read a string from a sysfs file.
-   * @param path Path to the sysfs file.
-   * @return The string read from file or empty string.
-   */
-  static std::string read_sysfs_string(const std::string &path);
-
-  /**
-   * @brief Read power from RAPL power limit files.
-   * @return Power in watts or 0.0 if not available.
-   */
-  double read_rapl_power_limit_w();
-
-  /**
-   * @brief Read power from hwmon sensors.
-   * @return Power in watts or 0.0 if not available.
-   */
-  double read_hwmon_power_w();
-
-  /**
-   * @brief Read minimum TDP from system files.
-   * @return Minimum TDP in watts or fallback value.
-   */
-  double read_min_tdp_watts();
-
-  /**
-   * @brief Read maximum TDP from system files.
-   * @return Maximum TDP in watts or fallback value.
-   */
-  double read_max_tdp_watts();
-
-  /**
-   * @brief Read idle power factor from system measurements.
-   * @return Idle power factor (ratio of idle to max power).
-   */
-  double read_idle_power_factor();
-
-  /**
-   * @brief Read watts per GHz from system measurements.
-   * @return Power per core per GHz in watts.
-   */
-  double read_watts_per_ghz();
-
-  /**
-   * @brief Read minimum watts per GHz from system characteristics.
-   * @return Minimum reasonable power per core per GHz.
-   */
-  double read_min_watts_per_ghz();
-
-  /**
-   * @brief Read maximum watts per GHz from system characteristics.
-   * @return Maximum reasonable power per core per GHz.
-   */
-  double read_max_watts_per_ghz();
-
-  /**
-   * @brief Get the thread status file path.
-   * @param filename The filename within the task directory.
-   * @return Path to the thread-specific file or process-level fallback.
-   */
-  static std::string get_thread_status_path(const std::string &filename);
-
-  /**
-   * @brief Read current thread's CPU time in microseconds.
-   * @return CPU time in microseconds.
-   */
-  double read_thread_cpu_time_us();
-
-  /**
-   * @brief Read current process's CPU time in microseconds.
-   * @return Process CPU time in microseconds.
-   */
-  double read_process_cpu_time_us();
-
-  /**
-   * @brief Read system-wide CPU time in microseconds.
-   * @return System-wide CPU time in microseconds.
-   */
-  double read_system_cpu_time_us();
-
-  /**
-   * @brief Read current thread's memory usage in kilobytes.
-   * @return Memory usage in kilobytes.
-   */
-  long read_thread_memory_kb();
-
-  /**
-   * @brief Read current thread's I/O bytes.
-   * @param read_bytes Reference to store read bytes.
-   * @param write_bytes Reference to store write bytes.
-   */
-  void read_thread_io_bytes(long &read_bytes, long &write_bytes);
-
-  /**
-   * @brief Read current thread's context switches.
-   * @return Number of context switches.
-   */
-  long read_thread_ctx_switches();
-
-  /**
-   * @brief Read energy consumption in microjoules.
-   * @return Energy consumption in microjoules.
-   */
-  double read_energy_uj();
-
-  /**
-   * @brief Get battery power in watts.
-   * @return Battery power in watts.
-   */
-  double get_battery_power_w();
-
-  /**
-   * @brief Calculate thread-level energy using hierarchical CPU time
-   * attribution.
-   * @param thread_cpu_delta_us Thread CPU time delta in microseconds.
-   * @param process_cpu_delta_us Process CPU time delta in microseconds.
-   */
-  double calculate_thread_energy_uj(double thread_cpu_delta_us,
-                                    double process_cpu_delta_us,
-                                    double system_cpu_delta_us,
-                                    double total_energy_delta_uj);
-
-  /**
    * @brief Read process-level data such as memory and I/O.
    */
   void read_process_data();
-
-  /**
-   * @brief Read process CPU usage percentage.
-   * @return CPU usage percentage.
-   */
-  double read_cpu_percent();
-
-  /**
-   * @brief Read number of threads in the process.
-   * @return Number of threads.
-   */
-  int read_process_thread_count();
 
   /**
    * @brief Publish profiling statistics for a specific function.
@@ -357,41 +170,25 @@ private:
   /// @brief Map of thread IDs to their profiling contexts
   std::map<std::thread::id, ThreadProfilingContext> thread_contexts_;
 
-  /// @brief CPU usage tracking (for process)
-  std::atomic<unsigned long long> prev_process_cpu_{0};
-  /// @brief CPU usage tracking (for system)
-  std::chrono::high_resolution_clock::time_point prev_cpu_read_time_;
-  /// @brief Mutex for CPU read time updates
-  mutable std::mutex cpu_read_mutex_;
+  // ============================================================================
+  // Utility Class Instances
+  // ============================================================================
+  /// @brief CO2 factor manager
+  utils::Co2Manager co2_manager_;
+  /// @brief Hardware monitoring scanner
+  utils::HwmonScanner hwmon_scanner_;
+  /// @brief Power estimator (depends on hwmon_scanner_)
+  utils::PowerEstimator power_estimator_;
+  /// @brief Energy monitor (depends on hwmon_scanner_)
+  utils::EnergyMonitor energy_monitor_;
+  /// @brief Process metrics tracker
+  utils::ProcessMetrics process_metrics_;
+  /// @brief Thread metrics tracker
+  utils::ThreadMetrics thread_metrics_;
 
-  /// @brief Mutex for energy readings
-  mutable std::mutex energy_mutex_;
-  /// @brief Energy tracking variables
-  double accumulated_energy_uj_ = 0.0;
-  /// @brief Last energy read time point
-  std::chrono::high_resolution_clock::time_point last_energy_read_time_;
-  /// @brief RAPL energy tracking
-  double last_rapl_energy_uj_ = 0.0;
-  /// @brief Maximum RAPL energy value before wrap-around
-  double rapl_max_energy_uj_ = 0.0;
-
-  /// @brief Cached paths for hwmon (found once, used many times)
-  std::string cached_hwmon_energy_path_;
-  /// @brief Cached hwmon power path
-  std::string cached_hwmon_power_path_;
-  /// @brief Flag indicating if hwmon paths have been searched
-  bool hwmon_paths_searched_ = false;
-
-  /// @brief Cached idle power factor (ratio of idle to max power)
-  double idle_power_factor_ = 0.15;
-
-  /// @brief CO2 factors (dynamically loaded)
-  mutable std::shared_mutex co2_factors_mutex_;
-  /// @brief Map of country codes to their CO2 factors
-  std::map<std::string, double> co2_factors_by_country_;
-  /// @brief Flag indicating if CO2 factors have been loaded
-  std::atomic<bool> co2_factors_loaded_{false};
-
+  // ============================================================================
+  // ROS 2 Integration
+  // ============================================================================
   /// @brief ROS 2 Publisher for profiling data
   rclcpp::Publisher<poirot_msgs::msg::ProfilingData>::SharedPtr
       profiling_data_publisher_;
