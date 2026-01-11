@@ -1550,36 +1550,12 @@ void Poirot::stop_profiling() {
 }
 
 // ============================================================================
-// Getters (Return copies for thread safety)
+// Output
 // ============================================================================
-std::map<std::string, poirot_msgs::msg::FunctionStats>
-Poirot::get_statistics() const {
-  std::shared_lock<std::shared_mutex> lock(this->statistics_mutex_);
-  return this->statistics_;
-}
-
-poirot_msgs::msg::SystemInfo Poirot::get_system_info() const {
-  return this->system_info_;
-}
-
-poirot_msgs::msg::ProcessInfo Poirot::get_process_info() const {
-  return this->process_info_;
-}
-
-// ============================================================================
-// Configuration
-// ============================================================================
-void Poirot::set_co2_factor(double factor) {
-  this->system_info_.co2_factor_kg_per_kwh = factor;
-}
-
 void Poirot::set_verbose(bool verbose) {
   get_instance().verbose_.store(verbose);
 }
 
-// ============================================================================
-// Output
-// ============================================================================
 void Poirot::print_system_info() {
   const Poirot &instance = get_instance();
   std::cout << "\n=========================================="
@@ -1587,12 +1563,13 @@ void Poirot::print_system_info() {
   std::cout << "              SYSTEM INFORMATION\n";
   std::cout << "============================================"
             << "=======================\n";
+  std::cout << "OS:       " << instance.system_info_.os_name << "\n";
+  std::cout << "OS Version: " << instance.system_info_.os_version << "\n";
+  std::cout << "Hostname: " << instance.system_info_.hostname << "\n";
   std::cout << "CPU:      " << instance.system_info_.cpu_model << "\n";
   std::cout << "Cores:    " << instance.system_info_.cpu_cores << "\n";
   std::cout << "Memory:   " << instance.system_info_.mem_total_kb / 1024
             << " MB\n";
-  std::cout << "OS:       " << instance.system_info_.os_name << "\n";
-  std::cout << "Hostname: " << instance.system_info_.hostname << "\n";
   std::cout << "RAPL:     "
             << (instance.system_info_.rapl_available ? "Yes" : "No") << "\n";
   std::cout << "TDP:      " << instance.system_info_.cpu_tdp_watts << " W\n";

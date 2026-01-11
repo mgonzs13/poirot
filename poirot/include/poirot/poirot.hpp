@@ -97,24 +97,6 @@ public:
   void stop_profiling();
 
   /**
-   * @brief Retrieve collected statistics.
-   * @return Map of function names to their profiling statistics.
-   */
-  std::map<std::string, poirot_msgs::msg::FunctionStats> get_statistics() const;
-
-  /**
-   * @brief Get system information.
-   * @return System information message.
-   */
-  poirot_msgs::msg::SystemInfo get_system_info() const;
-
-  /**
-   * @brief Get process information.
-   * @return Process information message.
-   */
-  poirot_msgs::msg::ProcessInfo get_process_info() const;
-
-  /**
    * @brief Get the singleton instance of the Poirot profiler.
    * @return Reference to the singleton Poirot instance.
    */
@@ -174,12 +156,6 @@ private:
    * @return True if download was successful, false otherwise.
    */
   bool download_co2_factors();
-
-  /**
-   * @brief Load CO2 factors from a local file.
-   * @return True if loading was successful, false otherwise.
-   */
-  void set_co2_factor(double factor);
 
   /**
    * @brief Estimate power consumption per core per GHz based on CPU
