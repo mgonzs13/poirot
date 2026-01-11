@@ -232,16 +232,13 @@ ThreadProfilingContext &Poirot::get_thread_context() {
 void Poirot::read_process_data() {
   this->process_info_.pid = getpid();
   this->process_info_.cpu_percent = this->process_metrics_.read_cpu_percent();
-  this->process_info_.mem_kb = this->thread_metrics_.read_memory_kb();
+  this->process_info_.mem_kb = this->process_metrics_.read_memory_kb();
 
   long io_read = 0;
   long io_write = 0;
-  this->thread_metrics_.read_io_bytes(io_read, io_write);
+  this->process_metrics_.read_io_bytes(io_read, io_write);
   this->process_info_.io_bytes = io_read + io_write;
   this->process_info_.threads = this->process_metrics_.read_thread_count();
-
-  // Update energy monitor with current CPU percent
-  this->energy_monitor_.set_cpu_percent(this->process_info_.cpu_percent);
 }
 
 void Poirot::start_profiling(const std::string &function_name) {
@@ -259,7 +256,8 @@ void Poirot::start_profiling(const std::string &function_name) {
   this->thread_metrics_.read_io_bytes(ctx.start_io_read_bytes,
                                       ctx.start_io_write_bytes);
   ctx.start_ctx_switches = this->thread_metrics_.read_ctx_switches();
-  ctx.start_energy_uj = this->energy_monitor_.read_energy_uj();
+  ctx.start_energy_uj =
+      this->energy_monitor_.read_energy_uj(this->process_info_.cpu_percent);
 }
 
 void Poirot::stop_profiling() {
@@ -275,7 +273,8 @@ void Poirot::stop_profiling() {
   long end_io_write_bytes = 0;
   this->thread_metrics_.read_io_bytes(end_io_read_bytes, end_io_write_bytes);
   long end_ctx_switches = this->thread_metrics_.read_ctx_switches();
-  double end_energy_uj = this->energy_monitor_.read_energy_uj();
+  double end_energy_uj =
+      this->energy_monitor_.read_energy_uj(this->process_info_.cpu_percent);
 
   // Get thread-local context
   ThreadProfilingContext &ctx = this->get_thread_context();
@@ -301,11 +300,14 @@ void Poirot::stop_profiling() {
                               end_time - ctx.start_time)
                               .count());
   call.data.cpu_time_us = thread_cpu_delta_us;
+  call.data.process_cpu_time_us = process_cpu_delta_us;
+  call.data.system_cpu_time_us = system_cpu_delta_us;
   call.data.mem_kb = end_memory_kb - ctx.start_memory_kb;
   call.data.io_read_bytes = end_io_read_bytes - ctx.start_io_read_bytes;
   call.data.io_write_bytes = end_io_write_bytes - ctx.start_io_write_bytes;
   call.data.ctx_switches = end_ctx_switches - ctx.start_ctx_switches;
   call.data.energy_uj = thread_energy_uj;
+  call.data.total_energy_uj = total_energy_delta_uj;
 
   // Calculate CO2 in micrograms
   constexpr double UJ_TO_KWH = 1.0 / 1e6 / 3600.0 / 1000.0;

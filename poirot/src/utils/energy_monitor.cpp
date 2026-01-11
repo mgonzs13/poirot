@@ -43,7 +43,7 @@ void EnergyMonitor::initialize_rapl_max_energy() {
   }
 }
 
-double EnergyMonitor::read_energy_uj() {
+double EnergyMonitor::read_energy_uj(double cpu_percent_) {
   std::lock_guard<std::mutex> lock(this->energy_mutex_);
 
   // Helper lambda to read RAPL energy with wraparound detection
@@ -138,7 +138,7 @@ double EnergyMonitor::read_energy_uj() {
     double base_power = this->cpu_tdp_watts_ * this->idle_power_factor_;
     double dynamic_power = this->cpu_tdp_watts_ *
                            (1.0 - this->idle_power_factor_) *
-                           (this->cpu_percent_ / 100.0);
+                           (cpu_percent_ / 100.0);
     power_w = base_power + dynamic_power;
   }
 

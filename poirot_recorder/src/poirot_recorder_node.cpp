@@ -73,9 +73,10 @@ void PoirotRecorderNode::write_csv_header() {
          "factor_kg_per_kwh,"
       << "process_pid,process_cpu_percent,process_mem_kb,process_io_bytes,"
          "process_threads,"
-      << "function_name,call_count,wall_time_us,cpu_time_us,memory_kb,"
-      << "io_read_bytes,call_io_write_bytes,"
-      << "call_ctx_switches,energy_uj,co2_ug\n";
+      << "function_name,call_count,wall_time_us,"
+      << "cpu_time_us,process_cpu_time_us,system_cpu_time_us,"
+      << "memory_kb,io_read_bytes,call_io_write_bytes,"
+      << "call_ctx_switches,energy_uj,total_energy_uj,co2_ug\n";
 }
 
 void PoirotRecorderNode::data_callback(
@@ -121,11 +122,14 @@ void PoirotRecorderNode::data_callback(
                   // Last call
                   << msg->function.call.data.wall_time_us << ","
                   << msg->function.call.data.cpu_time_us << ","
+                  << msg->function.call.data.process_cpu_time_us << ","
+                  << msg->function.call.data.system_cpu_time_us << ","
                   << msg->function.call.data.mem_kb << ","
                   << msg->function.call.data.io_read_bytes << ","
                   << msg->function.call.data.io_write_bytes << ","
                   << msg->function.call.data.ctx_switches << ","
                   << msg->function.call.data.energy_uj << ","
+                  << msg->function.call.data.total_energy_uj << ","
                   << msg->function.call.data.co2_ug << "\n";
 
   this->csv_file_.flush(); // Ensure data is written to disk

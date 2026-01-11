@@ -54,21 +54,16 @@ public:
   }
 
   /**
-   * @brief Set the CPU percent for estimation.
-   * @param percent CPU usage percentage.
-   */
-  void set_cpu_percent(double percent) { this->cpu_percent_ = percent; }
-
-  /**
    * @brief Initialize RAPL max energy range for wraparound detection.
    */
   void initialize_rapl_max_energy();
 
   /**
    * @brief Read energy consumption in microjoules.
+   * @param cpu_percent_ Current CPU utilization percentage for estimation.
    * @return Energy consumption in microjoules.
    */
-  double read_energy_uj();
+  double read_energy_uj(double cpu_percent_ = 0.0);
 
   /**
    * @brief Calculate thread energy consumption.
@@ -104,8 +99,6 @@ private:
   double cpu_tdp_watts_ = 0.0;
   /// @brief Idle power factor for estimation
   double idle_power_factor_ = 0.15;
-  /// @brief CPU percent for estimation
-  double cpu_percent_ = 0.0;
 };
 
 } // namespace utils
