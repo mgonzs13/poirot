@@ -28,7 +28,7 @@ namespace fs = std::filesystem;
 
 EnergyMonitor::EnergyMonitor(HwmonScanner &hwmon_scanner)
     : hwmon_scanner_(hwmon_scanner),
-      last_energy_read_time_(std::chrono::high_resolution_clock::now()) {}
+      last_energy_read_time_(std::chrono::steady_clock::now()) {}
 
 void EnergyMonitor::initialize_rapl_max_energy() {
   // Get max energy range for wraparound detection
@@ -112,7 +112,7 @@ double EnergyMonitor::read_energy_uj(double cpu_percent_) {
   }
 
   // 4. Estimate energy based on power measurements and elapsed time
-  auto now = std::chrono::high_resolution_clock::now();
+  auto now = std::chrono::steady_clock::now();
 
   if (this->last_energy_read_time_.time_since_epoch().count() == 0) {
     this->last_energy_read_time_ = now;

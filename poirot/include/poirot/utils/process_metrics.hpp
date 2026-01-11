@@ -47,17 +47,13 @@ public:
    * @brief Read process CPU time in microseconds.
    * @return CPU time in microseconds.
    */
-  double read_cpu_time_us();
+  long read_cpu_time_us();
 
   /**
-   * @brief Read total available CPU time in microseconds.
-   *
-   * Returns wall clock time × number of CPU cores, representing
-   * the total CPU time available to the system. Uses high-resolution
-   * monotonic clock for nanosecond precision.
-   * @return Total available CPU time in microseconds.
+   * @brief Get the number of CPU cores.
+   * @return Number of CPU cores.
    */
-  double read_total_cpu_time_us();
+  int get_num_cpus() const;
 
   /**
    * @brief Read process thread count.
@@ -90,7 +86,7 @@ private:
   /// @brief Previous process CPU time
   std::atomic<unsigned long long> prev_process_cpu_{0};
   /// @brief Previous CPU read time point
-  std::chrono::high_resolution_clock::time_point prev_cpu_read_time_;
+  std::chrono::steady_clock::time_point prev_cpu_read_time_;
   /// @brief Mutex for CPU read time updates
   mutable std::mutex cpu_read_mutex_;
 

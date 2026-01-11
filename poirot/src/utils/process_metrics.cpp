@@ -15,6 +15,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <cmath>
 #include <fstream>
 #include <sstream>
 
@@ -30,24 +31,16 @@ ProcessMetrics::ProcessMetrics() {
 
 ProcessMetrics::~ProcessMetrics() {}
 
-double ProcessMetrics::read_cpu_time_us() {
+long ProcessMetrics::read_cpu_time_us() {
   struct timespec ts;
   if (clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts) == 0) {
-    return static_cast<double>(ts.tv_sec) * 1e6 +
-           static_cast<double>(ts.tv_nsec) / 1e3;
+    return std::round(static_cast<double>(ts.tv_sec) * 1e6 +
+                      static_cast<double>(ts.tv_nsec) / 1e3);
   }
   return 0.0;
 }
 
-double ProcessMetrics::read_total_cpu_time_us() {
-  struct timespec ts;
-  if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
-    double wall_time_us = static_cast<double>(ts.tv_sec) * 1e6 +
-                          static_cast<double>(ts.tv_nsec) / 1e3;
-    return wall_time_us * static_cast<double>(this->num_cpus_);
-  }
-  return 0.0;
-}
+int ProcessMetrics::get_num_cpus() const { return this->num_cpus_; }
 
 int ProcessMetrics::read_thread_count() {
   std::ifstream status("/proc/self/status");
@@ -71,11 +64,10 @@ int ProcessMetrics::read_thread_count() {
 double ProcessMetrics::read_cpu_percent() {
   std::lock_guard<std::mutex> lock(this->cpu_read_mutex_);
 
-  // Read current process and total CPU times
+  // Read current process CPU time
   double current_process_cpu_us = this->read_cpu_time_us();
-  double current_total_cpu_us = this->read_total_cpu_time_us();
 
-  if (current_process_cpu_us <= 0.0 || current_total_cpu_us <= 0.0) {
+  if (current_process_cpu_us <= 0.0) {
     return 0.0;
   }
 
@@ -85,12 +77,12 @@ double ProcessMetrics::read_cpu_percent() {
     // Store as integer microseconds to fit in atomic
     this->prev_process_cpu_.store(
         static_cast<unsigned long long>(current_process_cpu_us));
-    this->prev_cpu_read_time_ = std::chrono::high_resolution_clock::now();
+    this->prev_cpu_read_time_ = std::chrono::steady_clock::now();
     return 0.0;
   }
 
   // Calculate time elapsed since last measurement
-  auto now = std::chrono::high_resolution_clock::now();
+  auto now = std::chrono::steady_clock::now();
   double elapsed_us =
       static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(
                               now - this->prev_cpu_read_time_)

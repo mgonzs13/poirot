@@ -302,11 +302,11 @@ void TuiRenderer::render_table_view(const DataManager &data_manager) {
     x += col_calls;
 
     // Wall time
-    mvprintw(row_y, x, "%-*.1f", col_wall, row.wall_time_us);
+    mvprintw(row_y, x, "%-*ld", col_wall, row.wall_time_us);
     x += col_wall;
 
     // CPU time
-    mvprintw(row_y, x, "%-*.1f", col_cpu, row.cpu_time_us);
+    mvprintw(row_y, x, "%-*ld", col_cpu, row.cpu_time_us);
     x += col_cpu;
 
     // Memory

@@ -36,7 +36,7 @@ public:
    * @brief Read thread CPU time in microseconds.
    * @return CPU time in microseconds.
    */
-  double read_cpu_time_us();
+  long read_cpu_time_us();
 
   /**
    * @brief Read thread memory usage in KB.

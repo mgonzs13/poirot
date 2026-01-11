@@ -59,11 +59,9 @@ namespace poirot {
  */
 struct ThreadProfilingContext {
   std::string function_name;
-  std::chrono::high_resolution_clock::time_point start_time;
-  double start_cpu_time_us = 0.0;
-  double start_process_cpu_time_us = 0.0; // For energy attribution
-  double start_system_cpu_time_us =
-      0.0; // System-wide CPU time for accurate energy attribution
+  std::chrono::steady_clock::time_point start_time;
+  long start_cpu_time_us = 0;
+  long start_process_cpu_time_us = 0; // For energy attribution
   long start_memory_kb = 0;
   long start_io_read_bytes = 0;
   long start_io_write_bytes = 0;

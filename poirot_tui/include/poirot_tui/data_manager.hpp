@@ -33,8 +33,8 @@ namespace poirot_tui {
 
 struct DataPoint {
   double timestamp;
-  double wall_time_us;
-  double cpu_time_us;
+  int64_t wall_time_us;
+  int64_t cpu_time_us;
   int64_t mem_kb;
   int64_t io_read_bytes;
   int64_t io_write_bytes;
@@ -50,8 +50,8 @@ struct FunctionRow {
   int32_t pid;
   std::string function_name;
   int32_t call_count;
-  double wall_time_us;
-  double cpu_time_us;
+  int64_t wall_time_us;
+  int64_t cpu_time_us;
   int64_t mem_kb;
   int64_t io_read_bytes;
   int64_t io_write_bytes;

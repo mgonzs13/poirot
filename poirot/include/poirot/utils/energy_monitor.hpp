@@ -87,7 +87,7 @@ private:
   /// @brief Accumulated energy in microjoules
   double accumulated_energy_uj_ = 0.0;
   /// @brief Last energy read time point
-  std::chrono::high_resolution_clock::time_point last_energy_read_time_;
+  std::chrono::steady_clock::time_point last_energy_read_time_;
   /// @brief Last RAPL energy value
   double last_rapl_energy_uj_ = 0.0;
   /// @brief Last hwmon energy value

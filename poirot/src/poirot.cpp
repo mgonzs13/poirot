@@ -241,11 +241,9 @@ void Poirot::start_profiling(const std::string &function_name) {
   // Get thread-local context
   ThreadProfilingContext &ctx = this->get_thread_context();
   ctx.function_name = function_name;
-  ctx.start_time = std::chrono::high_resolution_clock::now();
+  ctx.start_time = std::chrono::steady_clock::now();
   ctx.start_cpu_time_us = this->thread_metrics_.read_cpu_time_us();
   ctx.start_process_cpu_time_us = this->process_metrics_.read_cpu_time_us();
-  ctx.start_system_cpu_time_us =
-      this->process_metrics_.read_total_cpu_time_us();
   ctx.start_memory_kb = this->thread_metrics_.read_memory_kb();
   this->thread_metrics_.read_io_bytes(ctx.start_io_read_bytes,
                                       ctx.start_io_write_bytes);
@@ -257,11 +255,9 @@ void Poirot::start_profiling(const std::string &function_name) {
 void Poirot::stop_profiling() {
   this->read_process_data();
 
-  auto end_time = std::chrono::high_resolution_clock::now();
+  auto end_time = std::chrono::steady_clock::now();
   double end_cpu_time_us = this->thread_metrics_.read_cpu_time_us();
   double end_process_cpu_time_us = this->process_metrics_.read_cpu_time_us();
-  double end_system_cpu_time_us =
-      this->process_metrics_.read_total_cpu_time_us();
   long end_memory_kb = this->thread_metrics_.read_memory_kb();
   long end_io_read_bytes = 0;
   long end_io_write_bytes = 0;
@@ -274,11 +270,15 @@ void Poirot::stop_profiling() {
   ThreadProfilingContext &ctx = this->get_thread_context();
 
   // Calculate deltas
+  double wall_time_delta_us =
+      static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(
+                              end_time - ctx.start_time)
+                              .count());
   double thread_cpu_delta_us = end_cpu_time_us - ctx.start_cpu_time_us;
   double process_cpu_delta_us =
       end_process_cpu_time_us - ctx.start_process_cpu_time_us;
   double system_cpu_delta_us =
-      end_system_cpu_time_us - ctx.start_system_cpu_time_us;
+      wall_time_delta_us * this->process_metrics_.get_num_cpus();
   double total_energy_delta_uj = end_energy_uj - ctx.start_energy_uj;
 
   // Calculate thread-level energy using hierarchical CPU time attribution
@@ -289,10 +289,7 @@ void Poirot::stop_profiling() {
   // Prepare FunctionCall message
   poirot_msgs::msg::FunctionCall call;
   call.timestamp = rclcpp::Clock().now();
-  call.data.wall_time_us =
-      static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(
-                              end_time - ctx.start_time)
-                              .count());
+  call.data.wall_time_us = wall_time_delta_us;
   call.data.cpu_time_us = thread_cpu_delta_us;
   call.data.process_cpu_time_us = process_cpu_delta_us;
   call.data.system_cpu_time_us = system_cpu_delta_us;

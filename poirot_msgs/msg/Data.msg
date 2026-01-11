@@ -1,7 +1,7 @@
-float64 wall_time_us                  # Wall clock time in microseconds
-float64 cpu_time_us                   # CPU time in microseconds
-float64 process_cpu_time_us           # Process CPU time in microseconds
-float64 system_cpu_time_us            # Total system CPU time in microseconds
+int64 wall_time_us                    # Wall clock time in microseconds
+int64 cpu_time_us                     # CPU time in microseconds
+int64 process_cpu_time_us             # Process CPU time in microseconds
+int64 system_cpu_time_us              # Total system CPU time in microseconds
 int64 mem_kb                          # Memory change during call in KB
 int64 io_read_bytes                   # Bytes read during call
 int64 io_write_bytes                  # Bytes written during call

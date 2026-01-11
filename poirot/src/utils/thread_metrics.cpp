@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cmath>
 #include <fstream>
 #include <sstream>
 #include <time.h>
@@ -22,11 +23,11 @@
 namespace poirot {
 namespace utils {
 
-double ThreadMetrics::read_cpu_time_us() {
+long ThreadMetrics::read_cpu_time_us() {
   struct timespec ts;
   if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts) == 0) {
-    return static_cast<double>(ts.tv_sec) * 1e6 +
-           static_cast<double>(ts.tv_nsec) / 1e3;
+    return std::round(static_cast<double>(ts.tv_sec) * 1e6 +
+                      static_cast<double>(ts.tv_nsec) / 1e3);
   }
   return 0.0;
 }
