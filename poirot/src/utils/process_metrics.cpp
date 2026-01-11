@@ -71,65 +71,92 @@ int ProcessMetrics::read_thread_count() {
 double ProcessMetrics::read_cpu_percent() {
   std::lock_guard<std::mutex> lock(this->cpu_read_mutex_);
 
-  std::ifstream stat("/proc/self/stat");
-  if (!stat.is_open()) {
+  // Read current process and total CPU times
+  double current_process_cpu_us = this->read_cpu_time_us();
+  double current_total_cpu_us = this->read_total_cpu_time_us();
+
+  if (current_process_cpu_us <= 0.0 || current_total_cpu_us <= 0.0) {
     return 0.0;
+  }
+
+  // First call - initialize state and return 0
+  double prev_process = this->prev_process_cpu_.load();
+  if (prev_process == 0.0) {
+    // Store as integer microseconds to fit in atomic
+    this->prev_process_cpu_.store(
+        static_cast<unsigned long long>(current_process_cpu_us));
+    this->prev_cpu_read_time_ = std::chrono::high_resolution_clock::now();
+    return 0.0;
+  }
+
+  // Calculate time elapsed since last measurement
+  auto now = std::chrono::high_resolution_clock::now();
+  double elapsed_us =
+      static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(
+                              now - this->prev_cpu_read_time_)
+                              .count());
+
+  if (elapsed_us <= 0.0) {
+    return 0.0;
+  }
+
+  // Calculate CPU time delta for process
+  double process_cpu_delta_us = current_process_cpu_us - prev_process;
+
+  // Total available CPU time in this period
+  double total_available_cpu_us =
+      elapsed_us * static_cast<double>(this->num_cpus_);
+
+  // Calculate percentage
+  double pct = 0.0;
+  if (total_available_cpu_us > 0.0) {
+    pct = (process_cpu_delta_us / total_available_cpu_us) * 100.0;
+  }
+
+  // Update state for next measurement
+  this->prev_process_cpu_.store(
+      static_cast<unsigned long long>(current_process_cpu_us));
+  this->prev_cpu_read_time_ = now;
+
+  return pct;
+}
+
+long ProcessMetrics::read_memory_kb() {
+  std::ifstream file("/proc/self/status");
+  if (!file.is_open()) {
+    return 0;
   }
 
   std::string line;
-  std::getline(stat, line);
-
-  size_t comm_start = line.find('(');
-  size_t comm_end = line.rfind(')');
-  if (comm_start == std::string::npos || comm_end == std::string::npos) {
-    return 0.0;
-  }
-
-  std::string after_comm = line.substr(comm_end + 2);
-  std::istringstream iss(after_comm);
-  std::string token;
-
-  unsigned long long utime = 0;
-  unsigned long long stime = 0;
-
-  for (int i = 1; i <= 13; ++i) {
-    if (!(iss >> token)) {
-      return 0.0;
-    }
-
-    if (i == 12) {
-      try {
-        utime = std::stoull(token);
-      } catch (...) {
-        return 0.0;
-      }
-    } else if (i == 13) {
-      try {
-        stime = std::stoull(token);
-      } catch (...) {
-        return 0.0;
-      }
+  while (std::getline(file, line)) {
+    if (line.compare(0, 6, "VmRSS:") == 0) {
+      std::istringstream iss(line.substr(6));
+      long value = 0;
+      iss >> value;
+      return value;
     }
   }
 
-  auto now = std::chrono::high_resolution_clock::now();
-  double time_diff =
-      std::chrono::duration<double>(now - this->prev_cpu_read_time_).count();
+  return 0;
+}
 
-  double pct = 0.0;
-  unsigned long long prev_cpu = this->prev_process_cpu_.load();
+void ProcessMetrics::read_io_bytes(long &read_bytes, long &write_bytes) {
+  read_bytes = 0;
+  write_bytes = 0;
 
-  if (time_diff > 0 && prev_cpu > 0) {
-    unsigned long long cpu_diff = (utime + stime) - prev_cpu;
-    long sc_clk_tck = sysconf(_SC_CLK_TCK);
-    double cpu_seconds =
-        static_cast<double>(cpu_diff) / static_cast<double>(sc_clk_tck);
-    pct = (cpu_seconds / time_diff) * 100.0;
+  std::ifstream file("/proc/self/io");
+  if (!file.is_open()) {
+    return;
   }
 
-  this->prev_process_cpu_.store(utime + stime);
-  this->prev_cpu_read_time_ = now;
-  return pct;
+  std::string line;
+  while (std::getline(file, line)) {
+    if (line.compare(0, 11, "read_bytes:") == 0) {
+      read_bytes = std::stol(line.substr(11));
+    } else if (line.compare(0, 12, "write_bytes:") == 0) {
+      write_bytes = std::stol(line.substr(12));
+    }
+  }
 }
 
 } // namespace utils

@@ -73,6 +73,19 @@ public:
    */
   double read_cpu_percent();
 
+  /**
+   * @brief Read process memory usage in kilobytes.
+   * @return Memory usage in kilobytes.
+   */
+  long read_memory_kb();
+
+  /**
+   * @brief Read process I/O bytes.
+   * @param read_bytes Output parameter for read bytes.
+   * @param write_bytes Output parameter for write bytes.
+   */
+  void read_io_bytes(long &read_bytes, long &write_bytes);
+
 private:
   /// @brief Previous process CPU time
   std::atomic<unsigned long long> prev_process_cpu_{0};
