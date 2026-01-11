@@ -20,6 +20,7 @@
 #include <ctime>
 #include <fstream>
 #include <sstream>
+#include <vector>
 
 #include "poirot/utils/co2_manager.hpp"
 
