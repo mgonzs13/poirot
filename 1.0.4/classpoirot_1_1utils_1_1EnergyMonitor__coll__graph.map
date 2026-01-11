@@ -1,0 +1,11 @@
+<map id="poirot::utils::EnergyMonitor" name="poirot::utils::EnergyMonitor">
+<area shape="rect" id="Node000001" title="Class for monitoring energy consumption." alt="" coords="90,303,261,328"/>
+<area shape="rect" id="Node000002" href="$classpoirot_1_1utils_1_1HwmonScanner.html" title="Class for scanning and caching hwmon device paths." alt="" coords="5,214,188,240"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="100,254,110,277,123,290,140,300,137,304,120,294,105,280,95,256"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="58,95,135,121"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="99,137,99,213,94,213,94,137"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="35,5,158,46"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="99,61,99,95,94,95,94,61"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="212,214,293,240"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="240,254,220,280,193,304,190,300,216,277,236,251"/>
+</map>

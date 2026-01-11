@@ -1,0 +1,15 @@
+<map id="poirot/src/utils/sysfs_reader.cpp" name="poirot/src/utils/sysfs_reader.cpp">
+<area shape="rect" id="Node000001" title=" " alt="" coords="106,5,244,46"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,102,71,127"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="146,49,71,95,69,91,143,44"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="94,102,163,127"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="167,48,145,89,140,87,162,45"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="186,102,258,127"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="188,45,211,87,206,89,184,48"/>
+<area shape="rect" id="Node000005" href="$sysfs__reader_8hpp.html" title=" " alt="" coords="281,94,398,135"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="214,44,290,84,288,89,211,49"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="270,183,323,208"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="331,136,313,170,308,167,326,134"/>
+<area shape="rect" id="Node000007" title=" " alt="" coords="348,183,414,208"/>
+<area shape="poly" id="edge6_Node000005_Node000007" title=" " alt="" coords="352,134,370,167,365,170,347,136"/>
+</map>

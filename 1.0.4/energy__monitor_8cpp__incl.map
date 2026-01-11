@@ -1,0 +1,30 @@
+<map id="poirot/src/utils/energy_monitor.cpp" name="poirot/src/utils/energy_monitor.cpp">
+<area shape="rect" id="Node000001" title=" " alt="" coords="430,5,575,46"/>
+<area shape="rect" id="Node000002" href="$energy__monitor_8hpp.html" title=" " alt="" coords="172,94,296,135"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="442,49,310,91,309,86,440,44"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="5,190,66,216"/>
+<area shape="poly" id="edge12_Node000001_Node000003" title=" " alt="" coords="429,33,370,40,301,51,230,70,162,96,131,115,103,137,57,180,54,176,99,133,128,110,160,92,228,65,300,46,369,34,429,28"/>
+<area shape="rect" id="Node000008" href="$sysfs__reader_8hpp.html" title=" " alt="" coords="324,94,440,135"/>
+<area shape="poly" id="edge8_Node000001_Node000008" title=" " alt="" coords="476,49,423,87,420,83,473,44"/>
+<area shape="rect" id="Node000010" title=" " alt="" coords="465,102,539,127"/>
+<area shape="poly" id="edge11_Node000001_Node000010" title=" " alt="" coords="505,47,505,86,500,86,500,47"/>
+<area shape="rect" id="Node000011" title=" " alt="" coords="563,102,620,127"/>
+<area shape="poly" id="edge13_Node000001_Node000011" title=" " alt="" coords="524,45,570,89,567,93,521,48"/>
+<area shape="rect" id="Node000012" title=" " alt="" coords="644,102,723,127"/>
+<area shape="poly" id="edge14_Node000001_Node000012" title=" " alt="" coords="544,44,646,92,643,97,542,49"/>
+<area shape="rect" id="Node000013" title=" " alt="" coords="747,102,812,127"/>
+<area shape="poly" id="edge15_Node000001_Node000013" title=" " alt="" coords="576,43,654,65,736,91,740,93,738,98,735,97,652,70,575,48"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="189,138,79,185,77,186,75,181,77,180,187,133"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="90,190,146,216"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="209,137,148,183,144,179,206,133"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="309,271,362,297"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="266,133,291,154,312,181,328,219,336,255,330,256,323,221,308,184,287,158,262,137"/>
+<area shape="rect" id="Node000006" href="$hwmon__scanner_8hpp.html" title=" " alt="" coords="170,183,298,223"/>
+<area shape="poly" id="edge5_Node000002_Node000006" title=" " alt="" coords="237,135,237,167,232,167,232,135"/>
+<area shape="poly" id="edge7_Node000006_Node000005" title=" " alt="" coords="261,222,310,259,306,264,258,226"/>
+<area shape="rect" id="Node000007" title=" " alt="" coords="196,271,273,297"/>
+<area shape="poly" id="edge6_Node000006_Node000007" title=" " alt="" coords="237,224,237,256,232,256,232,224"/>
+<area shape="poly" id="edge9_Node000008_Node000005" title=" " alt="" coords="380,136,357,224,347,257,342,256,352,223,375,135"/>
+<area shape="rect" id="Node000009" title=" " alt="" coords="424,190,490,216"/>
+<area shape="poly" id="edge10_Node000008_Node000009" title=" " alt="" coords="401,133,439,177,435,180,397,137"/>
+</map>

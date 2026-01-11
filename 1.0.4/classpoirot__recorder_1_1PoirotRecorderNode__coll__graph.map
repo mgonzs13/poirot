@@ -1,0 +1,21 @@
+<map id="poirot_recorder::PoirotRecorderNode" name="poirot_recorder::PoirotRecorderNode">
+<area shape="rect" id="Node000001" title="Node that records profiling data to a CSV file." alt="" coords="104,424,334,450"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,335,99,361"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="90,366,196,421,194,426,88,371"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="122,335,219,361"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="174,376,180,399,202,422,198,425,176,401,169,377"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="82,245,216,286"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="161,300,170,334,165,336,156,302"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="84,155,214,196"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="152,212,152,245,147,245,147,212"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="75,80,224,106"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="152,122,152,155,147,155,147,122"/>
+<area shape="rect" id="Node000007" title=" " alt="" coords="101,5,198,31"/>
+<area shape="poly" id="edge6_Node000006_Node000007" title=" " alt="" coords="152,46,152,80,147,80,147,46"/>
+<area shape="rect" id="Node000008" title=" " alt="" coords="243,335,320,361"/>
+<area shape="poly" id="edge7_Node000001_Node000008" title=" " alt="" coords="266,375,229,425,225,422,261,372"/>
+<area shape="rect" id="Node000009" title=" " alt="" coords="241,245,364,286"/>
+<area shape="poly" id="edge8_Node000008_Node000009" title=" " alt="" coords="296,302,287,336,282,334,291,300"/>
+<area shape="rect" id="Node000010" title=" " alt="" coords="344,335,424,361"/>
+<area shape="poly" id="edge9_Node000001_Node000010" title=" " alt="" coords="372,376,347,402,321,416,293,426,292,421,319,411,344,398,368,372"/>
+</map>

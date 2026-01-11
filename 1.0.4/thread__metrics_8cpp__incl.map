@@ -1,0 +1,19 @@
+<map id="poirot/src/utils/thread_metrics.cpp" name="poirot/src/utils/thread_metrics.cpp">
+<area shape="rect" id="Node000001" title=" " alt="" coords="181,5,324,46"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,102,63,127"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="199,49,76,96,74,97,72,92,74,92,197,44"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="87,102,152,127"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="224,49,152,95,149,91,221,44"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="176,102,244,127"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="245,48,225,89,220,87,241,45"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="268,102,325,127"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="265,45,286,87,281,89,260,48"/>
+<area shape="rect" id="Node000006" href="$sysfs__reader_8hpp.html" title=" " alt="" coords="349,94,466,135"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="289,44,361,84,358,89,286,49"/>
+<area shape="rect" id="Node000009" href="$thread__metrics_8hpp.html" title=" " alt="" coords="489,94,611,135"/>
+<area shape="poly" id="edge8_Node000001_Node000009" title=" " alt="" coords="321,44,475,89,474,94,320,49"/>
+<area shape="rect" id="Node000007" title=" " alt="" coords="338,183,391,208"/>
+<area shape="poly" id="edge6_Node000006_Node000007" title=" " alt="" coords="399,136,381,170,376,167,394,134"/>
+<area shape="rect" id="Node000008" title=" " alt="" coords="416,183,482,208"/>
+<area shape="poly" id="edge7_Node000006_Node000008" title=" " alt="" coords="420,134,438,167,433,170,415,136"/>
+</map>
