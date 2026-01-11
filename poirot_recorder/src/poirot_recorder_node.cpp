@@ -69,14 +69,13 @@ void PoirotRecorderNode::write_csv_header() {
   this->csv_file_
       << "timestamp_sec,timestamp_nanosec,"
       << "os_name,os_version,hostname,cpu_model,cpu_cores,mem_total_kb,"
-      << "rapl_available,cpu_tdp_watts,cpu_tdp_watts_type,country_code,co2_"
-         "factor_kg_per_kwh,"
-      << "process_pid,process_cpu_percent,process_mem_kb,process_io_bytes,"
-         "process_threads,"
+      << "rapl_available,cpu_tdp_watts,cpu_tdp_watts_type,"
+      << "country_code,co2_factor_kg_per_kwh,"
+      << "process_pid,process_cpu_percent,process_threads,"
       << "function_name,call_count,wall_time_us,"
       << "cpu_time_us,process_cpu_time_us,system_cpu_time_us,"
-      << "memory_kb,io_read_bytes,call_io_write_bytes,"
-      << "call_ctx_switches,energy_uj,total_energy_uj,co2_ug\n";
+      << "memory_kb,io_read_bytes,io_write_bytes,"
+      << "ctx_switches,energy_uj,total_energy_uj,co2_ug\n";
 }
 
 void PoirotRecorderNode::data_callback(
@@ -109,8 +108,6 @@ void PoirotRecorderNode::data_callback(
                   // Process Info
                   << msg->process_info.pid << ","
                   << msg->process_info.cpu_percent << ","
-                  << msg->process_info.mem_kb << ","
-                  << msg->process_info.io_bytes << ","
                   << std::to_string(msg->process_info.threads)
                   << ","
 

@@ -232,12 +232,6 @@ ThreadProfilingContext &Poirot::get_thread_context() {
 void Poirot::read_process_data() {
   this->process_info_.pid = getpid();
   this->process_info_.cpu_percent = this->process_metrics_.read_cpu_percent();
-  this->process_info_.mem_kb = this->process_metrics_.read_memory_kb();
-
-  long io_read = 0;
-  long io_write = 0;
-  this->process_metrics_.read_io_bytes(io_read, io_write);
-  this->process_info_.io_bytes = io_read + io_write;
   this->process_info_.threads = this->process_metrics_.read_thread_count();
 }
 
