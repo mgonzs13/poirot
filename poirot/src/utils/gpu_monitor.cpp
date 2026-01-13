@@ -430,7 +430,7 @@ GpuMetrics GpuMonitor::read_intel_metrics() {
 }
 
 double GpuMonitor::estimate_energy_uj(double power_w, double utilization) {
-  std::lock_guard<std::mutex> lock(this->energy_mutex_);
+  std::lock_guard<std::recursive_mutex> lock(this->energy_mutex_);
 
   auto now = std::chrono::steady_clock::now();
 
@@ -683,7 +683,7 @@ double GpuMonitor::read_process_energy_uj(pid_t pid) {
     pid = getpid();
   }
 
-  std::lock_guard<std::mutex> lock(this->energy_mutex_);
+  std::lock_guard<std::recursive_mutex> lock(this->energy_mutex_);
 
   auto now = std::chrono::steady_clock::now();
 
@@ -703,7 +703,6 @@ double GpuMonitor::read_process_energy_uj(pid_t pid) {
   }
 
   // Check if process is actually using GPU
-  // Use a non-locking read to avoid deadlock (we already hold the lock)
   ProcessGpuMetrics proc_metrics;
   switch (this->gpu_vendor_) {
   case GpuVendor::NVIDIA:

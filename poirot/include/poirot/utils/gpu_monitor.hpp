@@ -243,7 +243,7 @@ private:
   } gpu_vendor_ = GpuVendor::NONE;
 
   /// @brief Mutex for thread-safe energy readings
-  mutable std::mutex energy_mutex_;
+  mutable std::recursive_mutex energy_mutex_;
   /// @brief Accumulated GPU energy in microjoules (system-wide)
   double accumulated_energy_uj_ = 0.0;
   /// @brief Accumulated per-process GPU energy in microjoules

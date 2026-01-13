@@ -284,7 +284,8 @@ void Poirot::start_profiling(const std::string &function_name) {
             ? process_metrics.estimated_utilization_percent
             : 0.0;
     ctx.start_gpu_mem_kb = process_metrics.mem_used_kb;
-    ctx.start_gpu_energy_uj = this->gpu_monitor_.read_process_energy_uj();
+    ctx.start_gpu_energy_uj =
+        this->gpu_monitor_.read_process_energy_uj(this->process_info_.pid);
 
   } else {
     ctx.start_gpu_utilization_percent = 0.0;
@@ -319,7 +320,8 @@ void Poirot::stop_profiling() {
             ? process_metrics.estimated_utilization_percent
             : 0.0;
     end_gpu_mem_kb = process_metrics.mem_used_kb;
-    end_gpu_energy_uj = this->gpu_monitor_.read_process_energy_uj();
+    end_gpu_energy_uj =
+        this->gpu_monitor_.read_process_energy_uj(this->process_info_.pid);
   }
 
   // Get thread-local context
@@ -388,17 +390,15 @@ void Poirot::stop_profiling() {
   }
 
   if (this->verbose_.load()) {
-    std::cout << "[PROFILE] " << ctx.function_name
-              << " | Wall: " << call.data.wall_time_us << "us"
-              << " | CPU: " << call.data.cpu_time_us << "us"
-              << " | Mem: " << call.data.mem_kb << "KB"
-              << " | IO R/W: " << call.data.io_read_bytes << "/"
-              << call.data.io_write_bytes << "B"
-              << " | CtxSw: " << call.data.ctx_switches
-              << " | CPU Energy: " << call.data.cpu_energy_uj << "uJ"
-              << " | GPU Energy: " << call.data.gpu_energy_uj << "uJ"
-              << " | Total Energy: " << call.data.total_energy_uj << "uJ"
-              << " | CO2: " << call.data.co2_ug << "ug" << std::endl;
+    fprintf(stderr,
+            "[PROFILE] %s | Wall: %ldus | CPU: %ldus | Mem: %ldKB | IO R/W: "
+            "%ld/%ldB | CtxSw: %ld | CPU Energy: %fuJ | GPU Energy: %fuJ | "
+            "Total Energy: %fuJ | CO2: %fug\n",
+            ctx.function_name.c_str(), call.data.wall_time_us,
+            call.data.cpu_time_us, call.data.mem_kb, call.data.io_read_bytes,
+            call.data.io_write_bytes, call.data.ctx_switches,
+            call.data.cpu_energy_uj, call.data.gpu_energy_uj,
+            call.data.total_energy_uj, call.data.co2_ug);
   }
 
   this->publish_stats(ctx.function_name);
@@ -410,52 +410,50 @@ void Poirot::set_verbose(bool verbose) {
 
 void Poirot::print_system_info() {
   const Poirot &instance = get_instance();
-  std::cout << "\n=========================================="
-            << "=========================\n";
-  std::cout << "              SYSTEM INFORMATION\n";
-  std::cout << "============================================"
-            << "=======================\n";
-  std::cout << "OS:       " << instance.system_info_.os_name << "\n";
-  std::cout << "OS Version: " << instance.system_info_.os_version << "\n";
-  std::cout << "Hostname: " << instance.system_info_.hostname << "\n";
-  std::cout << "CPU:      " << instance.system_info_.cpu_info.model << "\n";
-  std::cout << "Cores:    " << instance.system_info_.cpu_info.cores << "\n";
-  std::cout << "Memory:   " << instance.system_info_.mem_total_kb / 1024
-            << " MB\n";
-  std::cout << "RAPL:     "
-            << (instance.system_info_.cpu_info.rapl_available ? "Yes" : "No")
-            << "\n";
-  std::cout << "CPU TDP:  " << instance.system_info_.cpu_info.tdp_watts
-            << " W\n";
-  std::cout << "TDP Type: "
-            << static_cast<int>(instance.system_info_.cpu_info.tdp_watts_type)
-            << "\n";
-  std::cout << "--------------------------------------------"
-            << "-----------------------\n";
-  std::cout << "GPU:      "
-            << (instance.system_info_.gpu_info.available
-                    ? instance.system_info_.gpu_info.model
-                    : "Not available")
-            << "\n";
+  fprintf(
+      stderr,
+      "\n================================================================\n");
+  fprintf(stderr, "              SYSTEM INFORMATION\n");
+  fprintf(stderr,
+          "================================================================\n");
+  fprintf(stderr, "OS:       %s\n", instance.system_info_.os_name.c_str());
+  fprintf(stderr, "OS Version: %s\n", instance.system_info_.os_version.c_str());
+  fprintf(stderr, "Hostname: %s\n", instance.system_info_.hostname.c_str());
+  fprintf(stderr, "CPU:      %s\n",
+          instance.system_info_.cpu_info.model.c_str());
+  fprintf(stderr, "Cores:    %d\n", instance.system_info_.cpu_info.cores);
+  fprintf(stderr, "Memory:   %ld MB\n",
+          instance.system_info_.mem_total_kb / 1024);
+  fprintf(stderr, "RAPL:     %s\n",
+          instance.system_info_.cpu_info.rapl_available ? "Yes" : "No");
+  fprintf(stderr, "CPU TDP:  %f W\n", instance.system_info_.cpu_info.tdp_watts);
+  fprintf(stderr, "TDP Type: %d\n",
+          static_cast<int>(instance.system_info_.cpu_info.tdp_watts_type));
+  fprintf(stderr,
+          "----------------------------------------------------------------\n");
+  fprintf(stderr, "GPU:      %s\n",
+          instance.system_info_.gpu_info.available
+              ? instance.system_info_.gpu_info.model.c_str()
+              : "Not available");
+
   if (instance.system_info_.gpu_info.available) {
-    std::cout << "GPU Vendor: " << instance.system_info_.gpu_info.vendor
-              << "\n";
-    std::cout << "GPU Memory: "
-              << instance.system_info_.gpu_info.mem_total_kb / 1024 << " MB\n";
-    std::cout << "GPU TDP:  " << instance.system_info_.gpu_info.tdp_watts
-              << " W\n";
-    std::cout << "GPU Power Mon: "
-              << (instance.system_info_.gpu_info.power_monitoring ? "Yes"
-                                                                  : "No")
-              << "\n";
+    fprintf(stderr, "GPU Vendor: %s\n",
+            instance.system_info_.gpu_info.vendor.c_str());
+    fprintf(stderr, "GPU Memory: %ld MB\n",
+            instance.system_info_.gpu_info.mem_total_kb / 1024);
+    fprintf(stderr, "GPU TDP:  %f W\n",
+            instance.system_info_.gpu_info.tdp_watts);
+    fprintf(stderr, "GPU Power Mon: %s\n",
+            instance.system_info_.gpu_info.power_monitoring ? "Yes" : "No");
   }
-  std::cout << "--------------------------------------------"
-            << "-----------------------\n";
-  std::cout << "Country:  " << instance.system_info_.country_code << "\n";
-  std::cout << "CO2:      " << instance.system_info_.co2_factor_kg_per_kwh
-            << " kg/kWh\n";
-  std::cout << "============================================"
-            << "=======================\n";
+
+  fprintf(stderr,
+          "----------------------------------------------------------------\n");
+  fprintf(stderr, "Country:  %s\n", instance.system_info_.country_code.c_str());
+  fprintf(stderr, "CO2:      %f kg/kWh\n",
+          instance.system_info_.co2_factor_kg_per_kwh);
+  fprintf(stderr,
+          "================================================================\n");
 }
 
 void Poirot::publish_stats(const std::string &function_name) {
