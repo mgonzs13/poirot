@@ -51,7 +51,6 @@ void DataManager::process_profiling_data(
   row.gpu_energy_uj = msg->function.call.data.gpu_energy_uj;
   row.energy_uj = msg->function.call.data.total_energy_uj;
   row.co2_ug = msg->function.call.data.co2_ug;
-  row.gpu_temp_c = msg->function.call.data.gpu_temp_c;
   row.last_update_time = relative_time;
 
   std::string key = row.get_key();
@@ -71,7 +70,6 @@ void DataManager::process_profiling_data(
   dp.gpu_energy_uj = msg->function.call.data.gpu_energy_uj;
   dp.energy_uj = msg->function.call.data.total_energy_uj;
   dp.co2_ug = msg->function.call.data.co2_ug;
-  dp.gpu_temp_c = msg->function.call.data.gpu_temp_c;
 
   auto &history = this->function_history_[key];
   history.push_back(dp);
@@ -117,9 +115,6 @@ std::vector<FunctionRow> DataManager::get_sorted_rows(SortColumn column,
       break;
     case SortColumn::GPU_MEMORY:
       result = a.gpu_mem_kb < b.gpu_mem_kb;
-      break;
-    case SortColumn::GPU_TEMP:
-      result = a.gpu_temp_c < b.gpu_temp_c;
       break;
     case SortColumn::IO_READ:
       result = a.io_read_bytes < b.io_read_bytes;

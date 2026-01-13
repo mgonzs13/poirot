@@ -38,7 +38,6 @@ struct GpuMetrics {
   int64_t mem_used_kb = 0;
   double power_w = 0.0;
   double energy_uj = 0.0;
-  double temp_c = 0.0;
 };
 
 /**

@@ -71,7 +71,6 @@ struct ThreadProfilingContext {
   int64_t start_ctx_switches = 0;
   double start_cpu_energy_uj = 0.0;
   double start_gpu_energy_uj = 0.0;
-  double start_gpu_temp_c = 0.0;
   std::thread::id thread_id;
 };
 

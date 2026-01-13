@@ -325,16 +325,16 @@ GpuMetrics GpuMonitor::read_nvidia_metrics() {
   GpuMetrics metrics;
 
   // Query all metrics in a single nvidia-smi call for efficiency
-  std::string output = this->exec_command(
-      "nvidia-smi "
-      "--query-gpu=utilization.gpu,memory.used,power.draw,temperature.gpu "
-      "--format=csv,noheader,nounits 2>/dev/null");
+  std::string output =
+      this->exec_command("nvidia-smi "
+                         "--query-gpu=utilization.gpu,memory.used,power.draw "
+                         "--format=csv,noheader,nounits 2>/dev/null");
 
   if (output.empty()) {
     return metrics;
   }
 
-  // Parse CSV output: utilization.gpu, memory.used, power.draw, temperature.gpu
+  // Parse CSV output: utilization.gpu, memory.used, power.draw
   std::istringstream iss(output);
   std::string token;
   std::vector<std::string> values;
@@ -346,14 +346,13 @@ GpuMetrics GpuMonitor::read_nvidia_metrics() {
     values.push_back(token);
   }
 
-  if (values.size() >= 4) {
+  if (values.size() >= 3) {
     try {
       metrics.utilization_percent = std::stod(values[0]);
       metrics.mem_used_kb = std::stoll(values[1]) * 1024; // MiB to KB
       if (values[2] != "[N/A]") {
         metrics.power_w = std::stod(values[2]);
       }
-      metrics.temp_c = std::stod(values[3]);
     } catch (...) {
       // Parse error, return partial metrics
     }
@@ -390,14 +389,6 @@ GpuMetrics GpuMonitor::read_amd_metrics() {
     long power_uw = SysfsReader::read_long(this->amd_power_path_);
     if (power_uw > 0) {
       metrics.power_w = static_cast<double>(power_uw) / 1e6;
-    }
-  }
-
-  // Read temperature (millidegrees to degrees)
-  if (!this->amd_temp_path_.empty()) {
-    long temp_mc = SysfsReader::read_long(this->amd_temp_path_);
-    if (temp_mc > 0) {
-      metrics.temp_c = static_cast<double>(temp_mc) / 1000.0;
     }
   }
 

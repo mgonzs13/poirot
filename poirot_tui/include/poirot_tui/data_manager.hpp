@@ -44,7 +44,6 @@ struct DataPoint {
   double gpu_energy_uj;
   double energy_uj;
   double co2_ug;
-  double gpu_temp_c;
 };
 
 /**
@@ -65,7 +64,6 @@ struct FunctionRow {
   double gpu_energy_uj;
   double energy_uj;
   double co2_ug;
-  double gpu_temp_c;
   double last_update_time;
 
   /// @brief Unique key for identifying this function
@@ -85,7 +83,6 @@ enum class SortColumn {
   CPU_TIME,
   MEMORY,
   GPU_MEMORY,
-  GPU_TEMP,
   IO_READ,
   IO_WRITE,
   CTX_SWITCHES,
@@ -103,7 +100,6 @@ enum class GraphDataType {
   CPU_TIME,
   MEMORY,
   GPU_MEMORY,
-  GPU_TEMP,
   IO_READ,
   IO_WRITE,
   CTX_SWITCHES,

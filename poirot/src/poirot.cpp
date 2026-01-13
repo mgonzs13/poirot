@@ -286,14 +286,10 @@ void Poirot::start_profiling(const std::string &function_name) {
     ctx.start_gpu_mem_kb = process_metrics.mem_used_kb;
     ctx.start_gpu_energy_uj = this->gpu_monitor_.read_process_energy_uj();
 
-    // Read system-wide temperature (per-process temp is not available)
-    auto sys_metrics = this->gpu_monitor_.read_metrics();
-    ctx.start_gpu_temp_c = sys_metrics.temp_c;
   } else {
     ctx.start_gpu_utilization_percent = 0.0;
     ctx.start_gpu_mem_kb = 0;
     ctx.start_gpu_energy_uj = 0.0;
-    ctx.start_gpu_temp_c = 0.0;
   }
 }
 
@@ -315,7 +311,6 @@ void Poirot::stop_profiling() {
   double end_gpu_utilization_percent = 0.0;
   int64_t end_gpu_mem_kb = 0;
   double end_gpu_energy_uj = 0.0;
-  double end_gpu_temp_c = 0.0;
   if (this->gpu_monitor_.is_available()) {
     // Read per-process GPU metrics instead of system-wide
     auto process_metrics = this->gpu_monitor_.read_process_metrics();
@@ -325,10 +320,6 @@ void Poirot::stop_profiling() {
             : 0.0;
     end_gpu_mem_kb = process_metrics.mem_used_kb;
     end_gpu_energy_uj = this->gpu_monitor_.read_process_energy_uj();
-
-    // Read system-wide temperature (per-process temp is not available)
-    auto sys_metrics = this->gpu_monitor_.read_metrics();
-    end_gpu_temp_c = sys_metrics.temp_c;
   }
 
   // Get thread-local context
@@ -376,7 +367,6 @@ void Poirot::stop_profiling() {
       end_gpu_utilization_percent - ctx.start_gpu_utilization_percent;
   call.data.gpu_mem_kb = end_gpu_mem_kb - ctx.start_gpu_mem_kb;
   call.data.gpu_energy_uj = gpu_energy_delta_uj;
-  call.data.gpu_temp_c = end_gpu_temp_c - ctx.start_gpu_temp_c;
 
   // Total energy (CPU + GPU)
   call.data.total_energy_uj = total_energy_uj;

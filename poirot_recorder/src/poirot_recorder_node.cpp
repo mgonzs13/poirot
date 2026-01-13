@@ -78,8 +78,7 @@ void PoirotRecorderNode::write_csv_header() {
       << "cpu_time_us,process_cpu_time_us,system_cpu_time_us,"
       << "memory_kb,io_read_bytes,io_write_bytes,"
       << "ctx_switches,cpu_energy_uj,cpu_total_energy_uj,"
-      << "gpu_mem_kb,gpu_energy_uj,"
-      << "gpu_utilization_percent,gpu_temp_c,"
+      << "gpu_mem_kb,gpu_energy_uj,gpu_utilization_percent,"
       << "total_energy_uj,co2_ug\n";
 }
 
@@ -152,7 +151,6 @@ void PoirotRecorderNode::data_callback(
                   << msg->function.call.data.gpu_mem_kb << ","
                   << msg->function.call.data.gpu_energy_uj << ","
                   << msg->function.call.data.gpu_utilization_percent << ","
-                  << msg->function.call.data.gpu_temp_c
                   << ","
 
                   // Total energy

@@ -16,5 +16,3 @@ float64 cpu_total_energy_uj           # Total CPU energy consumed in microjoules
 float64 gpu_energy_uj                 # GPU energy consumed in microjoules
 float64 total_energy_uj               # Total energy (CPU + GPU) in microjoules
 float64 co2_ug                        # CO2 emissions in micrograms
-
-float64 gpu_temp_c                    # GPU temperature in Celsius
