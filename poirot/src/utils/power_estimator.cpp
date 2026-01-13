@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cstring>
 #include <dirent.h>
+#include <filesystem>
 #include <fstream>
 #include <vector>
 
@@ -28,10 +29,10 @@ PowerEstimator::PowerEstimator(HwmonScanner &hwmon_scanner)
     : hwmon_scanner_(hwmon_scanner) {}
 
 bool PowerEstimator::rapl_available() {
-  return std::ifstream("/sys/class/powercap/intel-rapl/intel-rapl:0/energy_uj")
-             .is_open() ||
-         std::ifstream("/sys/class/powercap/amd-rapl/amd-rapl:0/energy_uj")
-             .is_open();
+  return std::filesystem::exists(
+             "/sys/class/powercap/intel-rapl/intel-rapl:0/energy_uj") ||
+         std::filesystem::exists(
+             "/sys/class/powercap/amd-rapl/amd-rapl:0/energy_uj");
 }
 
 double PowerEstimator::read_intel_rapl_power_limit_w() {
