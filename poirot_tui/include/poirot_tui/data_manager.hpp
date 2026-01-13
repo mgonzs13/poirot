@@ -36,11 +36,15 @@ struct DataPoint {
   int64_t wall_time_us;
   int64_t cpu_time_us;
   int64_t mem_kb;
+  int64_t gpu_mem_kb;
   int64_t io_read_bytes;
   int64_t io_write_bytes;
   int64_t ctx_switches;
+  double cpu_energy_uj;
+  double gpu_energy_uj;
   double energy_uj;
   double co2_ug;
+  double gpu_temp_c;
 };
 
 /**
@@ -53,11 +57,15 @@ struct FunctionRow {
   int64_t wall_time_us;
   int64_t cpu_time_us;
   int64_t mem_kb;
+  int64_t gpu_mem_kb;
   int64_t io_read_bytes;
   int64_t io_write_bytes;
   int64_t ctx_switches;
+  double cpu_energy_uj;
+  double gpu_energy_uj;
   double energy_uj;
   double co2_ug;
+  double gpu_temp_c;
   double last_update_time;
 
   /// @brief Unique key for identifying this function
@@ -76,9 +84,13 @@ enum class SortColumn {
   WALL_TIME,
   CPU_TIME,
   MEMORY,
+  GPU_MEMORY,
+  GPU_TEMP,
   IO_READ,
   IO_WRITE,
   CTX_SWITCHES,
+  CPU_ENERGY,
+  GPU_ENERGY,
   ENERGY,
   CO2
 };
@@ -90,9 +102,13 @@ enum class GraphDataType {
   WALL_TIME,
   CPU_TIME,
   MEMORY,
+  GPU_MEMORY,
+  GPU_TEMP,
   IO_READ,
   IO_WRITE,
   CTX_SWITCHES,
+  CPU_ENERGY,
+  GPU_ENERGY,
   ENERGY,
   CO2
 };

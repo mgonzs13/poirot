@@ -23,6 +23,7 @@ add_library(${PROJECT_NAME} SHARED
   src/utils/energy_monitor.cpp
   src/utils/hwmon_scanner.cpp
   src/utils/power_estimator.cpp
+  src/utils/gpu_monitor.cpp
   src/utils/co2_manager.cpp
   src/utils/string.cpp
 )

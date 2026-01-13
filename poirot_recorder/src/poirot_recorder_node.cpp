@@ -70,12 +70,17 @@ void PoirotRecorderNode::write_csv_header() {
       << "timestamp_sec,timestamp_nanosec,"
       << "os_name,os_version,hostname,cpu_model,cpu_cores,mem_total_kb,"
       << "rapl_available,cpu_tdp_watts,cpu_tdp_watts_type,"
+      << "gpu_available,gpu_model,gpu_vendor,gpu_mem_total_kb,"
+      << "gpu_tdp_watts,gpu_tdp_watts_type,gpu_power_monitoring,"
       << "country_code,co2_factor_kg_per_kwh,"
       << "process_pid,process_cpu_percent,process_threads,"
       << "function_name,call_count,wall_time_us,"
       << "cpu_time_us,process_cpu_time_us,system_cpu_time_us,"
       << "memory_kb,io_read_bytes,io_write_bytes,"
-      << "ctx_switches,energy_uj,total_energy_uj,co2_ug\n";
+      << "ctx_switches,cpu_energy_uj,cpu_total_energy_uj,"
+      << "gpu_mem_kb,gpu_energy_uj,"
+      << "gpu_utilization_percent,gpu_temp_c,"
+      << "total_energy_uj,co2_ug\n";
 }
 
 void PoirotRecorderNode::data_callback(
@@ -95,14 +100,28 @@ void PoirotRecorderNode::data_callback(
                   << this->escape_csv(msg->system_info.os_name) << ","
                   << this->escape_csv(msg->system_info.os_version) << ","
                   << this->escape_csv(msg->system_info.hostname) << ","
-                  << this->escape_csv(msg->system_info.cpu_model) << ","
-                  << msg->system_info.cpu_cores << ","
+                  << this->escape_csv(msg->system_info.cpu_info.model) << ","
+                  << msg->system_info.cpu_info.cores << ","
                   << msg->system_info.mem_total_kb << ","
-                  << (msg->system_info.rapl_available ? "1" : "0") << ","
-                  << msg->system_info.cpu_tdp_watts << ","
-                  << static_cast<int>(msg->system_info.cpu_tdp_watts_type)
-                  << "," << this->escape_csv(msg->system_info.country_code)
-                  << "," << msg->system_info.co2_factor_kg_per_kwh
+                  << (msg->system_info.cpu_info.rapl_available ? "1" : "0")
+                  << "," << msg->system_info.cpu_info.tdp_watts << ","
+                  << static_cast<int>(msg->system_info.cpu_info.tdp_watts_type)
+                  << ","
+
+                  // GPU Info
+                  << (msg->system_info.gpu_info.available ? "1" : "0") << ","
+                  << this->escape_csv(msg->system_info.gpu_info.model) << ","
+                  << this->escape_csv(msg->system_info.gpu_info.vendor) << ","
+                  << msg->system_info.gpu_info.mem_total_kb << ","
+                  << msg->system_info.gpu_info.tdp_watts << ","
+                  << static_cast<int>(msg->system_info.gpu_info.tdp_watts_type)
+                  << ","
+                  << (msg->system_info.gpu_info.power_monitoring ? "1" : "0")
+                  << ","
+
+                  // CO2 Info
+                  << this->escape_csv(msg->system_info.country_code) << ","
+                  << msg->system_info.co2_factor_kg_per_kwh
                   << ","
 
                   // Process Info
@@ -116,7 +135,7 @@ void PoirotRecorderNode::data_callback(
                   << msg->function.call_count
                   << ","
 
-                  // Last call
+                  // CPU metrics
                   << msg->function.call.data.wall_time_us << ","
                   << msg->function.call.data.cpu_time_us << ","
                   << msg->function.call.data.process_cpu_time_us << ","
@@ -125,7 +144,18 @@ void PoirotRecorderNode::data_callback(
                   << msg->function.call.data.io_read_bytes << ","
                   << msg->function.call.data.io_write_bytes << ","
                   << msg->function.call.data.ctx_switches << ","
-                  << msg->function.call.data.energy_uj << ","
+                  << msg->function.call.data.cpu_energy_uj << ","
+                  << msg->function.call.data.cpu_total_energy_uj
+                  << ","
+
+                  // GPU metrics
+                  << msg->function.call.data.gpu_mem_kb << ","
+                  << msg->function.call.data.gpu_energy_uj << ","
+                  << msg->function.call.data.gpu_utilization_percent << ","
+                  << msg->function.call.data.gpu_temp_c
+                  << ","
+
+                  // Total energy
                   << msg->function.call.data.total_energy_uj << ","
                   << msg->function.call.data.co2_ug << "\n";
 

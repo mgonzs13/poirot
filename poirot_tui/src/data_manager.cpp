@@ -43,11 +43,15 @@ void DataManager::process_profiling_data(
   row.wall_time_us = msg->function.call.data.wall_time_us;
   row.cpu_time_us = msg->function.call.data.cpu_time_us;
   row.mem_kb = msg->function.call.data.mem_kb;
+  row.gpu_mem_kb = msg->function.call.data.gpu_mem_kb;
   row.io_read_bytes = msg->function.call.data.io_read_bytes;
   row.io_write_bytes = msg->function.call.data.io_write_bytes;
   row.ctx_switches = msg->function.call.data.ctx_switches;
-  row.energy_uj = msg->function.call.data.energy_uj;
+  row.cpu_energy_uj = msg->function.call.data.cpu_energy_uj;
+  row.gpu_energy_uj = msg->function.call.data.gpu_energy_uj;
+  row.energy_uj = msg->function.call.data.total_energy_uj;
   row.co2_ug = msg->function.call.data.co2_ug;
+  row.gpu_temp_c = msg->function.call.data.gpu_temp_c;
   row.last_update_time = relative_time;
 
   std::string key = row.get_key();
@@ -59,11 +63,15 @@ void DataManager::process_profiling_data(
   dp.wall_time_us = msg->function.call.data.wall_time_us;
   dp.cpu_time_us = msg->function.call.data.cpu_time_us;
   dp.mem_kb = msg->function.call.data.mem_kb;
+  dp.gpu_mem_kb = msg->function.call.data.gpu_mem_kb;
   dp.io_read_bytes = msg->function.call.data.io_read_bytes;
   dp.io_write_bytes = msg->function.call.data.io_write_bytes;
   dp.ctx_switches = msg->function.call.data.ctx_switches;
-  dp.energy_uj = msg->function.call.data.energy_uj;
+  dp.cpu_energy_uj = msg->function.call.data.cpu_energy_uj;
+  dp.gpu_energy_uj = msg->function.call.data.gpu_energy_uj;
+  dp.energy_uj = msg->function.call.data.total_energy_uj;
   dp.co2_ug = msg->function.call.data.co2_ug;
+  dp.gpu_temp_c = msg->function.call.data.gpu_temp_c;
 
   auto &history = this->function_history_[key];
   history.push_back(dp);
@@ -107,6 +115,12 @@ std::vector<FunctionRow> DataManager::get_sorted_rows(SortColumn column,
     case SortColumn::MEMORY:
       result = a.mem_kb < b.mem_kb;
       break;
+    case SortColumn::GPU_MEMORY:
+      result = a.gpu_mem_kb < b.gpu_mem_kb;
+      break;
+    case SortColumn::GPU_TEMP:
+      result = a.gpu_temp_c < b.gpu_temp_c;
+      break;
     case SortColumn::IO_READ:
       result = a.io_read_bytes < b.io_read_bytes;
       break;
@@ -115,6 +129,12 @@ std::vector<FunctionRow> DataManager::get_sorted_rows(SortColumn column,
       break;
     case SortColumn::CTX_SWITCHES:
       result = a.ctx_switches < b.ctx_switches;
+      break;
+    case SortColumn::CPU_ENERGY:
+      result = a.cpu_energy_uj < b.cpu_energy_uj;
+      break;
+    case SortColumn::GPU_ENERGY:
+      result = a.gpu_energy_uj < b.gpu_energy_uj;
       break;
     case SortColumn::ENERGY:
       result = a.energy_uj < b.energy_uj;

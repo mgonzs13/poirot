@@ -34,6 +34,7 @@
 
 #include "poirot/utils/co2_manager.hpp"
 #include "poirot/utils/energy_monitor.hpp"
+#include "poirot/utils/gpu_monitor.hpp"
 #include "poirot/utils/hwmon_scanner.hpp"
 #include "poirot/utils/power_estimator.hpp"
 #include "poirot/utils/process_metrics.hpp"
@@ -60,13 +61,17 @@ namespace poirot {
 struct ThreadProfilingContext {
   std::string function_name;
   std::chrono::steady_clock::time_point start_time;
-  long start_cpu_time_us = 0;
-  long start_process_cpu_time_us = 0; // For energy attribution
-  long start_memory_kb = 0;
-  long start_io_read_bytes = 0;
-  long start_io_write_bytes = 0;
-  long start_ctx_switches = 0;
-  double start_energy_uj = 0.0;
+  int64_t start_cpu_time_us = 0;
+  int64_t start_process_cpu_time_us = 0;
+  double start_gpu_utilization_percent = 0.0;
+  int64_t start_mem_kb = 0;
+  int64_t start_gpu_mem_kb = 0;
+  int64_t start_io_read_bytes = 0;
+  int64_t start_io_write_bytes = 0;
+  int64_t start_ctx_switches = 0;
+  double start_cpu_energy_uj = 0.0;
+  double start_gpu_energy_uj = 0.0;
+  double start_gpu_temp_c = 0.0;
   std::thread::id thread_id;
 };
 
@@ -179,6 +184,8 @@ private:
   utils::PowerEstimator power_estimator_;
   /// @brief Energy monitor (depends on hwmon_scanner_)
   utils::EnergyMonitor energy_monitor_;
+  /// @brief GPU monitor for GPU metrics and energy
+  utils::GpuMonitor gpu_monitor_;
   /// @brief Process metrics tracker
   utils::ProcessMetrics process_metrics_;
   /// @brief Thread metrics tracker

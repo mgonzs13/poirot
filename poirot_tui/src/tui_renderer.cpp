@@ -119,6 +119,12 @@ void TuiRenderer::render(const DataManager &data_manager) {
     case Tab::GRAPH_MEMORY:
       data_type = GraphDataType::MEMORY;
       break;
+    case Tab::GRAPH_GPU_MEMORY:
+      data_type = GraphDataType::GPU_MEMORY;
+      break;
+    case Tab::GRAPH_GPU_TEMP:
+      data_type = GraphDataType::GPU_TEMP;
+      break;
     case Tab::GRAPH_IO_READ:
       data_type = GraphDataType::IO_READ;
       break;
@@ -127,6 +133,12 @@ void TuiRenderer::render(const DataManager &data_manager) {
       break;
     case Tab::GRAPH_CTX_SWITCHES:
       data_type = GraphDataType::CTX_SWITCHES;
+      break;
+    case Tab::GRAPH_CPU_ENERGY:
+      data_type = GraphDataType::CPU_ENERGY;
+      break;
+    case Tab::GRAPH_GPU_ENERGY:
+      data_type = GraphDataType::GPU_ENERGY;
       break;
     case Tab::GRAPH_ENERGY:
       data_type = GraphDataType::ENERGY;
@@ -164,15 +176,11 @@ void TuiRenderer::render_header() {
   // Render tabs and store positions for mouse click detection
   this->tab_positions_.clear();
   int tab_x = 0;
-  std::vector<Tab> tabs = {Tab::TABLE,
-                           Tab::GRAPH_WALL_TIME,
-                           Tab::GRAPH_CPU_TIME,
-                           Tab::GRAPH_MEMORY,
-                           Tab::GRAPH_IO_READ,
-                           Tab::GRAPH_IO_WRITE,
-                           Tab::GRAPH_CTX_SWITCHES,
-                           Tab::GRAPH_ENERGY,
-                           Tab::GRAPH_CO2};
+  std::vector<Tab> tabs = {
+      Tab::TABLE,         Tab::GRAPH_WALL_TIME,  Tab::GRAPH_CPU_TIME,
+      Tab::GRAPH_MEMORY,  Tab::GRAPH_GPU_MEMORY, Tab::GRAPH_GPU_TEMP,
+      Tab::GRAPH_IO_READ, Tab::GRAPH_IO_WRITE,   Tab::GRAPH_CTX_SWITCHES,
+      Tab::GRAPH_ENERGY,  Tab::GRAPH_CO2};
 
   for (const auto &tab : tabs) {
     std::string tab_name = this->get_tab_name(tab);
@@ -206,15 +214,19 @@ void TuiRenderer::render_table_view(const DataManager &data_manager) {
 
   // Define column widths
   int col_pid = 10;
-  int col_func = 50;
+  int col_func = 38;
   int col_calls = 8;
   int col_wall = 12;
   int col_cpu = 12;
   int col_mem = 10;
+  int col_gpu_mem = 10;
+  int col_gpu_temp = 10;
   int col_ior = 10;
   int col_iow = 10;
   int col_ctx = 8;
-  int col_energy = 12;
+  int col_cpu_energy = 11;
+  int col_gpu_energy = 11;
+  int col_energy = 11;
   int col_co2 = 10;
 
   // Store column positions for mouse click sorting
@@ -244,10 +256,14 @@ void TuiRenderer::render_table_view(const DataManager &data_manager) {
   print_header("Wall(us)", col_wall, SortColumn::WALL_TIME);
   print_header("CPU(us)", col_cpu, SortColumn::CPU_TIME);
   print_header("Mem(KB)", col_mem, SortColumn::MEMORY);
+  print_header("GPU-M(KB)", col_gpu_mem, SortColumn::GPU_MEMORY);
+  print_header("GPU-T(C)", col_gpu_temp, SortColumn::GPU_TEMP);
   print_header("IO-R(B)", col_ior, SortColumn::IO_READ);
   print_header("IO-W(B)", col_iow, SortColumn::IO_WRITE);
   print_header("CtxSw", col_ctx, SortColumn::CTX_SWITCHES);
-  print_header("Energy(uJ)", col_energy, SortColumn::ENERGY);
+  print_header("CPU-E(uJ)", col_cpu_energy, SortColumn::CPU_ENERGY);
+  print_header("GPU-E(uJ)", col_gpu_energy, SortColumn::GPU_ENERGY);
+  print_header("Enrg(uJ)", col_energy, SortColumn::ENERGY);
   print_header("CO2(ug)", col_co2, SortColumn::CO2);
 
   attroff(COLOR_PAIR(COLOR_HEADER) | A_BOLD);
@@ -313,6 +329,14 @@ void TuiRenderer::render_table_view(const DataManager &data_manager) {
     mvprintw(row_y, x, "%-*ld", col_mem, static_cast<long>(row.mem_kb));
     x += col_mem;
 
+    // GPU Memory
+    mvprintw(row_y, x, "%-*ld", col_gpu_mem, static_cast<long>(row.gpu_mem_kb));
+    x += col_gpu_mem;
+
+    // GPU Temperature
+    mvprintw(row_y, x, "%-*.1f", col_gpu_temp, row.gpu_temp_c);
+    x += col_gpu_temp;
+
     // IO Read
     mvprintw(row_y, x, "%-*ld", col_ior, static_cast<long>(row.io_read_bytes));
     x += col_ior;
@@ -325,7 +349,15 @@ void TuiRenderer::render_table_view(const DataManager &data_manager) {
     mvprintw(row_y, x, "%-*ld", col_ctx, static_cast<long>(row.ctx_switches));
     x += col_ctx;
 
-    // Energy
+    // CPU Energy
+    mvprintw(row_y, x, "%-*.2f", col_cpu_energy, row.cpu_energy_uj);
+    x += col_cpu_energy;
+
+    // GPU Energy
+    mvprintw(row_y, x, "%-*.2f", col_gpu_energy, row.gpu_energy_uj);
+    x += col_gpu_energy;
+
+    // Total Energy
     mvprintw(row_y, x, "%-*.2f", col_energy, row.energy_uj);
     x += col_energy;
 
@@ -1114,18 +1146,24 @@ bool TuiRenderer::handle_input(DataManager &data_manager) {
     this->select_tab(Tab::GRAPH_MEMORY);
     break;
   case '5':
-    this->select_tab(Tab::GRAPH_IO_READ);
+    this->select_tab(Tab::GRAPH_GPU_MEMORY);
     break;
   case '6':
-    this->select_tab(Tab::GRAPH_IO_WRITE);
+    this->select_tab(Tab::GRAPH_GPU_TEMP);
     break;
   case '7':
-    this->select_tab(Tab::GRAPH_CTX_SWITCHES);
+    this->select_tab(Tab::GRAPH_IO_READ);
     break;
   case '8':
-    this->select_tab(Tab::GRAPH_ENERGY);
+    this->select_tab(Tab::GRAPH_IO_WRITE);
     break;
   case '9':
+    this->select_tab(Tab::GRAPH_CTX_SWITCHES);
+    break;
+  case '0':
+    this->select_tab(Tab::GRAPH_ENERGY);
+    break;
+  case '-':
     this->select_tab(Tab::GRAPH_CO2);
     break;
 
@@ -1242,16 +1280,24 @@ std::string TuiRenderer::get_tab_name(Tab tab) const {
     return "3:CPU";
   case Tab::GRAPH_MEMORY:
     return "4:Mem";
+  case Tab::GRAPH_GPU_MEMORY:
+    return "5:GPU-M";
+  case Tab::GRAPH_GPU_TEMP:
+    return "6:GPU-T";
   case Tab::GRAPH_IO_READ:
-    return "5:IO-R";
+    return "7:IO-R";
   case Tab::GRAPH_IO_WRITE:
-    return "6:IO-W";
+    return "8:IO-W";
   case Tab::GRAPH_CTX_SWITCHES:
-    return "7:Ctx";
+    return "9:Ctx";
+  case Tab::GRAPH_CPU_ENERGY:
+    return "CPU-E";
+  case Tab::GRAPH_GPU_ENERGY:
+    return "GPU-E";
   case Tab::GRAPH_ENERGY:
-    return "8:Enrg";
+    return "0:Enrg";
   case Tab::GRAPH_CO2:
-    return "9:CO2";
+    return "-:CO2";
   default:
     return "?";
   }
@@ -1265,12 +1311,20 @@ std::string TuiRenderer::get_data_type_name(GraphDataType type) const {
     return "CPU Time (us)";
   case GraphDataType::MEMORY:
     return "Memory (KB)";
+  case GraphDataType::GPU_MEMORY:
+    return "GPU Memory (KB)";
+  case GraphDataType::GPU_TEMP:
+    return "GPU Temperature (°C)";
   case GraphDataType::IO_READ:
     return "IO Read (bytes)";
   case GraphDataType::IO_WRITE:
     return "IO Write (bytes)";
   case GraphDataType::CTX_SWITCHES:
     return "Context Switches";
+  case GraphDataType::CPU_ENERGY:
+    return "CPU Energy (uJ)";
+  case GraphDataType::GPU_ENERGY:
+    return "GPU Energy (uJ)";
   case GraphDataType::ENERGY:
     return "Energy (uJ)";
   case GraphDataType::CO2:
@@ -1289,12 +1343,20 @@ double TuiRenderer::get_value_by_type(const DataPoint &dp,
     return dp.cpu_time_us;
   case GraphDataType::MEMORY:
     return static_cast<double>(dp.mem_kb);
+  case GraphDataType::GPU_MEMORY:
+    return static_cast<double>(dp.gpu_mem_kb);
+  case GraphDataType::GPU_TEMP:
+    return dp.gpu_temp_c;
   case GraphDataType::IO_READ:
     return static_cast<double>(dp.io_read_bytes);
   case GraphDataType::IO_WRITE:
     return static_cast<double>(dp.io_write_bytes);
   case GraphDataType::CTX_SWITCHES:
     return static_cast<double>(dp.ctx_switches);
+  case GraphDataType::CPU_ENERGY:
+    return dp.cpu_energy_uj;
+  case GraphDataType::GPU_ENERGY:
+    return dp.gpu_energy_uj;
   case GraphDataType::ENERGY:
     return dp.energy_uj;
   case GraphDataType::CO2:
@@ -1318,12 +1380,20 @@ std::string TuiRenderer::get_column_name(SortColumn col) const {
     return "CPU Time";
   case SortColumn::MEMORY:
     return "Memory";
+  case SortColumn::GPU_MEMORY:
+    return "GPU Memory";
+  case SortColumn::GPU_TEMP:
+    return "GPU Temp";
   case SortColumn::IO_READ:
     return "IO Read";
   case SortColumn::IO_WRITE:
     return "IO Write";
   case SortColumn::CTX_SWITCHES:
     return "Ctx Switches";
+  case SortColumn::CPU_ENERGY:
+    return "CPU Energy";
+  case SortColumn::GPU_ENERGY:
+    return "GPU Energy";
   case SortColumn::ENERGY:
     return "Energy";
   case SortColumn::CO2:
@@ -1364,7 +1434,7 @@ std::string TuiRenderer::format_bytes(int64_t bytes) const {
 
 void TuiRenderer::next_tab() {
   int tab_int = static_cast<int>(this->current_tab_);
-  tab_int = (tab_int + 1) % 9; // 9 tabs total
+  tab_int = (tab_int + 1) % 13; // 13 tabs total
   this->current_tab_ = static_cast<Tab>(tab_int);
   this->selected_row_ = 0;
   this->scroll_offset_ = 0;
@@ -1373,7 +1443,7 @@ void TuiRenderer::next_tab() {
 
 void TuiRenderer::prev_tab() {
   int tab_int = static_cast<int>(this->current_tab_);
-  tab_int = (tab_int - 1 + 9) % 9; // 9 tabs total
+  tab_int = (tab_int - 1 + 13) % 13; // 13 tabs total
   this->current_tab_ = static_cast<Tab>(tab_int);
   this->selected_row_ = 0;
   this->scroll_offset_ = 0;
@@ -1417,7 +1487,7 @@ void TuiRenderer::move_to_last(int total_rows) {
 
 void TuiRenderer::cycle_sort_column() {
   int col_int = static_cast<int>(this->sort_column_);
-  col_int = (col_int + 1) % 12; // 12 columns
+  col_int = (col_int + 1) % 16; // 16 columns
   this->sort_column_ = static_cast<SortColumn>(col_int);
 }
 

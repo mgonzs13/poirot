@@ -1,0 +1,275 @@
+// Copyright 2026 Miguel Ángel González Santamarta
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef POIROT__UTILS__GPU_MONITOR_HPP_
+#define POIROT__UTILS__GPU_MONITOR_HPP_
+
+#include <chrono>
+#include <mutex>
+#include <string>
+#include <sys/types.h>
+#include <vector>
+
+namespace poirot {
+namespace utils {
+
+/// @brief Fallback GPU TDP in watts if detection fails
+constexpr double FALLBACK_GPU_TDP_WATTS = 150.0;
+/// @brief Fallback idle power factor for GPU
+constexpr double FALLBACK_GPU_IDLE_POWER_FACTOR = 0.10;
+
+/**
+ * @struct GpuMetrics
+ * @brief Structure to hold current GPU metrics.
+ */
+struct GpuMetrics {
+  double utilization_percent = 0.0;
+  int64_t mem_used_kb = 0;
+  double power_w = 0.0;
+  double energy_uj = 0.0;
+  double temp_c = 0.0;
+};
+
+/**
+ * @struct ProcessGpuMetrics
+ * @brief Structure to hold per-process GPU metrics.
+ */
+struct ProcessGpuMetrics {
+  bool is_using_gpu = false;
+  int64_t mem_used_kb = 0;
+  double estimated_utilization_percent = 0.0;
+  double estimated_power_w = 0.0;
+  double estimated_energy_uj = 0.0;
+};
+
+/**
+ * @struct GpuInfo
+ * @brief Structure to hold static GPU information.
+ */
+struct GpuInfo {
+  std::string model;
+  std::string vendor;
+  int index = 0;
+  int64_t mem_total_kb = 0;
+  double tdp_watts = 0.0;
+  uint8_t tdp_type = 0;
+  bool available = false;
+  bool power_monitoring = false;
+};
+
+/**
+ * @class GpuMonitor
+ * @brief Class for monitoring GPU metrics and energy consumption.
+ *
+ * Supports NVIDIA GPUs via nvidia-smi, AMD GPUs via ROCm/sysfs,
+ * and Intel GPUs via sysfs. Provides methods for reading GPU
+ * utilization, memory usage, power, temp, and energy.
+ */
+class GpuMonitor {
+public:
+  /// @brief GPU TDP detection type constants
+  static constexpr uint8_t NVIDIA_SMI_TDP_TYPE = 1;
+  static constexpr uint8_t AMD_ROCM_TDP_TYPE = 2;
+  static constexpr uint8_t SYSFS_TDP_TYPE = 3;
+  static constexpr uint8_t ESTIMATED_TDP_TYPE = 4;
+
+  /**
+   * @brief Default constructor.
+   */
+  GpuMonitor();
+
+  /**
+   * @brief Initialize GPU monitoring and detect available GPUs.
+   * @return True if GPU was detected and initialized.
+   */
+  bool initialize();
+
+  /**
+   * @brief Check if GPU monitoring is available.
+   * @return True if GPU is available for monitoring.
+   */
+  bool is_available() const { return this->gpu_info_.available; }
+
+  /**
+   * @brief Check if GPU power monitoring is supported.
+   * @return True if power monitoring is available.
+   */
+  bool has_power_monitoring() const { return this->gpu_info_.power_monitoring; }
+
+  /**
+   * @brief Get GPU information.
+   * @return Const reference to GpuInfo structure.
+   */
+  const GpuInfo &get_gpu_info() const { return this->gpu_info_; }
+
+  /**
+   * @brief Read current GPU metrics.
+   * @return GpuMetrics structure with current values.
+   */
+  GpuMetrics read_metrics();
+
+  /**
+   * @brief Read accumulated GPU energy in microjoules.
+   * @return Accumulated energy in microjoules.
+   */
+  double read_energy_uj();
+
+  /**
+   * @brief Read per-process GPU metrics for a specific PID.
+   * @param pid Process ID to query (default: current process).
+   * @return ProcessGpuMetrics structure with current values.
+   */
+  ProcessGpuMetrics read_process_metrics(pid_t pid = 0);
+
+  /**
+   * @brief Check if a specific process is using the GPU.
+   * @param pid Process ID to check (default: current process).
+   * @return True if the process is using GPU compute.
+   */
+  bool is_process_using_gpu(pid_t pid = 0);
+
+  /**
+   * @brief Read per-process accumulated GPU energy in microjoules.
+   * @param pid Process ID to query (default: current process).
+   * @return Accumulated energy attributed to the process in microjoules.
+   */
+  double read_process_energy_uj(pid_t pid = 0);
+
+  /**
+   * @brief Set GPU TDP in watts for estimation.
+   * @param tdp TDP value in watts.
+   */
+  void set_gpu_tdp_watts(double tdp) { this->gpu_info_.tdp_watts = tdp; }
+
+  /**
+   * @brief Set idle power factor for estimation.
+   * @param factor Idle power factor (0.0 to 1.0).
+   */
+  void set_idle_power_factor(double factor) {
+    this->idle_power_factor_ = factor;
+  }
+
+private:
+  /**
+   * @brief Detect NVIDIA GPU using nvidia-smi.
+   * @return True if NVIDIA GPU was detected.
+   */
+  bool detect_nvidia_gpu();
+
+  /**
+   * @brief Detect AMD GPU using ROCm or sysfs.
+   * @return True if AMD GPU was detected.
+   */
+  bool detect_amd_gpu();
+
+  /**
+   * @brief Detect Intel GPU using sysfs.
+   * @return True if Intel GPU was detected.
+   */
+  bool detect_intel_gpu();
+
+  /**
+   * @brief Read NVIDIA GPU metrics via nvidia-smi.
+   * @return GpuMetrics structure with current values.
+   */
+  GpuMetrics read_nvidia_metrics();
+
+  /**
+   * @brief Read AMD GPU metrics via sysfs.
+   * @return GpuMetrics structure with current values.
+   */
+  GpuMetrics read_amd_metrics();
+
+  /**
+   * @brief Read Intel GPU metrics via sysfs.
+   * @return GpuMetrics structure with current values.
+   */
+  GpuMetrics read_intel_metrics();
+
+  /**
+   * @brief Read NVIDIA per-process GPU metrics via nvidia-smi.
+   * @param pid Process ID to query.
+   * @return ProcessGpuMetrics structure with current values.
+   */
+  ProcessGpuMetrics read_nvidia_process_metrics(pid_t pid);
+
+  /**
+   * @brief Read AMD per-process GPU metrics via sysfs/fdinfo.
+   * @param pid Process ID to query.
+   * @return ProcessGpuMetrics structure with current values.
+   */
+  ProcessGpuMetrics read_amd_process_metrics(pid_t pid);
+
+  /**
+   * @brief Read Intel per-process GPU metrics via sysfs/fdinfo.
+   * @param pid Process ID to query.
+   * @return ProcessGpuMetrics structure with current values.
+   */
+  ProcessGpuMetrics read_intel_process_metrics(pid_t pid);
+
+  /**
+   * @brief Execute a command and return its output.
+   * @param cmd Command to execute.
+   * @return Command output as string.
+   */
+  std::string exec_command(const std::string &cmd);
+
+  /**
+   * @brief Estimate energy based on power and elapsed time.
+   * @param power_w Current power in watts.
+   * @param utilization GPU utilization percentage.
+   * @return Energy delta in microjoules.
+   */
+  double estimate_energy_uj(double power_w, double utilization);
+
+  /// @brief GPU information structure
+  GpuInfo gpu_info_;
+  /// @brief GPU vendor type for optimized metric reading
+  enum class GpuVendor {
+    NONE,
+    NVIDIA,
+    AMD,
+    INTEL
+  } gpu_vendor_ = GpuVendor::NONE;
+
+  /// @brief Mutex for thread-safe energy readings
+  mutable std::mutex energy_mutex_;
+  /// @brief Accumulated GPU energy in microjoules (system-wide)
+  double accumulated_energy_uj_ = 0.0;
+  /// @brief Accumulated per-process GPU energy in microjoules
+  double accumulated_process_energy_uj_ = 0.0;
+  /// @brief Last energy read time point
+  std::chrono::steady_clock::time_point last_energy_read_time_;
+  /// @brief Last per-process energy read time point
+  std::chrono::steady_clock::time_point last_process_energy_read_time_;
+  /// @brief Idle power factor for estimation
+  double idle_power_factor_ = FALLBACK_GPU_IDLE_POWER_FACTOR;
+
+  /// @brief AMD GPU sysfs paths
+  std::string amd_gpu_busy_path_;
+  std::string amd_mem_busy_path_;
+  std::string amd_power_path_;
+  std::string amd_temp_path_;
+  std::string amd_vram_used_path_;
+  std::string amd_vram_total_path_;
+
+  /// @brief Intel GPU sysfs paths
+  std::string intel_freq_path_;
+  std::string intel_power_path_;
+};
+
+} // namespace utils
+} // namespace poirot
+
+#endif // POIROT__UTILS__GPU_MONITOR_HPP_

@@ -15,6 +15,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Data.msg"
   "msg/FunctionCall.msg"
   "msg/FunctionStats.msg"
+  "msg/GpuInfo.msg"
+  "msg/CpuInfo.msg"
   "msg/SystemInfo.msg"
   "msg/ProcessInfo.msg"
   "msg/ProfilingData.msg"

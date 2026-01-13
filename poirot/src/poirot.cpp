@@ -20,6 +20,7 @@
 #include <set>
 #include <vector>
 
+#include "poirot_msgs/msg/cpu_info.hpp"
 #include "poirot_msgs/msg/function_call.hpp"
 #include "poirot_msgs/msg/function_stats.hpp"
 #include "poirot_msgs/msg/profiling_data.hpp"
@@ -30,7 +31,8 @@ using namespace poirot;
 
 Poirot::Poirot()
     : co2_manager_(), hwmon_scanner_(), power_estimator_(hwmon_scanner_),
-      energy_monitor_(hwmon_scanner_), process_metrics_(), thread_metrics_() {
+      energy_monitor_(hwmon_scanner_), gpu_monitor_(), process_metrics_(),
+      thread_metrics_() {
   this->node_ = rclcpp::Node::make_shared(
       "yasmin_" + utils::StringUtils::generate_uuid() + "_node");
   this->profiling_data_publisher_ =
@@ -42,6 +44,9 @@ Poirot::Poirot()
 void Poirot::auto_configure() {
   // Download CO2 factors
   this->co2_manager_.download_factors();
+
+  // Initialize GPU monitoring
+  this->gpu_monitor_.initialize();
 
   // Detect system information
   this->detect_system_info();
@@ -55,7 +60,7 @@ void Poirot::auto_configure() {
 
 void Poirot::detect_system_info() {
   // CPU info: get real core count from /proc/cpuinfo
-  this->system_info_.cpu_cores = 0;
+  this->system_info_.cpu_info.cores = 0;
   std::ifstream cpuinfo("/proc/cpuinfo");
   if (cpuinfo.is_open()) {
     std::string line;
@@ -66,8 +71,9 @@ void Poirot::detect_system_info() {
     while (std::getline(cpuinfo, line)) {
       if (line.find("model name") != std::string::npos) {
         size_t pos = line.find(':');
-        if (pos != std::string::npos && this->system_info_.cpu_model.empty()) {
-          this->system_info_.cpu_model = line.substr(pos + 2);
+        if (pos != std::string::npos &&
+            this->system_info_.cpu_info.model.empty()) {
+          this->system_info_.cpu_info.model = line.substr(pos + 2);
         }
 
       } else if (line.find("physical id") != std::string::npos) {
@@ -87,14 +93,14 @@ void Poirot::detect_system_info() {
       }
     }
 
-    this->system_info_.cpu_cores =
+    this->system_info_.cpu_info.cores =
         physical_cores.empty()
             ? static_cast<int>(std::thread::hardware_concurrency())
             : static_cast<int>(physical_cores.size());
   }
 
-  if (this->system_info_.cpu_cores == 0) {
-    this->system_info_.cpu_cores =
+  if (this->system_info_.cpu_info.cores == 0) {
+    this->system_info_.cpu_info.cores =
         static_cast<int>(std::thread::hardware_concurrency());
   }
 
@@ -129,83 +135,101 @@ void Poirot::detect_system_info() {
   }
 
   // Configure power estimator with CPU info
-  this->power_estimator_.set_cpu_cores(this->system_info_.cpu_cores);
+  this->power_estimator_.set_cpu_cores(this->system_info_.cpu_info.cores);
 
   // RAPL detection
-  this->system_info_.rapl_available = this->power_estimator_.rapl_available();
+  this->system_info_.cpu_info.rapl_available =
+      this->power_estimator_.rapl_available();
 
   // TDP detection
   // 1. Try Intel RAPL power limit (most accurate for Intel CPUs)
   double intel_rapl_power =
       this->power_estimator_.read_intel_rapl_power_limit_w();
   if (intel_rapl_power > 0) {
-    this->system_info_.cpu_tdp_watts = intel_rapl_power;
-    this->system_info_.cpu_tdp_watts_type =
-        poirot_msgs::msg::SystemInfo::INTEL_RAPL_TDP_TYPE;
+    this->system_info_.cpu_info.tdp_watts = intel_rapl_power;
+    this->system_info_.cpu_info.tdp_watts_type =
+        poirot_msgs::msg::CpuInfo::INTEL_RAPL_TDP_TYPE;
   }
 
   // 2. Try AMD RAPL power limit
-  if (this->system_info_.cpu_tdp_watts == 0.0) {
+  if (this->system_info_.cpu_info.tdp_watts == 0.0) {
     double amd_rapl_power =
         this->power_estimator_.read_amd_rapl_power_limit_w();
     if (amd_rapl_power > 0) {
-      this->system_info_.cpu_tdp_watts = amd_rapl_power;
-      this->system_info_.cpu_tdp_watts_type =
-          poirot_msgs::msg::SystemInfo::AMD_RAPL_TDP_TYPE;
+      this->system_info_.cpu_info.tdp_watts = amd_rapl_power;
+      this->system_info_.cpu_info.tdp_watts_type =
+          poirot_msgs::msg::CpuInfo::AMD_RAPL_TDP_TYPE;
     }
   }
 
   // 3. Try hwmon power limit (TDP from hwmon drivers)
-  if (this->system_info_.cpu_tdp_watts == 0.0) {
+  if (this->system_info_.cpu_info.tdp_watts == 0.0) {
     double hwmon_tdp = this->power_estimator_.read_hwmon_tdp_watts();
     if (hwmon_tdp > 0) {
-      this->system_info_.cpu_tdp_watts = hwmon_tdp;
-      this->system_info_.cpu_tdp_watts_type =
-          poirot_msgs::msg::SystemInfo::HWMON_RAPL_TDP_TYPE;
+      this->system_info_.cpu_info.tdp_watts = hwmon_tdp;
+      this->system_info_.cpu_info.tdp_watts_type =
+          poirot_msgs::msg::CpuInfo::HWMON_RAPL_TDP_TYPE;
     }
   }
 
   // 4. Try thermal zone power budget
-  if (this->system_info_.cpu_tdp_watts == 0.0) {
+  if (this->system_info_.cpu_info.tdp_watts == 0.0) {
     double thermal_tdp = this->power_estimator_.read_thermal_tdp_watts();
     if (thermal_tdp > 0) {
-      this->system_info_.cpu_tdp_watts = thermal_tdp;
-      this->system_info_.cpu_tdp_watts_type =
-          poirot_msgs::msg::SystemInfo::THERMAL_POWER_TDP_TYPE;
+      this->system_info_.cpu_info.tdp_watts = thermal_tdp;
+      this->system_info_.cpu_info.tdp_watts_type =
+          poirot_msgs::msg::CpuInfo::THERMAL_POWER_TDP_TYPE;
     }
   }
 
   // 5. Estimate from CPU frequency and core count (physics-based)
-  if (this->system_info_.cpu_tdp_watts == 0.0) {
+  if (this->system_info_.cpu_info.tdp_watts == 0.0) {
     double freq_tdp = this->power_estimator_.estimate_frequency_tdp_watts();
     if (freq_tdp > 0) {
-      this->system_info_.cpu_tdp_watts = freq_tdp;
-      this->system_info_.cpu_tdp_watts_type =
-          poirot_msgs::msg::SystemInfo::CPU_CORES_FREQUENCY_TYPE;
+      this->system_info_.cpu_info.tdp_watts = freq_tdp;
+      this->system_info_.cpu_info.tdp_watts_type =
+          poirot_msgs::msg::CpuInfo::CPU_CORES_FREQUENCY_TYPE;
     }
   }
 
   // 6. Final fallback: estimate from core count alone
-  if (this->system_info_.cpu_tdp_watts == 0.0) {
-    this->system_info_.cpu_tdp_watts =
+  if (this->system_info_.cpu_info.tdp_watts == 0.0) {
+    this->system_info_.cpu_info.tdp_watts =
         this->power_estimator_.estimate_cores_tdp_watts();
-    this->system_info_.cpu_tdp_watts_type =
-        poirot_msgs::msg::SystemInfo::CPU_CORES_TYPE;
+    this->system_info_.cpu_info.tdp_watts_type =
+        poirot_msgs::msg::CpuInfo::CPU_CORES_TYPE;
   }
 
   // Final sanity check: clamp TDP to system-derived bounds
   double min_tdp = this->power_estimator_.read_min_tdp_watts();
   double max_tdp = this->power_estimator_.read_max_tdp_watts();
-  this->system_info_.cpu_tdp_watts =
-      std::min(std::max(this->system_info_.cpu_tdp_watts, min_tdp), max_tdp);
+  this->system_info_.cpu_info.tdp_watts = std::min(
+      std::max(this->system_info_.cpu_info.tdp_watts, min_tdp), max_tdp);
 
   // Update power estimator with TDP
-  this->power_estimator_.set_cpu_tdp_watts(this->system_info_.cpu_tdp_watts);
-
+  this->power_estimator_.set_cpu_tdp_watts(
+      this->system_info_.cpu_info.tdp_watts);
   // Update energy monitor with TDP and idle factor
-  this->energy_monitor_.set_cpu_tdp_watts(this->system_info_.cpu_tdp_watts);
+  this->energy_monitor_.set_cpu_tdp_watts(
+      this->system_info_.cpu_info.tdp_watts);
   this->energy_monitor_.set_idle_power_factor(
       this->power_estimator_.read_idle_power_factor());
+
+  // GPU detection and configuration
+  if (this->gpu_monitor_.is_available()) {
+    const auto &gpu_info = this->gpu_monitor_.get_gpu_info();
+    this->system_info_.gpu_info.model = gpu_info.model;
+    this->system_info_.gpu_info.vendor = gpu_info.vendor;
+    this->system_info_.gpu_info.index = gpu_info.index;
+    this->system_info_.gpu_info.mem_total_kb = gpu_info.mem_total_kb;
+    this->system_info_.gpu_info.tdp_watts = gpu_info.tdp_watts;
+    this->system_info_.gpu_info.tdp_watts_type = gpu_info.tdp_type;
+    this->system_info_.gpu_info.available = true;
+    this->system_info_.gpu_info.power_monitoring = gpu_info.power_monitoring;
+  } else {
+    this->system_info_.gpu_info.available = false;
+    this->system_info_.gpu_info.power_monitoring = false;
+  }
 
   // CO2 factor from timezone
   std::string timezone = this->co2_manager_.get_system_timezone();
@@ -244,12 +268,33 @@ void Poirot::start_profiling(const std::string &function_name) {
   ctx.start_time = std::chrono::steady_clock::now();
   ctx.start_cpu_time_us = this->thread_metrics_.read_cpu_time_us();
   ctx.start_process_cpu_time_us = this->process_metrics_.read_cpu_time_us();
-  ctx.start_memory_kb = this->thread_metrics_.read_memory_kb();
+  ctx.start_mem_kb = this->thread_metrics_.read_memory_kb();
   this->thread_metrics_.read_io_bytes(ctx.start_io_read_bytes,
                                       ctx.start_io_write_bytes);
   ctx.start_ctx_switches = this->thread_metrics_.read_ctx_switches();
-  ctx.start_energy_uj =
+  ctx.start_cpu_energy_uj =
       this->energy_monitor_.read_energy_uj(this->process_info_.cpu_percent);
+
+  // Capture GPU energy start if GPU is available
+  if (this->gpu_monitor_.is_available()) {
+    // Read per-process GPU metrics instead of system-wide
+    auto process_metrics = this->gpu_monitor_.read_process_metrics();
+    ctx.start_gpu_utilization_percent =
+        process_metrics.is_using_gpu
+            ? process_metrics.estimated_utilization_percent
+            : 0.0;
+    ctx.start_gpu_mem_kb = process_metrics.mem_used_kb;
+    ctx.start_gpu_energy_uj = this->gpu_monitor_.read_process_energy_uj();
+
+    // Read system-wide temperature (per-process temp is not available)
+    auto sys_metrics = this->gpu_monitor_.read_metrics();
+    ctx.start_gpu_temp_c = sys_metrics.temp_c;
+  } else {
+    ctx.start_gpu_utilization_percent = 0.0;
+    ctx.start_gpu_mem_kb = 0;
+    ctx.start_gpu_energy_uj = 0.0;
+    ctx.start_gpu_temp_c = 0.0;
+  }
 }
 
 void Poirot::stop_profiling() {
@@ -258,13 +303,33 @@ void Poirot::stop_profiling() {
   auto end_time = std::chrono::steady_clock::now();
   double end_cpu_time_us = this->thread_metrics_.read_cpu_time_us();
   double end_process_cpu_time_us = this->process_metrics_.read_cpu_time_us();
-  long end_memory_kb = this->thread_metrics_.read_memory_kb();
+  long end_mem_kb = this->thread_metrics_.read_memory_kb();
   long end_io_read_bytes = 0;
   long end_io_write_bytes = 0;
   this->thread_metrics_.read_io_bytes(end_io_read_bytes, end_io_write_bytes);
   long end_ctx_switches = this->thread_metrics_.read_ctx_switches();
-  double end_energy_uj =
+  double end_cpu_energy_uj =
       this->energy_monitor_.read_energy_uj(this->process_info_.cpu_percent);
+
+  // Read GPU metrics if available
+  double end_gpu_utilization_percent = 0.0;
+  int64_t end_gpu_mem_kb = 0;
+  double end_gpu_energy_uj = 0.0;
+  double end_gpu_temp_c = 0.0;
+  if (this->gpu_monitor_.is_available()) {
+    // Read per-process GPU metrics instead of system-wide
+    auto process_metrics = this->gpu_monitor_.read_process_metrics();
+    end_gpu_utilization_percent =
+        process_metrics.is_using_gpu
+            ? process_metrics.estimated_utilization_percent
+            : 0.0;
+    end_gpu_mem_kb = process_metrics.mem_used_kb;
+    end_gpu_energy_uj = this->gpu_monitor_.read_process_energy_uj();
+
+    // Read system-wide temperature (per-process temp is not available)
+    auto sys_metrics = this->gpu_monitor_.read_metrics();
+    end_gpu_temp_c = sys_metrics.temp_c;
+  }
 
   // Get thread-local context
   ThreadProfilingContext &ctx = this->get_thread_context();
@@ -279,12 +344,18 @@ void Poirot::stop_profiling() {
       end_process_cpu_time_us - ctx.start_process_cpu_time_us;
   double system_cpu_delta_us =
       wall_time_delta_us * this->process_metrics_.get_num_cpus();
-  double total_energy_delta_uj = end_energy_uj - ctx.start_energy_uj;
+  double cpu_total_energy_delta_uj =
+      end_cpu_energy_uj - ctx.start_cpu_energy_uj;
+  double gpu_energy_delta_uj = end_gpu_energy_uj - ctx.start_gpu_energy_uj;
 
-  // Calculate thread-level energy using hierarchical CPU time attribution
-  double thread_energy_uj = this->energy_monitor_.calculate_thread_energy_uj(
-      thread_cpu_delta_us, process_cpu_delta_us, system_cpu_delta_us,
-      total_energy_delta_uj);
+  // Calculate thread-level CPU energy using hierarchical CPU time attribution
+  double thread_cpu_energy_uj =
+      this->energy_monitor_.calculate_thread_energy_uj(
+          thread_cpu_delta_us, process_cpu_delta_us, system_cpu_delta_us,
+          cpu_total_energy_delta_uj);
+
+  // Calculate total energy (CPU + GPU)
+  double total_energy_uj = thread_cpu_energy_uj + gpu_energy_delta_uj;
 
   // Prepare FunctionCall message
   poirot_msgs::msg::FunctionCall call;
@@ -293,17 +364,27 @@ void Poirot::stop_profiling() {
   call.data.cpu_time_us = thread_cpu_delta_us;
   call.data.process_cpu_time_us = process_cpu_delta_us;
   call.data.system_cpu_time_us = system_cpu_delta_us;
-  call.data.mem_kb = end_memory_kb - ctx.start_memory_kb;
+  call.data.mem_kb = end_mem_kb - ctx.start_mem_kb;
   call.data.io_read_bytes = end_io_read_bytes - ctx.start_io_read_bytes;
   call.data.io_write_bytes = end_io_write_bytes - ctx.start_io_write_bytes;
   call.data.ctx_switches = end_ctx_switches - ctx.start_ctx_switches;
-  call.data.energy_uj = thread_energy_uj;
-  call.data.total_energy_uj = total_energy_delta_uj;
+  call.data.cpu_energy_uj = thread_cpu_energy_uj;
+  call.data.cpu_total_energy_uj = cpu_total_energy_delta_uj;
 
-  // Calculate CO2 in micrograms
+  // GPU data (calculate deltas correctly: end - start)
+  call.data.gpu_utilization_percent =
+      end_gpu_utilization_percent - ctx.start_gpu_utilization_percent;
+  call.data.gpu_mem_kb = end_gpu_mem_kb - ctx.start_gpu_mem_kb;
+  call.data.gpu_energy_uj = gpu_energy_delta_uj;
+  call.data.gpu_temp_c = end_gpu_temp_c - ctx.start_gpu_temp_c;
+
+  // Total energy (CPU + GPU)
+  call.data.total_energy_uj = total_energy_uj;
+
+  // Calculate CO2 in micrograms based on total energy
   constexpr double UJ_TO_KWH = 1.0 / 1e6 / 3600.0 / 1000.0;
   constexpr double KG_TO_UG = 1e9;
-  double energy_kwh = call.data.energy_uj * UJ_TO_KWH;
+  double energy_kwh = call.data.total_energy_uj * UJ_TO_KWH;
   call.data.co2_ug =
       energy_kwh * this->system_info_.co2_factor_kg_per_kwh * KG_TO_UG;
 
@@ -324,7 +405,9 @@ void Poirot::stop_profiling() {
               << " | IO R/W: " << call.data.io_read_bytes << "/"
               << call.data.io_write_bytes << "B"
               << " | CtxSw: " << call.data.ctx_switches
-              << " | Energy: " << call.data.energy_uj << "uJ"
+              << " | CPU Energy: " << call.data.cpu_energy_uj << "uJ"
+              << " | GPU Energy: " << call.data.gpu_energy_uj << "uJ"
+              << " | Total Energy: " << call.data.total_energy_uj << "uJ"
               << " | CO2: " << call.data.co2_ug << "ug" << std::endl;
   }
 
@@ -345,16 +428,39 @@ void Poirot::print_system_info() {
   std::cout << "OS:       " << instance.system_info_.os_name << "\n";
   std::cout << "OS Version: " << instance.system_info_.os_version << "\n";
   std::cout << "Hostname: " << instance.system_info_.hostname << "\n";
-  std::cout << "CPU:      " << instance.system_info_.cpu_model << "\n";
-  std::cout << "Cores:    " << instance.system_info_.cpu_cores << "\n";
+  std::cout << "CPU:      " << instance.system_info_.cpu_info.model << "\n";
+  std::cout << "Cores:    " << instance.system_info_.cpu_info.cores << "\n";
   std::cout << "Memory:   " << instance.system_info_.mem_total_kb / 1024
             << " MB\n";
   std::cout << "RAPL:     "
-            << (instance.system_info_.rapl_available ? "Yes" : "No") << "\n";
-  std::cout << "TDP:      " << instance.system_info_.cpu_tdp_watts << " W\n";
-  std::cout << "TDP Type: "
-            << static_cast<int>(instance.system_info_.cpu_tdp_watts_type)
+            << (instance.system_info_.cpu_info.rapl_available ? "Yes" : "No")
             << "\n";
+  std::cout << "CPU TDP:  " << instance.system_info_.cpu_info.tdp_watts
+            << " W\n";
+  std::cout << "TDP Type: "
+            << static_cast<int>(instance.system_info_.cpu_info.tdp_watts_type)
+            << "\n";
+  std::cout << "--------------------------------------------"
+            << "-----------------------\n";
+  std::cout << "GPU:      "
+            << (instance.system_info_.gpu_info.available
+                    ? instance.system_info_.gpu_info.model
+                    : "Not available")
+            << "\n";
+  if (instance.system_info_.gpu_info.available) {
+    std::cout << "GPU Vendor: " << instance.system_info_.gpu_info.vendor
+              << "\n";
+    std::cout << "GPU Memory: "
+              << instance.system_info_.gpu_info.mem_total_kb / 1024 << " MB\n";
+    std::cout << "GPU TDP:  " << instance.system_info_.gpu_info.tdp_watts
+              << " W\n";
+    std::cout << "GPU Power Mon: "
+              << (instance.system_info_.gpu_info.power_monitoring ? "Yes"
+                                                                  : "No")
+              << "\n";
+  }
+  std::cout << "--------------------------------------------"
+            << "-----------------------\n";
   std::cout << "Country:  " << instance.system_info_.country_code << "\n";
   std::cout << "CO2:      " << instance.system_info_.co2_factor_kg_per_kwh
             << " kg/kWh\n";
