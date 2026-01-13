@@ -33,11 +33,11 @@ Poirot::Poirot()
     : co2_manager_(), hwmon_scanner_(), power_estimator_(hwmon_scanner_),
       energy_monitor_(hwmon_scanner_), gpu_monitor_(), process_metrics_(),
       thread_metrics_() {
-  this->node_ = rclcpp::Node::make_shared(
-      "yasmin_" + utils::StringUtils::generate_uuid() + "_node");
+  this->poirot_node_ = rclcpp::Node::make_shared(
+      "poirot_" + utils::StringUtils::generate_uuid() + "_node");
   this->profiling_data_publisher_ =
-      this->node_->create_publisher<poirot_msgs::msg::ProfilingData>(
-          "poirot/data", rclcpp::QoS(10));
+      this->poirot_node_->create_publisher<poirot_msgs::msg::ProfilingData>(
+          "poirot/data", rclcpp::QoS(100));
   this->auto_configure();
 }
 
@@ -48,14 +48,14 @@ void Poirot::auto_configure() {
   // Initialize GPU monitoring
   this->gpu_monitor_.initialize();
 
-  // Detect system information
-  this->detect_system_info();
-
   // Search for hwmon paths
   this->hwmon_scanner_.search_paths();
 
   // Initialize energy monitor with RAPL max energy range
   this->energy_monitor_.initialize_rapl_max_energy();
+
+  // Detect system information
+  this->detect_system_info();
 }
 
 void Poirot::detect_system_info() {
