@@ -48,64 +48,11 @@
 
 ## Features
 
-### Core Profiling Library (`poirot`)
-
-- **Automatic System Configuration**: Detects CPU model, RAM, OS, energy measurement capabilities (Intel RAPL, AMD RAPL, hwmon) and downloads CO2 emission factors by country
-- **Comprehensive Metrics Collection**:
-  - **Timing**: Wall time and CPU time (user + system) per function
-  - **Memory**: RSS and VSZ memory usage tracking
-  - **I/O Operations**: Read/write bytes monitoring
-  - **System Metrics**: Context switches (voluntary/involuntary), page faults (minor/major)
-  - **Energy**: Real-time energy consumption in Joules (when hardware support available)
-  - **Sustainability**: CO2 emissions estimation in grams based on regional energy mix
-- **Low Overhead**: Efficient RAII-based profiling with minimal impact on application performance
-- **ROS 2 Integration**: Publishes profiling data via `/poirot/data` topic using custom message types
-- **Thread-Safe**: Concurrent profiling across multiple threads and nodes
-
-### Terminal User Interface (`poirot_tui`)
-
-- **htop-like Table View**: Real-time display of all profiled functions with sortable columns
-  - PID, Function Name, Call Count
-  - Wall Time, CPU Time, CPU%, Memory Usage
-  - I/O Read/Write, Context Switches
-  - Energy Consumption, CO2 Emissions
-- **Real-time Graphs**: Interactive time-series visualization for each metric
-  - Wall Time, CPU Time, Memory, I/O (Read/Write)
-  - Context Switches, Energy, CO2
-  - Toggle individual functions on/off
-  - Color-coded function traces with legend
-- **Mouse & Keyboard Support**:
-  - Click to navigate, sort and select
-  - Keyboard shortcuts for all operations
-  - Scroll wheel navigation
-- **Multiple Views**: Quick tab switching between table and graph views (9 tabs total)
-
-### CSV Recorder (`poirot_recorder`)
-
-- **Persistent Data Storage**: Records all profiling data to CSV files for offline analysis
-- **Comprehensive Data Export**:
-  - Function statistics (total and last call metrics)
-  - Process information (PID, CPU%, memory, I/O, threads)
-  - System information (OS, CPU model, cores, TDP, country code, CO2 factors)
-- **Configurable Output**: CSV file path via ROS 2 parameter
-- **Thread-Safe Writing**: Automatic flushing with proper CSV escaping
-- **Progress Logging**: Status updates every 100 records
-
-### Demo Applications (`poirot_demos`)
-
-- **Example Publisher/Subscriber**: Demonstrates profiling in typical ROS 2 patterns
-- **Timer Functions**: Shows profiling of periodic callbacks
-- **Realistic Workloads**: Simulates CPU-intensive operations and memory allocation
-
-### Message Definitions (`poirot_msgs`)
-
-- Custom ROS 2 message types for profiling data:
-  - `ProfilingData`: Complete profiling snapshot
-  - `FunctionStats`: Aggregated function metrics
-  - `FunctionCall`: Individual call data
-  - `Data`: Detailed metrics (time, memory, I/O, energy, CO2)
-  - `ProcessInfo`: Process-level information
-  - `SystemInfo`: System-level configuration
+- **Core Profiling Library (poirot)**: Automatic system detection, comprehensive metrics (timing, memory, I/O, energy, CO2), low overhead, ROS 2 integration.
+- **Terminal User Interface (poirot_tui)**: Real-time table and graphs, interactive controls.
+- **CSV Recorder (poirot_recorder)**: Records profiling data to CSV for analysis.
+- **Demo Applications (poirot_demos)**: Examples for ROS 2 profiling.
+- **Message Definitions (poirot_msgs)**: Custom ROS 2 messages for profiling data.
 
 ## Installation
 
