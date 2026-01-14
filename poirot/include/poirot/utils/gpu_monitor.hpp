@@ -29,6 +29,14 @@ constexpr double FALLBACK_GPU_TDP_WATTS = 150.0;
 /// @brief Fallback idle power factor for GPU
 constexpr double FALLBACK_GPU_IDLE_POWER_FACTOR = 0.10;
 
+/// @brief GPU TDP detection type constants
+enum class GpuTdpType {
+  NVIDIA_SMI_TDP_TYPE = 1,
+  AMD_ROCM_TDP_TYPE = 2,
+  SYSFS_TDP_TYPE = 3,
+  ESTIMATED_TDP_TYPE = 4
+};
+
 /**
  * @struct GpuMetrics
  * @brief Structure to hold current GPU metrics.
@@ -62,7 +70,7 @@ struct GpuInfo {
   int index = 0;
   int64_t mem_total_kb = 0;
   double tdp_watts = 0.0;
-  uint8_t tdp_type = 0;
+  GpuTdpType tdp_type = GpuTdpType::ESTIMATED_TDP_TYPE;
   bool available = false;
   bool power_monitoring = false;
 };
@@ -77,12 +85,6 @@ struct GpuInfo {
  */
 class GpuMonitor {
 public:
-  /// @brief GPU TDP detection type constants
-  static constexpr uint8_t NVIDIA_SMI_TDP_TYPE = 1;
-  static constexpr uint8_t AMD_ROCM_TDP_TYPE = 2;
-  static constexpr uint8_t SYSFS_TDP_TYPE = 3;
-  static constexpr uint8_t ESTIMATED_TDP_TYPE = 4;
-
   /**
    * @brief Default constructor.
    */

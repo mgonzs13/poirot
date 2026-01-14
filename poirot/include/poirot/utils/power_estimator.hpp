@@ -40,6 +40,16 @@ constexpr double FALLBACK_POWER_PER_CORE_PER_GHZ = 10.0;
 /// @brief Fallback watts per core if all measurements fail
 constexpr double FALLBACK_WATTS_PER_CORE = 12.0;
 
+/// @brief CPU TDP detection type constants
+enum class TdpType {
+  INTEL_RAPL_TDP_TYPE = 1,
+  AMD_RAPL_TDP_TYPE = 2,
+  HWMON_RAPL_TDP_TYPE = 3,
+  THERMAL_POWER_TDP_TYPE = 4,
+  CPU_CORES_FREQUENCY_TYPE = 5,
+  CPU_CORES_TYPE = 6
+};
+
 /**
  * @class PowerEstimator
  * @brief Class for estimating power consumption and TDP values.
@@ -48,6 +58,7 @@ constexpr double FALLBACK_WATTS_PER_CORE = 12.0;
  * and estimating various power-related metrics.
  */
 class PowerEstimator {
+
 public:
   /**
    * @brief Constructor.
@@ -72,6 +83,12 @@ public:
    * @return True if RAPL is available, false otherwise.
    */
   bool rapl_available();
+
+  /**
+   * @brief Read CPU TDP in watts.
+   * @return TDP in watts or 0.0 if not available.
+   */
+  std::pair<double, TdpType> read_tdp_watts();
 
   /**
    * @brief Read RAPL power limit in watts.

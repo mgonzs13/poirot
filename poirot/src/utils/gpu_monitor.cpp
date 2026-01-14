@@ -113,15 +113,15 @@ bool GpuMonitor::detect_nvidia_gpu() {
   if (!output.empty()) {
     try {
       this->gpu_info_.tdp_watts = std::stod(output);
-      this->gpu_info_.tdp_type = NVIDIA_SMI_TDP_TYPE;
+      this->gpu_info_.tdp_type = GpuTdpType::NVIDIA_SMI_TDP_TYPE;
       this->gpu_info_.power_monitoring = true;
     } catch (...) {
       this->gpu_info_.tdp_watts = FALLBACK_GPU_TDP_WATTS;
-      this->gpu_info_.tdp_type = ESTIMATED_TDP_TYPE;
+      this->gpu_info_.tdp_type = GpuTdpType::ESTIMATED_TDP_TYPE;
     }
   } else {
     this->gpu_info_.tdp_watts = FALLBACK_GPU_TDP_WATTS;
-    this->gpu_info_.tdp_type = ESTIMATED_TDP_TYPE;
+    this->gpu_info_.tdp_type = GpuTdpType::ESTIMATED_TDP_TYPE;
   }
 
   // Check if power monitoring works
@@ -239,14 +239,14 @@ bool GpuMonitor::detect_amd_gpu() {
         long cap_uw = SysfsReader::read_long(cap_path);
         if (cap_uw > 0) {
           this->gpu_info_.tdp_watts = static_cast<double>(cap_uw) / 1e6;
-          this->gpu_info_.tdp_type = SYSFS_TDP_TYPE;
+          this->gpu_info_.tdp_type = GpuTdpType::SYSFS_TDP_TYPE;
         }
       }
     }
 
     if (this->gpu_info_.tdp_watts <= 0) {
       this->gpu_info_.tdp_watts = FALLBACK_GPU_TDP_WATTS;
-      this->gpu_info_.tdp_type = ESTIMATED_TDP_TYPE;
+      this->gpu_info_.tdp_type = GpuTdpType::ESTIMATED_TDP_TYPE;
     }
 
     return true;
@@ -293,7 +293,7 @@ bool GpuMonitor::detect_intel_gpu() {
     // Intel GPUs typically don't have reliable power monitoring via sysfs
     // Use estimated TDP based on typical integrated GPU values
     this->gpu_info_.tdp_watts = 15.0; // Typical Intel iGPU TDP
-    this->gpu_info_.tdp_type = ESTIMATED_TDP_TYPE;
+    this->gpu_info_.tdp_type = GpuTdpType::ESTIMATED_TDP_TYPE;
     this->gpu_info_.power_monitoring = false;
 
     // Check for i915 frequency info

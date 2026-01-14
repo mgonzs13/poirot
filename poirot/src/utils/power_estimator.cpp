@@ -35,6 +35,63 @@ bool PowerEstimator::rapl_available() {
              "/sys/class/powercap/amd-rapl/amd-rapl:0/energy_uj");
 }
 
+std::pair<double, TdpType> PowerEstimator::read_tdp_watts() {
+
+  double tdp_watts = 0.0;
+  TdpType tdp_type;
+
+  // 1. Try Intel RAPL power limit (most accurate for Intel CPUs)
+  double intel_rapl_power = this->read_intel_rapl_power_limit_w();
+  if (intel_rapl_power > 0) {
+    tdp_watts = intel_rapl_power;
+    tdp_type = TdpType::INTEL_RAPL_TDP_TYPE;
+  }
+
+  // 2. Try AMD RAPL power limit
+  if (tdp_watts == 0.0) {
+    double amd_rapl_power = this->read_amd_rapl_power_limit_w();
+    if (amd_rapl_power > 0) {
+      tdp_watts = amd_rapl_power;
+      tdp_type = TdpType::AMD_RAPL_TDP_TYPE;
+    }
+  }
+
+  // 3. Try hwmon power limit (TDP from hwmon drivers)
+  if (tdp_watts == 0.0) {
+    double hwmon_tdp = this->read_hwmon_tdp_watts();
+    if (hwmon_tdp > 0) {
+      tdp_watts = hwmon_tdp;
+      tdp_type = TdpType::HWMON_RAPL_TDP_TYPE;
+    }
+  }
+
+  // 4. Try thermal zone power budget
+  if (tdp_watts == 0.0) {
+    double thermal_tdp = this->read_thermal_tdp_watts();
+    if (thermal_tdp > 0) {
+      tdp_watts = thermal_tdp;
+      tdp_type = TdpType::THERMAL_POWER_TDP_TYPE;
+    }
+  }
+
+  // 5. Estimate from CPU frequency and core count (physics-based)
+  if (tdp_watts == 0.0) {
+    double freq_tdp = this->estimate_frequency_tdp_watts();
+    if (freq_tdp > 0) {
+      tdp_watts = freq_tdp;
+      tdp_type = TdpType::CPU_CORES_FREQUENCY_TYPE;
+    }
+  }
+
+  // 6. Final fallback: estimate from core count alone
+  if (tdp_watts == 0.0) {
+    tdp_watts = this->estimate_cores_tdp_watts();
+    tdp_type = TdpType::CPU_CORES_TYPE;
+  }
+
+  return {tdp_watts, tdp_type};
+}
+
 double PowerEstimator::read_intel_rapl_power_limit_w() {
   static const std::vector<std::string> intel_rapl_paths = {
       "/sys/class/powercap/intel-rapl/intel-rapl:0/constraint_0_power_limit_uw",

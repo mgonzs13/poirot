@@ -79,15 +79,8 @@ void Poirot::detect_system_info() {
     while (std::getline(cpuinfo, line)) {
       if (line.find("model name") != std::string::npos) {
         size_t pos = line.find(':');
-        if (pos != std::string::npos &&
-            this->system_info_.cpu_info.model.empty()) {
-          this->system_info_.cpu_info.model = line.substr(pos + 2);
-        }
-
-      } else if (line.find("physical id") != std::string::npos) {
-        size_t pos = line.find(':');
         if (pos != std::string::npos) {
-          current_physical_id = std::stoi(line.substr(pos + 2));
+          this->system_info_.cpu_info.model = line.substr(pos + 2);
         }
 
       } else if (line.find("core id") != std::string::npos) {
@@ -150,60 +143,25 @@ void Poirot::detect_system_info() {
       this->power_estimator_.rapl_available();
 
   // TDP detection
-  // 1. Try Intel RAPL power limit (most accurate for Intel CPUs)
-  double intel_rapl_power =
-      this->power_estimator_.read_intel_rapl_power_limit_w();
-  if (intel_rapl_power > 0) {
-    this->system_info_.cpu_info.tdp_watts = intel_rapl_power;
+  auto [tdp_watts, tdp_type] = this->power_estimator_.read_tdp_watts();
+  this->system_info_.cpu_info.tdp_watts = tdp_watts;
+
+  if (tdp_type == utils::TdpType::INTEL_RAPL_TDP_TYPE) {
     this->system_info_.cpu_info.tdp_watts_type =
         poirot_msgs::msg::CpuInfo::INTEL_RAPL_TDP_TYPE;
-  }
-
-  // 2. Try AMD RAPL power limit
-  if (this->system_info_.cpu_info.tdp_watts == 0.0) {
-    double amd_rapl_power =
-        this->power_estimator_.read_amd_rapl_power_limit_w();
-    if (amd_rapl_power > 0) {
-      this->system_info_.cpu_info.tdp_watts = amd_rapl_power;
-      this->system_info_.cpu_info.tdp_watts_type =
-          poirot_msgs::msg::CpuInfo::AMD_RAPL_TDP_TYPE;
-    }
-  }
-
-  // 3. Try hwmon power limit (TDP from hwmon drivers)
-  if (this->system_info_.cpu_info.tdp_watts == 0.0) {
-    double hwmon_tdp = this->power_estimator_.read_hwmon_tdp_watts();
-    if (hwmon_tdp > 0) {
-      this->system_info_.cpu_info.tdp_watts = hwmon_tdp;
-      this->system_info_.cpu_info.tdp_watts_type =
-          poirot_msgs::msg::CpuInfo::HWMON_RAPL_TDP_TYPE;
-    }
-  }
-
-  // 4. Try thermal zone power budget
-  if (this->system_info_.cpu_info.tdp_watts == 0.0) {
-    double thermal_tdp = this->power_estimator_.read_thermal_tdp_watts();
-    if (thermal_tdp > 0) {
-      this->system_info_.cpu_info.tdp_watts = thermal_tdp;
-      this->system_info_.cpu_info.tdp_watts_type =
-          poirot_msgs::msg::CpuInfo::THERMAL_POWER_TDP_TYPE;
-    }
-  }
-
-  // 5. Estimate from CPU frequency and core count (physics-based)
-  if (this->system_info_.cpu_info.tdp_watts == 0.0) {
-    double freq_tdp = this->power_estimator_.estimate_frequency_tdp_watts();
-    if (freq_tdp > 0) {
-      this->system_info_.cpu_info.tdp_watts = freq_tdp;
-      this->system_info_.cpu_info.tdp_watts_type =
-          poirot_msgs::msg::CpuInfo::CPU_CORES_FREQUENCY_TYPE;
-    }
-  }
-
-  // 6. Final fallback: estimate from core count alone
-  if (this->system_info_.cpu_info.tdp_watts == 0.0) {
-    this->system_info_.cpu_info.tdp_watts =
-        this->power_estimator_.estimate_cores_tdp_watts();
+  } else if (tdp_type == utils::TdpType::AMD_RAPL_TDP_TYPE) {
+    this->system_info_.cpu_info.tdp_watts_type =
+        poirot_msgs::msg::CpuInfo::AMD_RAPL_TDP_TYPE;
+  } else if (tdp_type == utils::TdpType::HWMON_RAPL_TDP_TYPE) {
+    this->system_info_.cpu_info.tdp_watts_type =
+        poirot_msgs::msg::CpuInfo::HWMON_RAPL_TDP_TYPE;
+  } else if (tdp_type == utils::TdpType::THERMAL_POWER_TDP_TYPE) {
+    this->system_info_.cpu_info.tdp_watts_type =
+        poirot_msgs::msg::CpuInfo::THERMAL_POWER_TDP_TYPE;
+  } else if (tdp_type == utils::TdpType::CPU_CORES_FREQUENCY_TYPE) {
+    this->system_info_.cpu_info.tdp_watts_type =
+        poirot_msgs::msg::CpuInfo::CPU_CORES_FREQUENCY_TYPE;
+  } else if (tdp_type == utils::TdpType::CPU_CORES_TYPE) {
     this->system_info_.cpu_info.tdp_watts_type =
         poirot_msgs::msg::CpuInfo::CPU_CORES_TYPE;
   }
@@ -231,7 +189,21 @@ void Poirot::detect_system_info() {
     this->system_info_.gpu_info.index = gpu_info.index;
     this->system_info_.gpu_info.mem_total_kb = gpu_info.mem_total_kb;
     this->system_info_.gpu_info.tdp_watts = gpu_info.tdp_watts;
-    this->system_info_.gpu_info.tdp_watts_type = gpu_info.tdp_type;
+
+    if (gpu_info.tdp_type == utils::GpuTdpType::NVIDIA_SMI_TDP_TYPE) {
+      this->system_info_.gpu_info.tdp_watts_type =
+          poirot_msgs::msg::GpuInfo::NVIDIA_SMI_TDP_TYPE;
+    } else if (gpu_info.tdp_type == utils::GpuTdpType::AMD_ROCM_TDP_TYPE) {
+      this->system_info_.gpu_info.tdp_watts_type =
+          poirot_msgs::msg::GpuInfo::AMD_ROCM_TDP_TYPE;
+    } else if (gpu_info.tdp_type == utils::GpuTdpType::SYSFS_TDP_TYPE) {
+      this->system_info_.gpu_info.tdp_watts_type =
+          poirot_msgs::msg::GpuInfo::SYSFS_TDP_TYPE;
+    } else if (gpu_info.tdp_type == utils::GpuTdpType::ESTIMATED_TDP_TYPE) {
+      this->system_info_.gpu_info.tdp_watts_type =
+          poirot_msgs::msg::GpuInfo::ESTIMATED_TDP_TYPE;
+    }
+
     this->system_info_.gpu_info.available = true;
     this->system_info_.gpu_info.power_monitoring = gpu_info.power_monitoring;
   } else {
