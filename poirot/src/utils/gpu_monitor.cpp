@@ -467,11 +467,6 @@ double GpuMonitor::estimate_energy_uj(double power_w, double utilization) {
   return this->accumulated_energy_uj_;
 }
 
-double GpuMonitor::read_energy_uj() {
-  GpuMetrics metrics = this->read_metrics();
-  return metrics.energy_uj;
-}
-
 ProcessGpuMetrics GpuMonitor::read_process_metrics(pid_t pid) {
   if (pid == 0) {
     pid = getpid();
@@ -724,20 +719,7 @@ double GpuMonitor::read_process_energy_uj(pid_t pid) {
   }
 
   // Get system-wide GPU metrics for power/utilization
-  GpuMetrics sys_metrics;
-  switch (this->gpu_vendor_) {
-  case GpuVendor::NVIDIA:
-    sys_metrics = this->read_nvidia_metrics();
-    break;
-  case GpuVendor::AMD:
-    sys_metrics = this->read_amd_metrics();
-    break;
-  case GpuVendor::INTEL:
-    sys_metrics = this->read_intel_metrics();
-    break;
-  default:
-    break;
-  }
+  GpuMetrics sys_metrics = this->read_metrics();
 
   // Estimate process's share of GPU power based on memory usage ratio
   double memory_ratio = 0.0;

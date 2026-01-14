@@ -101,12 +101,6 @@ public:
   bool is_available() const { return this->gpu_info_.available; }
 
   /**
-   * @brief Check if GPU power monitoring is supported.
-   * @return True if power monitoring is available.
-   */
-  bool has_power_monitoring() const { return this->gpu_info_.power_monitoring; }
-
-  /**
    * @brief Get GPU information.
    * @return Const reference to GpuInfo structure.
    */
@@ -117,12 +111,6 @@ public:
    * @return GpuMetrics structure with current values.
    */
   GpuMetrics read_metrics();
-
-  /**
-   * @brief Read accumulated GPU energy in microjoules.
-   * @return Accumulated energy in microjoules.
-   */
-  double read_energy_uj();
 
   /**
    * @brief Read per-process GPU metrics for a specific PID.
@@ -144,12 +132,6 @@ public:
    * @return Accumulated energy attributed to the process in microjoules.
    */
   double read_process_energy_uj(pid_t pid = 0);
-
-  /**
-   * @brief Set GPU TDP in watts for estimation.
-   * @param tdp TDP value in watts.
-   */
-  void set_gpu_tdp_watts(double tdp) { this->gpu_info_.tdp_watts = tdp; }
 
   /**
    * @brief Set idle power factor for estimation.
