@@ -217,20 +217,20 @@ void TuiRenderer::render_table_view(const DataManager &data_manager) {
   mvhline(2, 0, ' ', this->terminal_width_);
 
   // Define column widths
-  int col_pid = 10;
-  int col_func = 38;
-  int col_calls = 8;
-  int col_wall = 12;
-  int col_cpu = 12;
-  int col_mem = 10;
-  int col_gpu_mem = 10;
-  int col_ior = 10;
-  int col_iow = 10;
-  int col_ctx = 8;
-  int col_cpu_energy = 11;
-  int col_gpu_energy = 11;
-  int col_energy = 11;
-  int col_co2 = 10;
+  int col_pid = 15;
+  int col_func = 43;
+  int col_calls = 13;
+  int col_wall = 17;
+  int col_cpu = 17;
+  int col_mem = 15;
+  int col_gpu_mem = 15;
+  int col_ior = 15;
+  int col_iow = 15;
+  int col_ctx = 13;
+  int col_cpu_energy = 16;
+  int col_gpu_energy = 16;
+  int col_energy = 16;
+  int col_co2 = 15;
 
   // Store column positions for mouse click sorting
   this->column_positions_.clear();
