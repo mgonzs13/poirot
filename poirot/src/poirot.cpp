@@ -33,8 +33,16 @@ Poirot::Poirot()
     : co2_manager_(), hwmon_scanner_(), power_estimator_(hwmon_scanner_),
       energy_monitor_(hwmon_scanner_), gpu_monitor_(), process_metrics_(),
       thread_metrics_() {
+
+  // Create node options
+  rclcpp::NodeOptions node_options;
+  node_options.use_global_arguments(false);
+
+  // Create POIROT node with unique name
   this->poirot_node_ = rclcpp::Node::make_shared(
-      "poirot_" + utils::StringUtils::generate_uuid() + "_node");
+      "poirot_" + utils::StringUtils::generate_uuid() + "_node", node_options);
+
+  // Create profiling data publisher
   this->profiling_data_publisher_ =
       this->poirot_node_->create_publisher<poirot_msgs::msg::ProfilingData>(
           "poirot/data", rclcpp::QoS(100));

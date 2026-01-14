@@ -193,11 +193,11 @@ private:
   // ============================================================================
   // ROS 2 Integration
   // ============================================================================
+  /// @brief ROS 2 Node for publishing
+  rclcpp::Node::SharedPtr poirot_node_;
   /// @brief ROS 2 Publisher for profiling data
   rclcpp::Publisher<poirot_msgs::msg::ProfilingData>::SharedPtr
       profiling_data_publisher_;
-  /// @brief ROS 2 Node for publishing
-  rclcpp::Node::SharedPtr poirot_node_;
 };
 
 // ============================================================================
