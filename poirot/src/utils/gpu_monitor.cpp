@@ -691,7 +691,6 @@ double GpuMonitor::read_process_energy_uj(pid_t pid) {
       static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(
                               now - this->last_process_energy_read_time_)
                               .count());
-  this->last_process_energy_read_time_ = now;
 
   if (elapsed_us <= 0) {
     return this->accumulated_process_energy_uj_;
@@ -710,8 +709,12 @@ double GpuMonitor::read_process_energy_uj(pid_t pid) {
     proc_metrics = this->read_intel_process_metrics(pid);
     break;
   default:
+    this->last_process_energy_read_time_ = now;
     return this->accumulated_process_energy_uj_;
   }
+
+  // Update timestamp regardless of GPU usage to avoid time gaps
+  this->last_process_energy_read_time_ = now;
 
   // Only accumulate energy if process is actually using GPU
   if (!proc_metrics.is_using_gpu) {
