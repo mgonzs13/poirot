@@ -15,9 +15,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
-#include <fstream>
 #include <iomanip>
-#include <set>
 #include <vector>
 
 #include "poirot_msgs/msg/cpu_info.hpp"
@@ -26,6 +24,7 @@
 #include "poirot_msgs/msg/profiling_data.hpp"
 
 #include "poirot/poirot.hpp"
+#include "poirot/utils/system_info_reader.hpp"
 
 using namespace poirot;
 
@@ -67,73 +66,23 @@ void Poirot::auto_configure() {
 }
 
 void Poirot::detect_system_info() {
-  // CPU info: get real core count from /proc/cpuinfo
-  this->system_info_.cpu_info.cores = 0;
-  std::ifstream cpuinfo("/proc/cpuinfo");
-  if (cpuinfo.is_open()) {
-    std::string line;
-    std::set<int> physical_cores;
-    int current_physical_id = -1;
-    int current_core_id = -1;
+  // Use SystemInfoReader to read system information
+  utils::SystemInfoReader system_reader;
 
-    while (std::getline(cpuinfo, line)) {
-      if (line.find("model name") != std::string::npos) {
-        size_t pos = line.find(':');
-        if (pos != std::string::npos) {
-          this->system_info_.cpu_info.model = line.substr(pos + 2);
-        }
-
-      } else if (line.find("core id") != std::string::npos) {
-        size_t pos = line.find(':');
-        if (pos != std::string::npos) {
-          current_core_id = std::stoi(line.substr(pos + 2));
-          // Combine physical_id and core_id to get unique physical cores
-          int unique_core = (current_physical_id << 16) | current_core_id;
-          physical_cores.insert(unique_core);
-        }
-      }
-    }
-
-    this->system_info_.cpu_info.cores =
-        physical_cores.empty()
-            ? static_cast<int>(std::thread::hardware_concurrency())
-            : static_cast<int>(physical_cores.size());
-  }
-
-  if (this->system_info_.cpu_info.cores == 0) {
-    this->system_info_.cpu_info.cores =
-        static_cast<int>(std::thread::hardware_concurrency());
-  }
+  // CPU info
+  auto cpu_info = system_reader.read_cpu_info();
+  this->system_info_.cpu_info.model = cpu_info.model;
+  this->system_info_.cpu_info.cores = cpu_info.cores;
 
   // Memory info
-  struct sysinfo info;
-  if (sysinfo(&info) == 0) {
-    this->system_info_.mem_total_kb =
-        static_cast<long>(info.totalram * info.mem_unit / 1024);
-  }
+  auto mem_info = system_reader.read_memory_info();
+  this->system_info_.mem_total_kb = mem_info.total_kb;
 
   // OS info
-  struct utsname uts;
-  if (uname(&uts) == 0) {
-    this->system_info_.os_name = uts.sysname;
-    this->system_info_.os_version = uts.release;
-    this->system_info_.hostname = uts.nodename;
-  }
-
-  std::ifstream os_release("/etc/os-release");
-  if (os_release.is_open()) {
-    std::string line;
-    while (std::getline(os_release, line)) {
-      if (line.find("PRETTY_NAME=") == 0) {
-        this->system_info_.os_name = line.substr(13);
-        if (!this->system_info_.os_name.empty() &&
-            this->system_info_.os_name.back() == '"') {
-          this->system_info_.os_name.pop_back();
-        }
-        break;
-      }
-    }
-  }
+  auto os_info = system_reader.read_os_info();
+  this->system_info_.os_name = os_info.name;
+  this->system_info_.os_version = os_info.version;
+  this->system_info_.hostname = os_info.hostname;
 
   // Configure power estimator with CPU info
   this->power_estimator_.set_cpu_cores(this->system_info_.cpu_info.cores);

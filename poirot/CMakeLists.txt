@@ -25,6 +25,7 @@ add_library(${PROJECT_NAME} SHARED
   src/utils/power_estimator.cpp
   src/utils/gpu_monitor.cpp
   src/utils/co2_manager.cpp
+  src/utils/system_info_reader.cpp
   src/utils/string.cpp
 )
 target_include_directories(${PROJECT_NAME} PUBLIC
