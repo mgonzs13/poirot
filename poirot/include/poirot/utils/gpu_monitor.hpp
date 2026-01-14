@@ -15,10 +15,11 @@
 #ifndef POIROT__UTILS__GPU_MONITOR_HPP_
 #define POIROT__UTILS__GPU_MONITOR_HPP_
 
+#include <sys/types.h>
+
 #include <chrono>
 #include <mutex>
 #include <string>
-#include <sys/types.h>
 #include <vector>
 
 namespace poirot {

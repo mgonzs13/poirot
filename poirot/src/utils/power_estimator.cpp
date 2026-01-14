@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <dirent.h>
+
 #include <algorithm>
 #include <cstring>
-#include <dirent.h>
 #include <filesystem>
 #include <fstream>
 #include <vector>

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unistd.h>
+
 #include <array>
 #include <chrono>
 #include <cstdio>
@@ -20,7 +22,6 @@
 #include <memory>
 #include <regex>
 #include <sstream>
-#include <unistd.h>
 
 #include "poirot/utils/gpu_monitor.hpp"
 #include "poirot/utils/sysfs_reader.hpp"

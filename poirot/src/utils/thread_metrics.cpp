@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <time.h>
+
 #include <cmath>
 #include <fstream>
 #include <sstream>
-#include <time.h>
 
 #include "poirot/utils/sysfs_reader.hpp"
 #include "poirot/utils/thread_metrics.hpp"

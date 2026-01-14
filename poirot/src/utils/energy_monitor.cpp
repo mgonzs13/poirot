@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "poirot/utils/energy_monitor.hpp"
-#include "poirot/utils/sysfs_reader.hpp"
-
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+
+#include "poirot/utils/energy_monitor.hpp"
+#include "poirot/utils/sysfs_reader.hpp"
 
 namespace poirot {
 namespace utils {

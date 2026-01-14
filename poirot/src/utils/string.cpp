@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "poirot/utils/string.hpp"
-
 #include <algorithm>
 #include <iomanip>
 #include <random>
 #include <sstream>
+
+#include "poirot/utils/string.hpp"
 
 namespace poirot {
 namespace utils {

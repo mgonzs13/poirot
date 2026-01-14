@@ -15,8 +15,9 @@
 #ifndef POIROT__UTILS__SYSFS_READER_HPP_
 #define POIROT__UTILS__SYSFS_READER_HPP_
 
-#include <string>
 #include <unistd.h>
+
+#include <string>
 
 namespace poirot {
 namespace utils {

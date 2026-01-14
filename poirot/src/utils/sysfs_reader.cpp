@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <syscall.h>
+
 #include <fstream>
 #include <sstream>
-#include <syscall.h>
 
 #include "poirot/utils/sysfs_reader.hpp"
 

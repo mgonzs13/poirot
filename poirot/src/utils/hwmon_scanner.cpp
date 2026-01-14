@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <dirent.h>
+
 #include <fstream>
 
 #include "poirot/utils/hwmon_scanner.hpp"

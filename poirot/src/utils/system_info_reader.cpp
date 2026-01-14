@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "poirot/utils/system_info_reader.hpp"
+#include <sys/sysinfo.h>
+#include <sys/utsname.h>
 
 #include <fstream>
 #include <set>
-#include <sys/sysinfo.h>
-#include <sys/utsname.h>
 #include <thread>
+
+#include "poirot/utils/system_info_reader.hpp"
 
 namespace poirot {
 namespace utils {
