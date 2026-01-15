@@ -109,27 +109,16 @@ class Poirot:
         # ROS 2 integration
         self._node: Optional[Node] = None
         self._publisher = None
-        self._rclpy_initialized_by_us = False
 
-        self._initialize_ros2()
+        # Initialize ROS 2 node and publisher
+        node_name = f"poirot_{StringUtils.generate_uuid()}_node"
+        self._node = Node(node_name, use_global_arguments=False)
+
+        qos = QoSProfile(depth=100)
+        self._publisher = self._node.create_publisher(ProfilingData, "poirot/data", qos)
+
+        # Auto-configuration
         self._auto_configure()
-
-    def _initialize_ros2(self) -> None:
-        """Initialize ROS 2 node and publisher."""
-        try:
-            if not rclpy.ok():
-                rclpy.init()
-                self._rclpy_initialized_by_us = True
-
-            node_name = f"poirot_{StringUtils.generate_uuid()}_node"
-            self._node = Node(node_name, use_global_arguments=False)
-
-            qos = QoSProfile(depth=100)
-            self._publisher = self._node.create_publisher(
-                ProfilingData, "poirot/data", qos
-            )
-        except Exception as e:
-            print(f"[POIROT] Warning: Failed to initialize ROS 2: {e}", file=sys.stderr)
 
     def _auto_configure(self) -> None:
         """Auto-configure the profiler."""
