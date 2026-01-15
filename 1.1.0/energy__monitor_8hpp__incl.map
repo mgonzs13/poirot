@@ -1,0 +1,14 @@
+<map id="poirot/include/poirot/utils/energy_monitor.hpp" name="poirot/include/poirot/utils/energy_monitor.hpp">
+<area shape="rect" id="Node000001" title=" " alt="" coords="68,5,233,46"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,102,66,127"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="126,49,65,95,61,90,123,44"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="90,102,146,127"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="145,47,130,88,125,86,140,46"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="164,183,217,208"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="157,46,186,167,181,168,152,47"/>
+<area shape="rect" id="Node000005" href="$hwmon__scanner_8hpp.html" title=" " alt="" coords="221,94,348,135"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="182,44,243,83,240,88,179,49"/>
+<area shape="poly" id="edge6_Node000005_Node000004" title=" " alt="" coords="263,137,218,175,214,171,260,133"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="246,183,324,208"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="288,135,288,167,282,167,282,135"/>
+</map>

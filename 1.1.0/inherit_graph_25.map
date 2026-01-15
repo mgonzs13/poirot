@@ -1,0 +1,11 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="Node000000" title=" " alt="" coords="5,80,99,106"/>
+<area shape="rect" id="Node000001" href="$classPublisherNode.html" title="Demo node that publishes and subscribes to a topic, simulating work to generate profiling data." alt="" coords="209,5,315,31"/>
+<area shape="poly" id="edge1_Node000000_Node000001" title=" " alt="" coords="85,69,146,40,207,23,209,29,148,45,88,74"/>
+<area shape="rect" id="Node000002" href="$classSubscriberNode.html" title="Demo node that subscribes to a topic and simulates work upon receiving messages." alt="" coords="205,55,319,80"/>
+<area shape="poly" id="edge2_Node000000_Node000002" title=" " alt="" coords="114,83,204,72,205,77,115,88"/>
+<area shape="rect" id="Node000003" href="$classpoirot__recorder_1_1PoirotRecorderNode.html" title="Node that records profiling data to a CSV file." alt="" coords="147,104,377,130"/>
+<area shape="poly" id="edge3_Node000000_Node000003" title=" " alt="" coords="115,97,146,101,146,106,114,103"/>
+<area shape="rect" id="Node000004" href="$classpoirot__tui_1_1TuiNode.html" title="TUI Node for displaying profiling data." alt="" coords="197,153,326,179"/>
+<area shape="poly" id="edge4_Node000000_Node000004" title=" " alt="" coords="88,111,148,140,198,153,196,159,146,145,86,116"/>
+</map>

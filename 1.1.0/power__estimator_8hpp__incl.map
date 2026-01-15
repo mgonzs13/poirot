@@ -1,0 +1,12 @@
+<map id="poirot/include/poirot/utils/power_estimator.hpp" name="poirot/include/poirot/utils/power_estimator.hpp">
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,5,179,46"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="45,183,99,208"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="78,48,64,69,53,95,51,113,52,133,62,168,57,169,47,134,45,113,48,93,59,67,74,45"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="63,102,121,127"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="95,47,95,86,89,86,89,47"/>
+<area shape="rect" id="Node000004" href="$hwmon__scanner_8hpp.html" title=" " alt="" coords="144,94,272,135"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="120,44,171,82,168,87,117,49"/>
+<area shape="poly" id="edge5_Node000004_Node000002" title=" " alt="" coords="175,138,107,177,104,172,173,133"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="169,183,247,208"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="211,135,211,167,205,167,205,135"/>
+</map>
