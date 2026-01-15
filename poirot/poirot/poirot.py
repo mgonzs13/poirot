@@ -122,7 +122,7 @@ class Poirot:
                 self._rclpy_initialized_by_us = True
 
             node_name = f"poirot_{StringUtils.generate_uuid()}_node"
-            self._node = Node(node_name)
+            self._node = Node(node_name, use_global_arguments=False)
 
             qos = QoSProfile(depth=100)
             self._publisher = self._node.create_publisher(
@@ -171,9 +171,7 @@ class Poirot:
         self._power_estimator.set_cpu_cores(self._system_info.cpu_info.cores)
 
         # RAPL detection
-        self._system_info.cpu_info.rapl_available = (
-            self._power_estimator.rapl_available()
-        )
+        self._system_info.cpu_info.rapl_available = self._power_estimator.rapl_available()
 
         # TDP detection
         tdp_watts, tdp_type = self._power_estimator.read_tdp_watts()
@@ -388,9 +386,7 @@ class Poirot:
         UJ_TO_KWH = 1.0 / 1e6 / 3600.0 / 1000.0
         KG_TO_UG = 1e9
         energy_kwh = call.data.total_energy_uj * UJ_TO_KWH
-        call.data.co2_ug = (
-            energy_kwh * self._system_info.co2_factor_kg_per_kwh * KG_TO_UG
-        )
+        call.data.co2_ug = energy_kwh * self._system_info.co2_factor_kg_per_kwh * KG_TO_UG
 
         with self._statistics_lock:
             if ctx.function_name not in self._statistics:
@@ -486,9 +482,7 @@ class Poirot:
 
         if info.gpu_info.available:
             print(f"GPU Vendor: {info.gpu_info.vendor}", file=sys.stderr)
-            print(
-                f"GPU Memory: {info.gpu_info.mem_total_kb // 1024} MB", file=sys.stderr
-            )
+            print(f"GPU Memory: {info.gpu_info.mem_total_kb // 1024} MB", file=sys.stderr)
             print(f"GPU TDP:  {info.gpu_info.tdp_watts:.2f} W", file=sys.stderr)
             print(
                 f"GPU Power Mon: {'Yes' if info.gpu_info.power_monitoring else 'No'}",
