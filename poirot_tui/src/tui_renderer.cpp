@@ -1474,7 +1474,7 @@ void TuiRenderer::move_to_last(int total_rows) {
 
 void TuiRenderer::cycle_sort_column() {
   int col_int = static_cast<int>(this->sort_column_);
-  col_int = (col_int + 1) % 16; // 16 columns
+  col_int = (col_int + 1) % 14; // 14 columns
   this->sort_column_ = static_cast<SortColumn>(col_int);
 }
 
