@@ -11,7 +11,9 @@ endif()
 
 # Find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclpy REQUIRED)
 find_package(poirot_msgs REQUIRED)
 find_package(CURL REQUIRED)
 
@@ -26,7 +28,7 @@ add_library(${PROJECT_NAME} SHARED
   src/utils/gpu_monitor.cpp
   src/utils/co2_manager.cpp
   src/utils/system_info_reader.cpp
-  src/utils/string.cpp
+  src/utils/string_utils.cpp
 )
 target_include_directories(${PROJECT_NAME} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -56,5 +58,8 @@ install(TARGETS ${PROJECT_NAME}
 )
 
 ament_export_targets(${PROJECT_NAME})
+
+# Install Python package
+ament_python_install_package(${PROJECT_NAME})
 
 ament_package()

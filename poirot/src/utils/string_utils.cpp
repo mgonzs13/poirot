@@ -17,7 +17,7 @@
 #include <random>
 #include <sstream>
 
-#include "poirot/utils/string.hpp"
+#include "poirot/utils/string_utils.hpp"
 
 namespace poirot {
 namespace utils {

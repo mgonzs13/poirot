@@ -1,0 +1,124 @@
+# Copyright 2026 Miguel Ángel González Santamarta
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import os
+from typing import Callable
+
+from poirot.utils.sysfs_reader import SysfsReader
+
+
+class HwmonScanner:
+    """
+    Class for scanning and caching hwmon device paths.
+
+    Provides methods for iterating over hwmon devices and caching
+    paths for energy and power readings.
+    """
+
+    HWMON_BASE_PATH = "/sys/class/hwmon"
+
+    def __init__(self) -> None:
+        """Default constructor."""
+        self._cached_energy_path: str = ""
+        self._cached_power_path: str = ""
+        self._paths_searched: bool = False
+
+    def iterate_devices(self, callback: Callable[[str, str], bool]) -> None:
+        """
+        Iterate over hwmon devices.
+
+        Args:
+            callback: Function called for each device (base_path, name).
+                     Return True to stop iteration.
+        """
+        if not os.path.isdir(self.HWMON_BASE_PATH):
+            return
+
+        try:
+            for entry in os.listdir(self.HWMON_BASE_PATH):
+                hwmon_path = os.path.join(self.HWMON_BASE_PATH, entry)
+                if not os.path.isdir(hwmon_path):
+                    continue
+
+                name_path = os.path.join(hwmon_path, "name")
+                name = SysfsReader.read_string(name_path)
+
+                if callback(hwmon_path, name):
+                    break
+        except OSError:
+            pass
+
+    def search_paths(self) -> None:
+        """Search for and cache hwmon paths for energy and power readings."""
+        if self._paths_searched:
+            return
+
+        def find_paths(base_path: str, name: str) -> bool:
+            # Look for RAPL energy paths (rapl-* devices)
+            if name.startswith("rapl"):
+                energy_path = os.path.join(base_path, "energy1_input")
+                if os.path.exists(energy_path):
+                    self._cached_energy_path = energy_path
+
+            # Look for power paths
+            power_path = os.path.join(base_path, "power1_input")
+            if os.path.exists(power_path):
+                self._cached_power_path = power_path
+
+            # Continue searching
+            return False
+
+        self.iterate_devices(find_paths)
+        self._paths_searched = True
+
+    def read_power_w(self) -> float:
+        """
+        Read power from cached hwmon path.
+
+        Returns:
+            Power in watts or 0.0 if not available.
+        """
+        if not self._cached_power_path:
+            return 0.0
+
+        # hwmon power readings are in microwatts
+        power_uw = SysfsReader.read_double(self._cached_power_path)
+        return power_uw / 1_000_000.0 if power_uw > 0 else 0.0
+
+    def get_energy_path(self) -> str:
+        """
+        Get cached energy path.
+
+        Returns:
+            Cached energy path or empty string.
+        """
+        return self._cached_energy_path
+
+    def get_power_path(self) -> str:
+        """
+        Get cached power path.
+
+        Returns:
+            Cached power path or empty string.
+        """
+        return self._cached_power_path
+
+    def is_searched(self) -> bool:
+        """
+        Check if paths have been searched.
+
+        Returns:
+            True if search has been performed.
+        """
+        return self._paths_searched

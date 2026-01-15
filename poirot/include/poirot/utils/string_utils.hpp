@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef POIROT__UTILS__STRING_HPP_
-#define POIROT__UTILS__STRING_HPP_
+#ifndef POIROT__UTILS__STRING_UTILS_HPP_
+#define POIROT__UTILS__STRING_UTILS_HPP_
 
 #include <string>
 
@@ -66,4 +66,4 @@ public:
 } // namespace utils
 } // namespace poirot
 
-#endif // POIROT__UTILS__STRING_HPP_
+#endif // POIROT__UTILS__STRING_UTILS_HPP_

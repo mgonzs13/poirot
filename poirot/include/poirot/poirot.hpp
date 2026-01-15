@@ -38,7 +38,7 @@
 #include "poirot/utils/hwmon_scanner.hpp"
 #include "poirot/utils/power_estimator.hpp"
 #include "poirot/utils/process_metrics.hpp"
-#include "poirot/utils/string.hpp"
+#include "poirot/utils/string_utils.hpp"
 #include "poirot/utils/sysfs_reader.hpp"
 #include "poirot/utils/thread_metrics.hpp"
 

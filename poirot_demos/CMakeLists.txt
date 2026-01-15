@@ -11,7 +11,9 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclpy REQUIRED)
 find_package(poirot REQUIRED)
 find_package(std_msgs REQUIRED)
 
@@ -27,6 +29,15 @@ target_link_libraries(demo_node
 install(TARGETS demo_node
   DESTINATION lib/${PROJECT_NAME}
 )
+
+# Install Python demo
+install(PROGRAMS
+  poirot_demos/demo_node.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+# Install Python package
+ament_python_install_package(${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
