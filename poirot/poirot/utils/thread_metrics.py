@@ -15,6 +15,7 @@
 import ctypes
 import os
 import resource
+import time
 from dataclasses import dataclass
 
 
@@ -58,29 +59,9 @@ class ThreadMetrics:
             CPU time in microseconds.
         """
         try:
-            # Try to read from /proc/self/stat for thread CPU time
-            tid = self._get_tid()
-            stat_path = f"/proc/{self._pid}/task/{tid}/stat"
-
-            with open(stat_path, "r") as f:
-                parts = f.read().split()
-                # utime (index 13) and stime (index 14) in clock ticks
-                if len(parts) > 14:
-                    utime = int(parts[13])
-                    stime = int(parts[14])
-                    # Convert from clock ticks to microseconds
-                    clk_tck = os.sysconf("SC_CLK_TCK")
-                    return int((utime + stime) * 1_000_000 / clk_tck)
-        except (OSError, ValueError, IndexError):
-            pass
-
-        # Fallback to process-level resource usage
-        try:
-            usage = resource.getrusage(resource.RUSAGE_THREAD)
-            return int((usage.ru_utime + usage.ru_stime) * 1_000_000)
-        except (ValueError, AttributeError):
-            usage = resource.getrusage(resource.RUSAGE_SELF)
-            return int((usage.ru_utime + usage.ru_stime) * 1_000_000)
+            return int(time.clock_gettime(time.CLOCK_THREAD_CPUTIME_ID) * 1_000_000)
+        except (OSError, AttributeError):
+            return 0
 
     def read_memory_kb(self) -> int:
         """

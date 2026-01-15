@@ -58,7 +58,6 @@ class PublisherNode(Node):
             v[i] = math.sin(i * 0.01) * math.cos(i * 0.01)
 
         # Simulate memory usage - persistent allocation
-        old_size = len(self.persistent_memory)
         self.persistent_memory.extend([42] * 100000)  # Grow by 100KB each time
 
         # Simulate some wall time

@@ -51,23 +51,8 @@ class ProcessMetrics:
             CPU time in microseconds.
         """
         try:
-            with open(f"/proc/{self._pid}/stat", "r") as f:
-                parts = f.read().split()
-                # utime (index 13) and stime (index 14) in clock ticks
-                if len(parts) > 14:
-                    utime = int(parts[13])
-                    stime = int(parts[14])
-                    # Convert from clock ticks to microseconds
-                    clk_tck = os.sysconf("SC_CLK_TCK")
-                    return int((utime + stime) * 1_000_000 / clk_tck)
-        except (OSError, ValueError, IndexError):
-            pass
-
-        # Fallback to resource usage
-        try:
-            usage = resource.getrusage(resource.RUSAGE_SELF)
-            return int((usage.ru_utime + usage.ru_stime) * 1_000_000)
-        except (ValueError, AttributeError):
+            return int(time.clock_gettime(time.CLOCK_PROCESS_CPUTIME_ID) * 1_000_000)
+        except (OSError, AttributeError):
             return 0
 
     def get_num_cpus(self) -> int:
