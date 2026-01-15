@@ -14,13 +14,13 @@
 
 #include <unistd.h>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <memory>
-#include <regex>
 #include <sstream>
 
 #include "poirot/utils/gpu_monitor.hpp"
@@ -683,6 +683,7 @@ double GpuMonitor::read_process_energy_uj(pid_t pid) {
 
   auto now = std::chrono::steady_clock::now();
 
+  // Initialize timestamp on first call
   if (this->last_process_energy_read_time_.time_since_epoch().count() == 0) {
     this->last_process_energy_read_time_ = now;
     return this->accumulated_process_energy_uj_;
@@ -693,11 +694,14 @@ double GpuMonitor::read_process_energy_uj(pid_t pid) {
                               now - this->last_process_energy_read_time_)
                               .count());
 
+  // Update timestamp regardless of GPU usage to avoid time gaps
+  this->last_process_energy_read_time_ = now;
+
   if (elapsed_us <= 0) {
     return this->accumulated_process_energy_uj_;
   }
 
-  // Check if process is actually using GPU
+  // Get process-specific GPU metrics
   ProcessGpuMetrics proc_metrics;
   switch (this->gpu_vendor_) {
   case GpuVendor::NVIDIA:
@@ -710,12 +714,8 @@ double GpuMonitor::read_process_energy_uj(pid_t pid) {
     proc_metrics = this->read_intel_process_metrics(pid);
     break;
   default:
-    this->last_process_energy_read_time_ = now;
     return this->accumulated_process_energy_uj_;
   }
-
-  // Update timestamp regardless of GPU usage to avoid time gaps
-  this->last_process_energy_read_time_ = now;
 
   // Only accumulate energy if process is actually using GPU
   if (!proc_metrics.is_using_gpu) {
@@ -725,7 +725,7 @@ double GpuMonitor::read_process_energy_uj(pid_t pid) {
   // Get system-wide GPU metrics for power/utilization
   GpuMetrics sys_metrics = this->read_metrics();
 
-  // Estimate process's share of GPU power based on memory usage ratio
+  // Calculate process's share of GPU power based on memory usage ratio
   double memory_ratio = 0.0;
   if (sys_metrics.mem_used_kb > 0 && proc_metrics.mem_used_kb > 0) {
     memory_ratio = static_cast<double>(proc_metrics.mem_used_kb) /
@@ -739,17 +739,26 @@ double GpuMonitor::read_process_energy_uj(pid_t pid) {
   }
 
   // Calculate process's estimated power usage
-  double process_power_w = sys_metrics.power_w * memory_ratio;
-  if (process_power_w <= 0.0 && proc_metrics.is_using_gpu &&
-      this->gpu_info_.tdp_watts > 0.0) {
-    // Fallback: estimate based on TDP
-    process_power_w = this->gpu_info_.tdp_watts * memory_ratio *
-                      (sys_metrics.utilization_percent / 100.0);
+  double process_power_w = 0.0;
+  if (sys_metrics.power_w > 0.0) {
+    // Use actual power reading multiplied by memory ratio
+    process_power_w = sys_metrics.power_w * memory_ratio;
+  } else if (this->gpu_info_.tdp_watts > 0.0) {
+    // Estimate based on TDP, utilization, and memory ratio
+    double utilization_factor = sys_metrics.utilization_percent / 100.0;
+    double base_power = this->gpu_info_.tdp_watts * this->idle_power_factor_;
+    double dynamic_power = this->gpu_info_.tdp_watts *
+                           (1.0 - this->idle_power_factor_) *
+                           utilization_factor;
+    process_power_w = (base_power + dynamic_power) * memory_ratio;
   }
 
-  // Accumulate energy
-  double energy_delta_uj = process_power_w * elapsed_us;
-  this->accumulated_process_energy_uj_ += energy_delta_uj;
+  // Calculate energy delta: E = P * t (power in watts, time in microseconds)
+  // Result in microjoules: W * us = uJ
+  if (process_power_w > 0.0) {
+    double energy_delta_uj = process_power_w * elapsed_us;
+    this->accumulated_process_energy_uj_ += energy_delta_uj;
+  }
 
   return this->accumulated_process_energy_uj_;
 }

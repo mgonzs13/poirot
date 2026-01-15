@@ -198,9 +198,12 @@ void Poirot::start_profiling(const std::string &function_name) {
   ctx.start_cpu_time_us = this->thread_metrics_.read_cpu_time_us();
   ctx.start_process_cpu_time_us = this->process_metrics_.read_cpu_time_us();
   ctx.start_mem_kb = this->thread_metrics_.read_memory_kb();
-  this->thread_metrics_.read_io_bytes(ctx.start_io_read_bytes,
-                                      ctx.start_io_write_bytes);
-  ctx.start_ctx_switches = this->thread_metrics_.read_ctx_switches();
+
+  auto io_bytes = this->thread_metrics_.read_io_bytes();
+  ctx.start_io_read_bytes = io_bytes.read_bytes;
+  ctx.start_io_write_bytes = io_bytes.write_bytes;
+
+  ctx.start_context_switches = this->thread_metrics_.read_context_switches();
   ctx.start_cpu_energy_uj =
       this->energy_monitor_.read_energy_uj(this->process_info_.cpu_percent);
 
@@ -227,13 +230,15 @@ void Poirot::stop_profiling() {
   this->read_process_data();
 
   auto end_time = std::chrono::steady_clock::now();
-  double end_cpu_time_us = this->thread_metrics_.read_cpu_time_us();
-  double end_process_cpu_time_us = this->process_metrics_.read_cpu_time_us();
-  long end_mem_kb = this->thread_metrics_.read_memory_kb();
-  long end_io_read_bytes = 0;
-  long end_io_write_bytes = 0;
-  this->thread_metrics_.read_io_bytes(end_io_read_bytes, end_io_write_bytes);
-  long end_ctx_switches = this->thread_metrics_.read_ctx_switches();
+  int64_t end_cpu_time_us = this->thread_metrics_.read_cpu_time_us();
+  int64_t end_process_cpu_time_us = this->process_metrics_.read_cpu_time_us();
+  int64_t end_mem_kb = this->thread_metrics_.read_memory_kb();
+
+  auto end_io_bytes = this->thread_metrics_.read_io_bytes();
+  int64_t end_io_read_bytes = end_io_bytes.read_bytes;
+  int64_t end_io_write_bytes = end_io_bytes.write_bytes;
+
+  int64_t end_context_switches = this->thread_metrics_.read_context_switches();
   double end_cpu_energy_uj =
       this->energy_monitor_.read_energy_uj(this->process_info_.cpu_percent);
 
@@ -261,11 +266,13 @@ void Poirot::stop_profiling() {
       static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(
                               end_time - ctx.start_time)
                               .count());
-  double thread_cpu_delta_us = end_cpu_time_us - ctx.start_cpu_time_us;
-  double process_cpu_delta_us =
-      end_process_cpu_time_us - ctx.start_process_cpu_time_us;
+  double thread_cpu_delta_us =
+      static_cast<double>(end_cpu_time_us - ctx.start_cpu_time_us);
+  double process_cpu_delta_us = static_cast<double>(
+      end_process_cpu_time_us - ctx.start_process_cpu_time_us);
   double system_cpu_delta_us =
-      wall_time_delta_us * this->process_metrics_.get_num_cpus();
+      wall_time_delta_us *
+      static_cast<double>(this->process_metrics_.get_num_cpus());
   double cpu_total_energy_delta_uj =
       end_cpu_energy_uj - ctx.start_cpu_energy_uj;
   double gpu_energy_delta_uj = end_gpu_energy_uj - ctx.start_gpu_energy_uj;
@@ -282,14 +289,14 @@ void Poirot::stop_profiling() {
   // Prepare FunctionCall message
   poirot_msgs::msg::FunctionCall call;
   call.timestamp = rclcpp::Clock().now();
-  call.data.wall_time_us = wall_time_delta_us;
-  call.data.cpu_time_us = thread_cpu_delta_us;
-  call.data.process_cpu_time_us = process_cpu_delta_us;
-  call.data.system_cpu_time_us = system_cpu_delta_us;
+  call.data.wall_time_us = static_cast<int64_t>(wall_time_delta_us);
+  call.data.cpu_time_us = static_cast<int64_t>(thread_cpu_delta_us);
+  call.data.process_cpu_time_us = static_cast<int64_t>(process_cpu_delta_us);
+  call.data.system_cpu_time_us = static_cast<int64_t>(system_cpu_delta_us);
   call.data.mem_kb = end_mem_kb - ctx.start_mem_kb;
   call.data.io_read_bytes = end_io_read_bytes - ctx.start_io_read_bytes;
   call.data.io_write_bytes = end_io_write_bytes - ctx.start_io_write_bytes;
-  call.data.ctx_switches = end_ctx_switches - ctx.start_ctx_switches;
+  call.data.ctx_switches = end_context_switches - ctx.start_context_switches;
   call.data.cpu_energy_uj = thread_cpu_energy_uj;
   call.data.cpu_total_energy_uj = cpu_total_energy_delta_uj;
 
@@ -319,15 +326,18 @@ void Poirot::stop_profiling() {
   }
 
   if (this->verbose_.load()) {
-    fprintf(stderr,
-            "[PROFILE] %s | Wall: %ldus | CPU: %ldus | Mem: %ldKB | IO R/W: "
-            "%ld/%ldB | CtxSw: %ld | CPU Energy: %fuJ | GPU Energy: %fuJ | "
-            "Total Energy: %fuJ | CO2: %fug\n",
-            ctx.function_name.c_str(), call.data.wall_time_us,
-            call.data.cpu_time_us, call.data.mem_kb, call.data.io_read_bytes,
-            call.data.io_write_bytes, call.data.ctx_switches,
-            call.data.cpu_energy_uj, call.data.gpu_energy_uj,
-            call.data.total_energy_uj, call.data.co2_ug);
+    fprintf(
+        stderr,
+        "[PROFILE] %s | Wall: %ldus | CPU: %ldus | Mem: %ldKB | IO R/W: "
+        "%ld/%ldB | CtxSw: %ld | CPU Energy: %.2fuJ | GPU Energy: %.2fuJ | "
+        "Total Energy: %.2fuJ | CO2: %.2fug\n",
+        ctx.function_name.c_str(), static_cast<long>(call.data.wall_time_us),
+        static_cast<long>(call.data.cpu_time_us),
+        static_cast<long>(call.data.mem_kb),
+        static_cast<long>(call.data.io_read_bytes),
+        static_cast<long>(call.data.io_write_bytes),
+        static_cast<long>(call.data.ctx_switches), call.data.cpu_energy_uj,
+        call.data.gpu_energy_uj, call.data.total_energy_uj, call.data.co2_ug);
   }
 
   this->publish_stats(ctx.function_name);

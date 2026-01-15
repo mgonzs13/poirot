@@ -43,7 +43,7 @@ void EnergyMonitor::initialize_rapl_max_energy() {
   }
 }
 
-double EnergyMonitor::read_energy_uj(double cpu_percent_) {
+double EnergyMonitor::read_energy_uj(double cpu_percent) {
   std::lock_guard<std::mutex> lock(this->energy_mutex_);
 
   // Helper lambda to read RAPL energy with wraparound detection
@@ -101,9 +101,8 @@ double EnergyMonitor::read_energy_uj(double cpu_percent_) {
           // Normal case: accumulate the delta
           this->accumulated_energy_uj_ +=
               (current_hwmon_energy - this->last_hwmon_energy_uj_);
-        } else {
-          // Counter wraparound detected; ignore this reading
         }
+        // Counter wraparound detected; ignore this reading
       }
 
       this->last_hwmon_energy_uj_ = current_hwmon_energy;
@@ -138,12 +137,13 @@ double EnergyMonitor::read_energy_uj(double cpu_percent_) {
     double base_power = this->cpu_tdp_watts_ * this->idle_power_factor_;
     double dynamic_power = this->cpu_tdp_watts_ *
                            (1.0 - this->idle_power_factor_) *
-                           (cpu_percent_ / 100.0);
+                           (cpu_percent / 100.0);
     power_w = base_power + dynamic_power;
   }
 
   if (power_w > 0.0) {
-    // Convert power and elapsed time to energy (microjoules)
+    // Calculate energy: E = P * t (power in watts, time in microseconds)
+    // W * us = uJ (microjoules)
     double energy_delta_uj = power_w * elapsed_us;
     this->accumulated_energy_uj_ += energy_delta_uj;
   }
@@ -160,34 +160,32 @@ double EnergyMonitor::calculate_thread_energy_uj(double thread_cpu_delta_us,
     return 0.0;
   }
 
-  // If no system CPU delta, fallback to process-level attribution
-  if (system_cpu_delta_us <= 0.0) {
-    if (thread_cpu_delta_us > 0.0 && process_cpu_delta_us > 0.0) {
-      return total_energy_delta_uj *
-             (thread_cpu_delta_us / process_cpu_delta_us);
-    }
-
-    if (thread_cpu_delta_us > 0.0) {
-      return total_energy_delta_uj;
-    }
-
+  // If no thread CPU time, return 0
+  if (thread_cpu_delta_us <= 0.0) {
     return 0.0;
   }
 
-  // Calculate thread's share of system CPU time
+  // Calculate thread's share of system energy using hierarchical attribution
   double thread_share = 0.0;
 
-  if (process_cpu_delta_us > 0.0 && thread_cpu_delta_us > 0.0) {
-    // Thread's share of process time * process's share of system time
+  if (system_cpu_delta_us > 0.0 && process_cpu_delta_us > 0.0) {
+    // Hierarchical attribution:
+    // thread_share = (thread_cpu / process_cpu) * (process_cpu / system_cpu)
+    //              = thread_cpu / system_cpu
+    // But we use the hierarchical form to be more accurate when there are
+    // multiple processes and threads
     double thread_process_share = thread_cpu_delta_us / process_cpu_delta_us;
     double process_system_share = process_cpu_delta_us / system_cpu_delta_us;
     thread_share = thread_process_share * process_system_share;
-  } else if (thread_cpu_delta_us > 0.0) {
-    // Direct thread to system ratio
-    thread_share = thread_cpu_delta_us / system_cpu_delta_us;
+  } else if (process_cpu_delta_us > 0.0) {
+    // Fallback: attribute based on thread's share of process time
+    thread_share = thread_cpu_delta_us / process_cpu_delta_us;
+  } else {
+    // Last resort: assume thread gets all the energy
+    thread_share = 1.0;
   }
 
-  // Clamp share to valid range
+  // Clamp share to valid range [0, 1]
   thread_share = std::max(0.0, std::min(1.0, thread_share));
 
   return total_energy_delta_uj * thread_share;

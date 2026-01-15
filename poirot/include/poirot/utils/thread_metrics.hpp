@@ -15,15 +15,27 @@
 #ifndef POIROT__UTILS__THREAD_METRICS_HPP_
 #define POIROT__UTILS__THREAD_METRICS_HPP_
 
+#include <cstdint>
+
 namespace poirot {
 namespace utils {
+
+/**
+ * @struct ThreadIoBytes
+ * @brief Structure to hold thread I/O byte counts.
+ */
+struct ThreadIoBytes {
+  int64_t read_bytes = 0;
+  int64_t write_bytes = 0;
+};
 
 /**
  * @class ThreadMetrics
  * @brief Utility class for reading thread-level metrics.
  *
  * Provides methods for measuring CPU time, memory, I/O, and context
- * switches for the current thread.
+ * switches for the current thread. All methods are thread-safe and
+ * read data for the calling thread.
  */
 class ThreadMetrics {
 public:
@@ -33,29 +45,33 @@ public:
   ThreadMetrics() = default;
 
   /**
+   * @brief Default destructor.
+   */
+  ~ThreadMetrics() = default;
+
+  /**
    * @brief Read thread CPU time in microseconds.
    * @return CPU time in microseconds.
    */
-  long read_cpu_time_us();
+  int64_t read_cpu_time_us() const;
 
   /**
    * @brief Read thread memory usage in KB.
-   * @return Memory usage in KB.
+   * @return Memory usage in KB (VmRSS).
    */
-  long read_memory_kb();
+  int64_t read_memory_kb() const;
 
   /**
    * @brief Read thread I/O bytes.
-   * @param read_bytes Output parameter for read bytes.
-   * @param write_bytes Output parameter for write bytes.
+   * @return ThreadIoBytes structure with read and write byte counts.
    */
-  void read_io_bytes(long &read_bytes, long &write_bytes);
+  ThreadIoBytes read_io_bytes() const;
 
   /**
-   * @brief Read thread context switches.
-   * @return Number of voluntary context switches.
+   * @brief Read thread context switches (voluntary + non-voluntary).
+   * @return Total number of context switches.
    */
-  long read_ctx_switches();
+  int64_t read_context_switches() const;
 };
 
 } // namespace utils

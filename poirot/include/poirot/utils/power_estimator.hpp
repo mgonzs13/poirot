@@ -198,4 +198,4 @@ private:
 } // namespace utils
 } // namespace poirot
 
-#endif // POIROT__UTILS__POWER_HPP_
+#endif // POIROT__UTILS__POWER_ESTIMATOR_HPP_

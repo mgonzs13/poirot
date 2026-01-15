@@ -18,6 +18,7 @@
 #include <cmath>
 #include <fstream>
 #include <sstream>
+#include <thread>
 
 #include "poirot/utils/process_metrics.hpp"
 
@@ -29,20 +30,17 @@ ProcessMetrics::ProcessMetrics() {
   this->num_cpus_ = (num_cpus > 0) ? num_cpus : 1;
 }
 
-ProcessMetrics::~ProcessMetrics() {}
-
-long ProcessMetrics::read_cpu_time_us() {
+int64_t ProcessMetrics::read_cpu_time_us() const {
   struct timespec ts;
   if (clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts) == 0) {
-    return std::round(static_cast<double>(ts.tv_sec) * 1e6 +
-                      static_cast<double>(ts.tv_nsec) / 1e3);
+    return static_cast<int64_t>(
+        std::round(static_cast<double>(ts.tv_sec) * 1e6 +
+                   static_cast<double>(ts.tv_nsec) / 1e3));
   }
-  return 0.0;
+  return 0;
 }
 
-int ProcessMetrics::get_num_cpus() const { return this->num_cpus_; }
-
-int ProcessMetrics::read_thread_count() {
+int ProcessMetrics::read_thread_count() const {
   std::ifstream status("/proc/self/status");
   if (!status.is_open()) {
     return 1;
@@ -65,18 +63,17 @@ double ProcessMetrics::read_cpu_percent() {
   std::lock_guard<std::mutex> lock(this->cpu_read_mutex_);
 
   // Read current process CPU time
-  double current_process_cpu_us = this->read_cpu_time_us();
+  int64_t current_process_cpu_us = this->read_cpu_time_us();
 
-  if (current_process_cpu_us <= 0.0) {
+  if (current_process_cpu_us <= 0) {
     return 0.0;
   }
 
   // First call - initialize state and return 0
-  double prev_process = this->prev_process_cpu_.load();
-  if (prev_process == 0.0) {
-    // Store as integer microseconds to fit in atomic
-    this->prev_process_cpu_.store(
-        static_cast<unsigned long long>(current_process_cpu_us));
+  uint64_t prev_process = this->prev_process_cpu_us_.load();
+  if (prev_process == 0) {
+    this->prev_process_cpu_us_.store(
+        static_cast<uint64_t>(current_process_cpu_us));
     this->prev_cpu_read_time_ = std::chrono::steady_clock::now();
     return 0.0;
   }
@@ -93,7 +90,8 @@ double ProcessMetrics::read_cpu_percent() {
   }
 
   // Calculate CPU time delta for process
-  double process_cpu_delta_us = current_process_cpu_us - prev_process;
+  double process_cpu_delta_us = static_cast<double>(current_process_cpu_us) -
+                                static_cast<double>(prev_process);
 
   // Total available CPU time in this period
   double total_available_cpu_us =
@@ -106,14 +104,14 @@ double ProcessMetrics::read_cpu_percent() {
   }
 
   // Update state for next measurement
-  this->prev_process_cpu_.store(
-      static_cast<unsigned long long>(current_process_cpu_us));
+  this->prev_process_cpu_us_.store(
+      static_cast<uint64_t>(current_process_cpu_us));
   this->prev_cpu_read_time_ = now;
 
   return pct;
 }
 
-long ProcessMetrics::read_memory_kb() {
+int64_t ProcessMetrics::read_memory_kb() const {
   std::ifstream file("/proc/self/status");
   if (!file.is_open()) {
     return 0;
@@ -123,7 +121,7 @@ long ProcessMetrics::read_memory_kb() {
   while (std::getline(file, line)) {
     if (line.compare(0, 6, "VmRSS:") == 0) {
       std::istringstream iss(line.substr(6));
-      long value = 0;
+      int64_t value = 0;
       iss >> value;
       return value;
     }
@@ -132,23 +130,24 @@ long ProcessMetrics::read_memory_kb() {
   return 0;
 }
 
-void ProcessMetrics::read_io_bytes(long &read_bytes, long &write_bytes) {
-  read_bytes = 0;
-  write_bytes = 0;
+ProcessIoBytes ProcessMetrics::read_io_bytes() const {
+  ProcessIoBytes io_bytes;
 
   std::ifstream file("/proc/self/io");
   if (!file.is_open()) {
-    return;
+    return io_bytes;
   }
 
   std::string line;
   while (std::getline(file, line)) {
     if (line.compare(0, 11, "read_bytes:") == 0) {
-      read_bytes = std::stol(line.substr(11));
+      io_bytes.read_bytes = std::stoll(line.substr(11));
     } else if (line.compare(0, 12, "write_bytes:") == 0) {
-      write_bytes = std::stol(line.substr(12));
+      io_bytes.write_bytes = std::stoll(line.substr(12));
     }
   }
+
+  return io_bytes;
 }
 
 } // namespace utils

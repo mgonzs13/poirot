@@ -17,12 +17,20 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <mutex>
-#include <thread>
-#include <vector>
 
 namespace poirot {
 namespace utils {
+
+/**
+ * @struct ProcessIoBytes
+ * @brief Structure to hold process I/O byte counts.
+ */
+struct ProcessIoBytes {
+  int64_t read_bytes = 0;
+  int64_t write_bytes = 0;
+};
 
 /**
  * @class ProcessMetrics
@@ -41,25 +49,25 @@ public:
   /**
    * @brief Destructor.
    */
-  ~ProcessMetrics();
+  ~ProcessMetrics() = default;
 
   /**
    * @brief Read process CPU time in microseconds.
    * @return CPU time in microseconds.
    */
-  long read_cpu_time_us();
+  int64_t read_cpu_time_us() const;
 
   /**
    * @brief Get the number of CPU cores.
    * @return Number of CPU cores.
    */
-  int get_num_cpus() const;
+  int get_num_cpus() const { return this->num_cpus_; }
 
   /**
    * @brief Read process thread count.
    * @return Number of threads.
    */
-  int read_thread_count();
+  int read_thread_count() const;
 
   /**
    * @brief Read process CPU usage percentage.
@@ -73,23 +81,21 @@ public:
    * @brief Read process memory usage in kilobytes.
    * @return Memory usage in kilobytes.
    */
-  long read_memory_kb();
+  int64_t read_memory_kb() const;
 
   /**
    * @brief Read process I/O bytes.
-   * @param read_bytes Output parameter for read bytes.
-   * @param write_bytes Output parameter for write bytes.
+   * @return ProcessIoBytes structure with read and write byte counts.
    */
-  void read_io_bytes(long &read_bytes, long &write_bytes);
+  ProcessIoBytes read_io_bytes() const;
 
 private:
-  /// @brief Previous process CPU time
-  std::atomic<unsigned long long> prev_process_cpu_{0};
+  /// @brief Previous process CPU time in microseconds
+  std::atomic<uint64_t> prev_process_cpu_us_{0};
   /// @brief Previous CPU read time point
   std::chrono::steady_clock::time_point prev_cpu_read_time_;
   /// @brief Mutex for CPU read time updates
   mutable std::mutex cpu_read_mutex_;
-
   /// @brief Number of CPU cores
   int num_cpus_ = 1;
 };

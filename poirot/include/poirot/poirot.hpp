@@ -68,7 +68,7 @@ struct ThreadProfilingContext {
   int64_t start_gpu_mem_kb = 0;
   int64_t start_io_read_bytes = 0;
   int64_t start_io_write_bytes = 0;
-  int64_t start_ctx_switches = 0;
+  int64_t start_context_switches = 0;
   double start_cpu_energy_uj = 0.0;
   double start_gpu_energy_uj = 0.0;
   std::thread::id thread_id;

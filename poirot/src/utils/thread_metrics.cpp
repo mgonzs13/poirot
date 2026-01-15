@@ -24,16 +24,17 @@
 namespace poirot {
 namespace utils {
 
-long ThreadMetrics::read_cpu_time_us() {
+int64_t ThreadMetrics::read_cpu_time_us() const {
   struct timespec ts;
   if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts) == 0) {
-    return std::round(static_cast<double>(ts.tv_sec) * 1e6 +
-                      static_cast<double>(ts.tv_nsec) / 1e3);
+    return static_cast<int64_t>(
+        std::round(static_cast<double>(ts.tv_sec) * 1e6 +
+                   static_cast<double>(ts.tv_nsec) / 1e3));
   }
-  return 0.0;
+  return 0;
 }
 
-long ThreadMetrics::read_memory_kb() {
+int64_t ThreadMetrics::read_memory_kb() const {
   std::string status_path = SysfsReader::get_thread_status_path("status");
   std::ifstream file(status_path);
   if (!file.is_open()) {
@@ -44,7 +45,7 @@ long ThreadMetrics::read_memory_kb() {
   while (std::getline(file, line)) {
     if (line.compare(0, 6, "VmRSS:") == 0) {
       std::istringstream iss(line.substr(6));
-      long value = 0;
+      int64_t value = 0;
       iss >> value;
       return value;
     }
@@ -53,27 +54,28 @@ long ThreadMetrics::read_memory_kb() {
   return 0;
 }
 
-void ThreadMetrics::read_io_bytes(long &read_bytes, long &write_bytes) {
-  read_bytes = 0;
-  write_bytes = 0;
+ThreadIoBytes ThreadMetrics::read_io_bytes() const {
+  ThreadIoBytes io_bytes;
 
   std::string io_path = SysfsReader::get_thread_status_path("io");
   std::ifstream file(io_path);
   if (!file.is_open()) {
-    return;
+    return io_bytes;
   }
 
   std::string line;
   while (std::getline(file, line)) {
     if (line.compare(0, 11, "read_bytes:") == 0) {
-      read_bytes = std::stol(line.substr(11));
+      io_bytes.read_bytes = std::stoll(line.substr(11));
     } else if (line.compare(0, 12, "write_bytes:") == 0) {
-      write_bytes = std::stol(line.substr(12));
+      io_bytes.write_bytes = std::stoll(line.substr(12));
     }
   }
+
+  return io_bytes;
 }
 
-long ThreadMetrics::read_ctx_switches() {
+int64_t ThreadMetrics::read_context_switches() const {
   std::string status_path = SysfsReader::get_thread_status_path("status");
   std::ifstream file(status_path);
   if (!file.is_open()) {
@@ -81,8 +83,8 @@ long ThreadMetrics::read_ctx_switches() {
   }
 
   std::string line;
-  long voluntary = 0;
-  long nonvoluntary = 0;
+  int64_t voluntary = 0;
+  int64_t nonvoluntary = 0;
 
   while (std::getline(file, line)) {
     if (line.compare(0, 24, "voluntary_ctxt_switches:") == 0) {

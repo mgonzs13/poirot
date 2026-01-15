@@ -26,7 +26,7 @@ namespace utils {
 
 /**
  * @class EnergyMonitor
- * @brief Class for monitoring energy consumption.
+ * @brief Class for monitoring CPU energy consumption.
  *
  * Provides methods for reading energy from RAPL, hwmon, or estimating
  * from power measurements. Maintains state for tracking accumulated energy.
@@ -38,6 +38,11 @@ public:
    * @param hwmon_scanner Reference to HwmonScanner for energy readings.
    */
   explicit EnergyMonitor(HwmonScanner &hwmon_scanner);
+
+  /**
+   * @brief Default destructor.
+   */
+  ~EnergyMonitor() = default;
 
   /**
    * @brief Set the CPU TDP in watts for estimation.
@@ -59,14 +64,18 @@ public:
   void initialize_rapl_max_energy();
 
   /**
-   * @brief Read energy consumption in microjoules.
-   * @param cpu_percent_ Current CPU utilization percentage for estimation.
-   * @return Energy consumption in microjoules.
+   * @brief Read accumulated CPU energy consumption in microjoules.
+   * @param cpu_percent Current CPU utilization percentage for estimation.
+   * @return Accumulated energy consumption in microjoules.
    */
-  double read_energy_uj(double cpu_percent_ = 0.0);
+  double read_energy_uj(double cpu_percent = 0.0);
 
   /**
-   * @brief Calculate thread energy consumption.
+   * @brief Calculate thread energy consumption using hierarchical attribution.
+   *
+   * This method calculates the energy attributed to a specific thread
+   * based on its CPU time usage relative to the process and system.
+   *
    * @param thread_cpu_delta_us Thread CPU time delta in microseconds.
    * @param process_cpu_delta_us Process CPU time delta in microseconds.
    * @param system_cpu_delta_us System CPU time delta in microseconds.
@@ -82,22 +91,22 @@ private:
   /// @brief Reference to HwmonScanner
   HwmonScanner &hwmon_scanner_;
 
-  /// @brief Mutex for energy readings
+  /// @brief Mutex for thread-safe energy readings
   mutable std::mutex energy_mutex_;
   /// @brief Accumulated energy in microjoules
   double accumulated_energy_uj_ = 0.0;
   /// @brief Last energy read time point
   std::chrono::steady_clock::time_point last_energy_read_time_;
-  /// @brief Last RAPL energy value
+  /// @brief Last RAPL energy value (for delta calculation)
   double last_rapl_energy_uj_ = 0.0;
-  /// @brief Last hwmon energy value
+  /// @brief Last hwmon energy value (for delta calculation)
   double last_hwmon_energy_uj_ = 0.0;
   /// @brief Maximum RAPL energy value before wrap-around
   double rapl_max_energy_uj_ = 0.0;
 
   /// @brief CPU TDP in watts for estimation
   double cpu_tdp_watts_ = 0.0;
-  /// @brief Idle power factor for estimation
+  /// @brief Idle power factor for estimation (typical: 0.10-0.20)
   double idle_power_factor_ = 0.15;
 };
 

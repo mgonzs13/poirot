@@ -18,9 +18,9 @@
 #include <sys/types.h>
 
 #include <chrono>
+#include <cstdint>
 #include <mutex>
 #include <string>
-#include <vector>
 
 namespace poirot {
 namespace utils {
@@ -58,7 +58,6 @@ struct ProcessGpuMetrics {
   int64_t mem_used_kb = 0;
   double estimated_utilization_percent = 0.0;
   double estimated_power_w = 0.0;
-  double estimated_energy_uj = 0.0;
 };
 
 /**
@@ -82,7 +81,7 @@ struct GpuInfo {
  *
  * Supports NVIDIA GPUs via nvidia-smi, AMD GPUs via ROCm/sysfs,
  * and Intel GPUs via sysfs. Provides methods for reading GPU
- * utilization, memory usage, power, temp, and energy.
+ * utilization, memory usage, power, and energy.
  */
 class GpuMonitor {
 public:
@@ -90,6 +89,11 @@ public:
    * @brief Default constructor.
    */
   GpuMonitor();
+
+  /**
+   * @brief Default destructor.
+   */
+  ~GpuMonitor() = default;
 
   /**
    * @brief Initialize GPU monitoring and detect available GPUs.
@@ -131,6 +135,11 @@ public:
 
   /**
    * @brief Read per-process accumulated GPU energy in microjoules.
+   *
+   * This method calculates the energy consumption attributed to a specific
+   * process based on its GPU memory usage ratio compared to system-wide
+   * GPU usage. Uses time-based integration of power measurements.
+   *
    * @param pid Process ID to query (default: current process).
    * @return Accumulated energy attributed to the process in microjoules.
    */
@@ -219,6 +228,7 @@ private:
 
   /// @brief GPU information structure
   GpuInfo gpu_info_;
+
   /// @brief GPU vendor type for optimized metric reading
   enum class GpuVendor {
     NONE,
