@@ -216,8 +216,7 @@ void Poirot::start_profiling(const std::string &function_name) {
             ? process_metrics.estimated_utilization_percent
             : 0.0;
     ctx.start_gpu_mem_kb = process_metrics.mem_used_kb;
-    ctx.start_gpu_energy_uj =
-        this->gpu_monitor_.read_process_energy_uj(this->process_info_.pid);
+    ctx.start_gpu_energy_uj = this->gpu_monitor_.read_process_energy_uj();
 
   } else {
     ctx.start_gpu_utilization_percent = 0.0;
@@ -254,8 +253,7 @@ void Poirot::stop_profiling() {
             ? process_metrics.estimated_utilization_percent
             : 0.0;
     end_gpu_mem_kb = process_metrics.mem_used_kb;
-    end_gpu_energy_uj =
-        this->gpu_monitor_.read_process_energy_uj(this->process_info_.pid);
+    end_gpu_energy_uj = this->gpu_monitor_.read_process_energy_uj();
   }
 
   // Get thread-local context

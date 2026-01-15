@@ -279,9 +279,7 @@ class Poirot:
                 else 0.0
             )
             ctx.start_gpu_mem_kb = process_metrics.mem_used_kb
-            ctx.start_gpu_energy_uj = self._gpu_monitor.read_process_energy_uj(
-                self._process_info.pid
-            )
+            ctx.start_gpu_energy_uj = self._gpu_monitor.read_process_energy_uj()
         else:
             ctx.start_gpu_utilization_percent = 0.0
             ctx.start_gpu_mem_kb = 0
@@ -317,9 +315,7 @@ class Poirot:
                 else 0.0
             )
             end_gpu_mem_kb = process_metrics.mem_used_kb
-            end_gpu_energy_uj = self._gpu_monitor.read_process_energy_uj(
-                self._process_info.pid
-            )
+            end_gpu_energy_uj = self._gpu_monitor.read_process_energy_uj()
 
         ctx = self._get_thread_context()
 
