@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <mutex>
 #include <string>
+#include <vector>
 
 namespace poirot {
 namespace utils {
