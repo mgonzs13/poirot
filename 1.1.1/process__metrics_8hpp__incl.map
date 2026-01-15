@@ -1,0 +1,11 @@
+<map id="poirot/include/poirot/utils/process_metrics.hpp" name="poirot/include/poirot/utils/process_metrics.hpp">
+<area shape="rect" id="Node000001" title=" " alt="" coords="74,5,248,46"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,94,66,120"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="131,49,69,88,66,83,128,44"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="89,94,150,120"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="153,48,135,81,131,79,148,45"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="173,94,234,120"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="174,45,192,79,187,81,169,48"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="258,94,314,120"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="193,44,255,83,253,88,190,49"/>
+</map>

@@ -1,0 +1,7 @@
+<map id="poirot::utils::ProcessMetrics" name="poirot::utils::ProcessMetrics">
+<area shape="rect" id="Node000001" title="Class for reading process&#45;level metrics with state tracking." alt="" coords="75,94,256,120"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,5,158,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="80,46,81,58,85,69,98,82,115,91,112,96,95,86,81,71,76,59,74,46"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="209,5,290,31"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="240,46,222,72,191,96,187,91,218,68,236,43"/>
+</map>

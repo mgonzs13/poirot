@@ -1,0 +1,25 @@
+var searchData=
+[
+  ['idle_5fpower_5ffactor_5f_0',['idle_power_factor_',['../classpoirot_1_1utils_1_1EnergyMonitor.html#a8946cbaac2ba60b6fd7f563a4e9032d9',1,'poirot::utils::EnergyMonitor::idle_power_factor_'],['../classpoirot_1_1utils_1_1GpuMonitor.html#a865ada65d598885333c716bcf2add7c7',1,'poirot::utils::GpuMonitor::idle_power_factor_']]],
+  ['index_1',['index',['../structpoirot_1_1utils_1_1GpuInfo.html#a29c583815c24e5c0b1c7db5e3b60a299',1,'poirot::utils::GpuInfo']]],
+  ['initialize_2',['initialize',['../classpoirot_1_1utils_1_1GpuMonitor.html#a8407bb05f33dffa5da322c63dc8e40c3',1,'poirot::utils::GpuMonitor::initialize()'],['../classpoirot__tui_1_1TuiRenderer.html#aede66f993072347d045f9adb44adaa07',1,'poirot_tui::TuiRenderer::initialize()']]],
+  ['initialize_5frapl_5fmax_5fenergy_3',['initialize_rapl_max_energy',['../classpoirot_1_1utils_1_1EnergyMonitor.html#a90e68666ab7cf3f68b884ac4ff90f4a0',1,'poirot::utils::EnergyMonitor']]],
+  ['initialized_5f_4',['initialized_',['../classpoirot__tui_1_1TuiRenderer.html#a8196ff85005b5d95cbe5cd2b15c17995',1,'poirot_tui::TuiRenderer']]],
+  ['installation_5',['Installation',['../index.html#autotoc_md5',1,'']]],
+  ['intel_6',['INTEL',['../classpoirot_1_1utils_1_1GpuMonitor.html#a32a6bf99ee5231c56951db413ec38ac1af9232ef48e81c8fa4eb9a0cafbe1f13d',1,'poirot::utils::GpuMonitor']]],
+  ['intel_5ffreq_5fpath_5f_7',['intel_freq_path_',['../classpoirot_1_1utils_1_1GpuMonitor.html#a199d25997e616ecbbf8f33f66b9b8414',1,'poirot::utils::GpuMonitor']]],
+  ['intel_5fpower_5fpath_5f_8',['intel_power_path_',['../classpoirot_1_1utils_1_1GpuMonitor.html#a298f410fa178d5b0964716ba88dbb62e',1,'poirot::utils::GpuMonitor']]],
+  ['intel_5frapl_5ftdp_5ftype_9',['INTEL_RAPL_TDP_TYPE',['../namespacepoirot_1_1utils.html#a1e33432703ac29ec9f4ce82332d44d5ba39bc0851f967f9fa6d5e19e6076b46d3',1,'poirot::utils']]],
+  ['io_5fread_10',['IO_READ',['../namespacepoirot__tui.html#a3db6b018e1323f72a2ee2901a048c1c2a72377322680540e02ce38e90ffeb0bcb',1,'poirot_tui::IO_READ'],['../namespacepoirot__tui.html#ad0029616e19f1dc71b8f2703bc38c20ca72377322680540e02ce38e90ffeb0bcb',1,'poirot_tui::IO_READ']]],
+  ['io_5fread_5fbytes_11',['io_read_bytes',['../structpoirot__tui_1_1DataPoint.html#af7079533d89bfa66da42c3aa09167270',1,'poirot_tui::DataPoint::io_read_bytes'],['../structpoirot__tui_1_1FunctionRow.html#a3f002ab368104370456e60354b5c09ed',1,'poirot_tui::FunctionRow::io_read_bytes']]],
+  ['io_5fwrite_12',['IO_WRITE',['../namespacepoirot__tui.html#a3db6b018e1323f72a2ee2901a048c1c2acf3d0d6fa7d0eb7ed17bd701a740d59c',1,'poirot_tui::IO_WRITE'],['../namespacepoirot__tui.html#ad0029616e19f1dc71b8f2703bc38c20cacf3d0d6fa7d0eb7ed17bd701a740d59c',1,'poirot_tui::IO_WRITE']]],
+  ['io_5fwrite_5fbytes_13',['io_write_bytes',['../structpoirot__tui_1_1DataPoint.html#a214db5168a8476f7c0baa40227de7053',1,'poirot_tui::DataPoint::io_write_bytes'],['../structpoirot__tui_1_1FunctionRow.html#a77d2fcb186a96dd1d23db787726637ca',1,'poirot_tui::FunctionRow::io_write_bytes']]],
+  ['is_5favailable_14',['is_available',['../classpoirot_1_1utils_1_1GpuMonitor.html#a58cab6180b6b850e19930753d4a8c07b',1,'poirot::utils::GpuMonitor']]],
+  ['is_5ffunction_5fenabled_15',['is_function_enabled',['../classpoirot__tui_1_1DataManager.html#aab884c6b4ff4ab63608a9dddb53618df',1,'poirot_tui::DataManager']]],
+  ['is_5finitialized_16',['is_initialized',['../classpoirot__tui_1_1TuiRenderer.html#a76807c1d55e2252031192c8887dd5567',1,'poirot_tui::TuiRenderer']]],
+  ['is_5fprocess_5fusing_5fgpu_17',['is_process_using_gpu',['../classpoirot_1_1utils_1_1GpuMonitor.html#a80af74bd2aa83289e223954a1e93f9af',1,'poirot::utils::GpuMonitor']]],
+  ['is_5frunning_18',['is_running',['../classpoirot__tui_1_1TuiNode.html#a4de6970c16f740b4be097b23cabc1d55',1,'poirot_tui::TuiNode']]],
+  ['is_5fsearched_19',['is_searched',['../classpoirot_1_1utils_1_1HwmonScanner.html#ae7db3976ce05da95f4509bd52c6a4f4e',1,'poirot::utils::HwmonScanner']]],
+  ['is_5fusing_5fgpu_20',['is_using_gpu',['../structpoirot_1_1utils_1_1ProcessGpuMetrics.html#a7e9444498d58cb0a119605adaaf67359',1,'poirot::utils::ProcessGpuMetrics']]],
+  ['iterate_5fdevices_21',['iterate_devices',['../classpoirot_1_1utils_1_1HwmonScanner.html#a8c3cd5553f46bf6078c834bed2e5722d',1,'poirot::utils::HwmonScanner']]]
+];

@@ -1,0 +1,23 @@
+var searchData=
+[
+  ['enable_5ffunction_0',['enable_function',['../classpoirot__tui_1_1DataManager.html#a29786be0ef6fae439a5e368950384956',1,'poirot_tui::DataManager']]],
+  ['enabled_5ffunctions_5f_1',['enabled_functions_',['../classpoirot__tui_1_1DataManager.html#a81ba11c85a80ace0bbac5a261ae09d31',1,'poirot_tui::DataManager']]],
+  ['energy_2',['ENERGY',['../namespacepoirot__tui.html#a3db6b018e1323f72a2ee2901a048c1c2a93e0e13277e4354c72e2b033514037a5',1,'poirot_tui::ENERGY'],['../namespacepoirot__tui.html#ad0029616e19f1dc71b8f2703bc38c20ca93e0e13277e4354c72e2b033514037a5',1,'poirot_tui::ENERGY']]],
+  ['energy_5fmonitor_2ecpp_3',['energy_monitor.cpp',['../energy__monitor_8cpp.html',1,'']]],
+  ['energy_5fmonitor_2ehpp_4',['energy_monitor.hpp',['../energy__monitor_8hpp.html',1,'']]],
+  ['energy_5fmonitor_5f_5',['energy_monitor_',['../classpoirot_1_1Poirot.html#acfab7c0f6b9ff6c55d8aa419707012e2',1,'poirot::Poirot']]],
+  ['energy_5fmutex_5f_6',['energy_mutex_',['../classpoirot_1_1utils_1_1EnergyMonitor.html#a9f37693622ead15a296a77fa5e8981bf',1,'poirot::utils::EnergyMonitor::energy_mutex_'],['../classpoirot_1_1utils_1_1GpuMonitor.html#a4dedaa79ab479555cf55e6ab8e9fddf9',1,'poirot::utils::GpuMonitor::energy_mutex_']]],
+  ['energy_5fuj_7',['energy_uj',['../structpoirot_1_1utils_1_1GpuMetrics.html#a641bf6b77dd27a914cf07b9b07906087',1,'poirot::utils::GpuMetrics::energy_uj'],['../structpoirot__tui_1_1DataPoint.html#afb5d25c600c29574ff857cc191d1d432',1,'poirot_tui::DataPoint::energy_uj'],['../structpoirot__tui_1_1FunctionRow.html#a221c7d56ebd690fa2d835939accad7f0',1,'poirot_tui::FunctionRow::energy_uj']]],
+  ['energymonitor_8',['EnergyMonitor',['../classpoirot_1_1utils_1_1EnergyMonitor.html',1,'poirot::utils::EnergyMonitor'],['../classpoirot_1_1utils_1_1EnergyMonitor.html#a7ef06bcff534339ae5a75106e7f3888b',1,'poirot::utils::EnergyMonitor::EnergyMonitor()']]],
+  ['escape_5fcsv_9',['escape_csv',['../classpoirot__recorder_1_1PoirotRecorderNode.html#a12d218eb5cf36421a31892f81ce60082',1,'poirot_recorder::PoirotRecorderNode']]],
+  ['estimate_5fcores_5ftdp_5fwatts_10',['estimate_cores_tdp_watts',['../classpoirot_1_1utils_1_1PowerEstimator.html#a4429c8652bdbbf43e04494950cab07ca',1,'poirot::utils::PowerEstimator']]],
+  ['estimate_5fenergy_5fuj_11',['estimate_energy_uj',['../classpoirot_1_1utils_1_1GpuMonitor.html#a0a40c78344fae68595dc62e97aab3524',1,'poirot::utils::GpuMonitor']]],
+  ['estimate_5ffrequency_5ftdp_5fwatts_12',['estimate_frequency_tdp_watts',['../classpoirot_1_1utils_1_1PowerEstimator.html#a8f9900291ad6170a8db7d70aabda7367',1,'poirot::utils::PowerEstimator']]],
+  ['estimate_5fpower_5fper_5fcore_5fper_5fghz_13',['estimate_power_per_core_per_ghz',['../classpoirot_1_1utils_1_1PowerEstimator.html#ad23ba965ba57d8d4973cf1ad8a9e941d',1,'poirot::utils::PowerEstimator']]],
+  ['estimate_5fwatts_5fper_5fcore_14',['estimate_watts_per_core',['../classpoirot_1_1utils_1_1PowerEstimator.html#a1c6f8bc81b45fdabc2a48fda23824ed1',1,'poirot::utils::PowerEstimator']]],
+  ['estimated_5fpower_5fw_15',['estimated_power_w',['../structpoirot_1_1utils_1_1ProcessGpuMetrics.html#aac4be1fc5a25300b9443fdb2afd440e6',1,'poirot::utils::ProcessGpuMetrics']]],
+  ['estimated_5ftdp_5ftype_16',['ESTIMATED_TDP_TYPE',['../namespacepoirot_1_1utils.html#a574e351c84c57f579754f83f85b0b665a1bfedaf6a9108409de5f800fe5b6495b',1,'poirot::utils']]],
+  ['estimated_5futilization_5fpercent_17',['estimated_utilization_percent',['../structpoirot_1_1utils_1_1ProcessGpuMetrics.html#a3ee1b407c35a46ceafd73a32b0f0d679',1,'poirot::utils::ProcessGpuMetrics']]],
+  ['exec_5fcommand_18',['exec_command',['../classpoirot_1_1utils_1_1GpuMonitor.html#a60eb7258ad6daf3a039120b878656540',1,'poirot::utils::GpuMonitor']]],
+  ['extract_5ffunction_5fname_19',['extract_function_name',['../classpoirot_1_1ScopedPoirot.html#adf6c3db474677439b567ee281079a692',1,'poirot::ScopedPoirot']]]
+];
