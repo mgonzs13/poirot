@@ -83,9 +83,10 @@ colcon build
    )
    ```
 
-3. **Instrument your code**:
+3. **Instrument your C++ code**:
 
    ```cpp
+   #include "rclcpp/rclcpp.hpp"
    #include "poirot/poirot.hpp"
 
    using namespace poirot;
@@ -118,16 +119,59 @@ colcon build
    }
    ```
 
+4. **Instrument your Python code**:
+
+```python
+import rclpy
+from rclpy.node import Node
+from poirot import profile_function
+
+class MyNode(Node):
+
+    def __init__(self) -> None:
+        super().__init__("my_node")
+
+        # Create a timer that fires every 1 second
+        self.timer = self.create_timer(1.0, self.timer_callback)
+
+    @profile_function # Automatically profiles this function
+    def timer_callback(self) -> None:
+        # Your function logic here...
+
+def main() -> None:
+    rclpy.init()
+    node = MyNode()
+    executor = rclpy.executors.SingleThreadedExecutor()
+
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        executor.shutdown()
+        publisher_node.destroy_node()
+        subscriber_node.destroy_node()
+
+if __name__ == "__main__":
+    main()
+```
+
 ## Demos
 
 ### Quick Start Demo
 
 The fastest way to see POIROT in action is to run the demo application with the TUI monitor:
 
-**Terminal 1** - Run the demo node with profiling:
+**Terminal 1** - Run the C++ demo node with profiling:
 
 ```bash
 ros2 run poirot_demos demo_node
+```
+
+Or for the Python demo node with profiling:
+
+```bash
+ros2 run poirot_demos demo_node.py
 ```
 
 **Terminal 2** - Run the TUI monitor:
