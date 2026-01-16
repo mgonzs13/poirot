@@ -15,6 +15,7 @@
 import os
 import csv
 import threading
+import urllib.request
 from typing import Dict
 
 # Default CO2 factor in kg CO2 per kWh (global average)
@@ -52,8 +53,6 @@ class Co2Manager:
         """
         # Download carbon intensity data from Our World in Data
         try:
-            import urllib.request
-
             # Our World in Data carbon intensity electricity CSV
             url = "https://ourworldindata.org/grapher/carbon-intensity-electricity.csv"
 
