@@ -66,23 +66,29 @@ class SystemInfoReader:
             with open("/proc/cpuinfo", "r") as f:
                 content = f.read()
 
-            # Parse model name and count physical cores
+            # Parse model name and count cores
             physical_cores = set()
             current_physical_id = -1
             current_core_id = -1
 
             for line in content.split("\n"):
-                if line.startswith("model name"):
-                    cpu_info.model = line.split(":")[1].strip()
-                elif line.startswith("physical id"):
-                    current_physical_id = int(line.split(":")[1].strip())
-                elif line.startswith("core id"):
-                    current_core_id = int(line.split(":")[1].strip())
-                    # Combine physical_id and core_id to get unique physical cores
-                    unique_core = (current_physical_id << 16) | current_core_id
-                    physical_cores.add(unique_core)
+                # Look for substring, not startswith
+                if "model name" in line:
+                    pos = line.find(":")
+                    if pos != -1:
+                        cpu_info.model = line[pos + 2 :]
+                elif "core id" in line:
+                    pos = line.find(":")
+                    if pos != -1:
+                        try:
+                            current_core_id = int(line[pos + 2 :])
+                            unique_core = (current_physical_id << 16) | current_core_id
+                            physical_cores.add(unique_core)
+                        except ValueError:
+                            # ignore unparsable core id lines
+                            pass
 
-            # Use physical core count if available, otherwise fall back to hardware_concurrency
+            # Use physical core count if available, otherwise fall back to cpu_count
             if physical_cores:
                 cpu_info.cores = len(physical_cores)
             else:
@@ -106,14 +112,27 @@ class SystemInfoReader:
         """
         mem_info = MemoryInfo()
 
+        # Try to get total memory using sysconf
+        try:
+            page_size = os.sysconf("SC_PAGE_SIZE")
+            phys_pages = os.sysconf("SC_PHYS_PAGES")
+            # total bytes -> convert to KB
+            mem_info.total_kb = (page_size * phys_pages) // 1024
+            return mem_info
+        except (ValueError, OSError, AttributeError):
+            # fallback to /proc/meminfo parsing
+            pass
+
         try:
             with open("/proc/meminfo", "r") as f:
                 for line in f:
                     if line.startswith("MemTotal:"):
-                        # Parse value like "MemTotal:       16384000 kB"
                         parts = line.split()
                         if len(parts) >= 2:
-                            mem_info.total_kb = int(parts[1])
+                            try:
+                                mem_info.total_kb = int(parts[1])
+                            except ValueError:
+                                pass
                         break
         except (OSError, ValueError):
             pass
@@ -129,7 +148,7 @@ class SystemInfoReader:
         """
         os_info = OsInfo()
 
-        # Get uname info first (like C++ does)
+        # Get uname info first
         os_info.name = platform.system()  # sysname from uname
         os_info.version = platform.release()  # release from uname
         os_info.hostname = socket.gethostname()  # nodename from uname
@@ -138,12 +157,11 @@ class SystemInfoReader:
         try:
             with open("/etc/os-release", "r") as f:
                 for line in f:
+                    # Check prefix and take substring starting at pos 13
                     if line.startswith("PRETTY_NAME="):
-                        # Extract value after PRETTY_NAME="
-                        value = line[13:].strip()
-                        if value.endswith('"'):
-                            value = value[:-1]
-                        os_info.name = value
+                        os_info.name = line[13:]
+                        if os_info.name and os_info.name.endswith('"'):
+                            os_info.name = os_info.name[:-1]
                         break
         except OSError:
             pass

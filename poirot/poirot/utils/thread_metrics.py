@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import time
-import ctypes
 import resource
 from dataclasses import dataclass
+
+from .sysfs_reader import SysfsReader
 
 
 @dataclass
@@ -38,18 +38,7 @@ class ThreadMetrics:
 
     def __init__(self) -> None:
         """Default constructor."""
-        self._pid = os.getpid()
-
-    def _get_tid(self) -> int:
-        """Get the current thread ID."""
-        try:
-            # On Linux, we can get the native thread ID
-            libc = ctypes.CDLL("libc.so.6", use_errno=True)
-            SYS_gettid = 186  # syscall number for gettid on x86_64
-            tid = libc.syscall(SYS_gettid)
-            return tid if tid > 0 else self._pid
-        except Exception:
-            return self._pid
+        self._pid = None
 
     def read_cpu_time_us(self) -> int:
         """
@@ -71,9 +60,7 @@ class ThreadMetrics:
             Memory usage in KB.
         """
         try:
-            tid = self._get_tid()
-            status_path = f"/proc/{self._pid}/task/{tid}/status"
-
+            status_path = SysfsReader.get_thread_status_path("status")
             with open(status_path, "r") as f:
                 for line in f:
                     if line.startswith("VmRSS:"):
@@ -100,15 +87,14 @@ class ThreadMetrics:
         io_bytes = ThreadIoBytes()
 
         try:
-            tid = self._get_tid()
-            io_path = f"/proc/{self._pid}/task/{tid}/io"
-
+            io_path = SysfsReader.get_thread_status_path("io")
             with open(io_path, "r") as f:
                 for line in f:
                     if line.startswith("read_bytes:"):
-                        io_bytes.read_bytes = int(line.split(":")[1].strip())
+                        # grab part after ':' and strip
+                        io_bytes.read_bytes = int(line.split(":", 1)[1].strip())
                     elif line.startswith("write_bytes:"):
-                        io_bytes.write_bytes = int(line.split(":")[1].strip())
+                        io_bytes.write_bytes = int(line.split(":", 1)[1].strip())
         except (OSError, ValueError):
             pass
 
@@ -122,8 +108,7 @@ class ThreadMetrics:
             Total number of context switches.
         """
         try:
-            tid = self._get_tid()
-            status_path = f"/proc/{self._pid}/task/{tid}/status"
+            status_path = SysfsReader.get_thread_status_path("status")
 
             voluntary = 0
             nonvoluntary = 0
@@ -131,9 +116,9 @@ class ThreadMetrics:
             with open(status_path, "r") as f:
                 for line in f:
                     if line.startswith("voluntary_ctxt_switches:"):
-                        voluntary = int(line.split(":")[1].strip())
+                        voluntary = int(line.split(":", 1)[1].strip())
                     elif line.startswith("nonvoluntary_ctxt_switches:"):
-                        nonvoluntary = int(line.split(":")[1].strip())
+                        nonvoluntary = int(line.split(":", 1)[1].strip())
 
             return voluntary + nonvoluntary
         except (OSError, ValueError):

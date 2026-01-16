@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import random
-import string
+import secrets
 
 
 class StringUtils:
@@ -31,14 +30,17 @@ class StringUtils:
     def generate_uuid() -> str:
         """
         Generate a unique UUID as a string.
+        Generate a 16-character lowercase hexadecimal UUID.
 
-        This function uses random numbers to generate a 16-character hexadecimal
-        UUID.
+        (0-f). We use the OS-provided randomness via `secrets.token_hex` to
+        produce 16 lowercase hex characters (8 bytes -> 16 hex chars).
 
         Returns:
-            A string containing a 16-character hexadecimal UUID.
+            A string containing a 16-character lowercase hexadecimal UUID.
         """
-        return "".join(random.choices(string.hexdigits.lower()[:16], k=16))
+        # token_hex(8) produces 16 hex characters (8 bytes). It returns
+        # lowercase hex digits by default.
+        return secrets.token_hex(8)
 
     @staticmethod
     def trim(s: str) -> str:
@@ -51,7 +53,9 @@ class StringUtils:
         Returns:
             The trimmed string.
         """
-        return s.strip()
+        # Use the explicit whitespace characters:
+        # space, tab, newline and carriage return.
+        return s.strip(" \t\n\r")
 
     @staticmethod
     def to_lower(s: str) -> str:

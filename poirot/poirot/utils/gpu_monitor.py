@@ -236,37 +236,58 @@ class GpuMonitor:
         if pid == 0:
             pid = os.getpid()
 
-        process_metrics = self.read_process_metrics(pid)
-        if not process_metrics.is_using_gpu:
-            return 0.0
+        # Attribute energy based on memory usage ratio
+        if pid == 0:
+            pid = os.getpid()
 
         with self._energy_mutex:
             current_time = time.time()
             elapsed_s = current_time - self._last_process_energy_read_time
 
+            # Update timestamp regardless to avoid gaps
+            self._last_process_energy_read_time = current_time
+
             if elapsed_s <= 0:
                 return self._accumulated_process_energy_uj
 
-            # Get current GPU metrics for power calculation
-            gpu_metrics = self.read_metrics()
+            # Get process-specific metrics and system metrics
+            proc_metrics = self.read_process_metrics(pid)
+            if not proc_metrics.is_using_gpu:
+                return self._accumulated_process_energy_uj
 
-            # Calculate process's share based on memory usage
-            share = 0.0
-            if self._gpu_info.mem_total_kb > 0:
-                share = process_metrics.mem_used_kb / self._gpu_info.mem_total_kb
+            sys_metrics = self.read_metrics()
 
-            # Calculate energy using power and share
-            if gpu_metrics.power_w > 0:
-                energy_delta_uj = gpu_metrics.power_w * share * elapsed_s * 1_000_000.0
-            else:
-                # Estimate power from utilization
-                estimated_power = self._estimate_energy_uj(
-                    0.0, process_metrics.estimated_utilization_percent
+            # Calculate memory ratio
+            memory_ratio = 0.0
+            if sys_metrics.mem_used_kb > 0 and proc_metrics.mem_used_kb > 0:
+                try:
+                    memory_ratio = float(proc_metrics.mem_used_kb) / float(
+                        sys_metrics.mem_used_kb
+                    )
+                    memory_ratio = max(0.0, min(1.0, memory_ratio))
+                except Exception:
+                    memory_ratio = 0.0
+            elif proc_metrics.is_using_gpu:
+                # Conservative fallback when memory info is missing
+                memory_ratio = 0.1
+
+            # Estimate process power
+            process_power_w = 0.0
+            if sys_metrics.power_w > 0.0:
+                process_power_w = sys_metrics.power_w * memory_ratio
+            elif self._gpu_info.tdp_watts > 0.0:
+                utilization_factor = sys_metrics.utilization_percent / 100.0
+                base_power = self._gpu_info.tdp_watts * self._idle_power_factor
+                dynamic_power = (
+                    self._gpu_info.tdp_watts
+                    * (1.0 - self._idle_power_factor)
+                    * utilization_factor
                 )
-                energy_delta_uj = estimated_power * elapsed_s
+                process_power_w = (base_power + dynamic_power) * memory_ratio
 
-            self._accumulated_process_energy_uj += energy_delta_uj
-            self._last_process_energy_read_time = current_time
+            if process_power_w > 0.0:
+                energy_delta_uj = process_power_w * (elapsed_s * 1_000_000.0)
+                self._accumulated_process_energy_uj += energy_delta_uj
 
             return self._accumulated_process_energy_uj
 
@@ -286,7 +307,7 @@ class GpuMonitor:
         Returns:
             True if NVIDIA GPU was detected.
         """
-        # Check if nvidia-smi is available (like C++ does with 'which')
+        # Check if nvidia-smi is available
         if not shutil.which("nvidia-smi"):
             return False
 
@@ -514,6 +535,11 @@ class GpuMonitor:
         except (subprocess.SubprocessError, ValueError):
             pass
 
+        # Calculate energy (time-integrated)
+        metrics.energy_uj = self._estimate_energy_uj(
+            metrics.power_w, metrics.utilization_percent
+        )
+
         return metrics
 
     def _read_amd_metrics(self) -> GpuMetrics:
@@ -540,6 +566,11 @@ class GpuMonitor:
             if power_uw > 0:
                 metrics.power_w = power_uw / 1_000_000.0
 
+        # Calculate energy (time-integrated)
+        metrics.energy_uj = self._estimate_energy_uj(
+            metrics.power_w, metrics.utilization_percent
+        )
+
         return metrics
 
     def _read_intel_metrics(self) -> GpuMetrics:
@@ -557,6 +588,20 @@ class GpuMonitor:
                 # Estimate utilization from frequency (rough approximation)
                 max_freq = 1500  # Typical max for Intel iGPU
                 metrics.utilization_percent = min(100.0, (freq_mhz / max_freq) * 100.0)
+
+        # Estimate power for Intel iGPU
+        if self._gpu_info.tdp_watts > 0:
+            idle_power = self._gpu_info.tdp_watts * self._idle_power_factor
+            active_power = self._gpu_info.tdp_watts - idle_power
+            estimated_power = idle_power + active_power * (
+                metrics.utilization_percent / 100.0
+            )
+            metrics.power_w = estimated_power
+
+        # Calculate energy (time-integrated)
+        metrics.energy_uj = self._estimate_energy_uj(
+            metrics.power_w, metrics.utilization_percent
+        )
 
         return metrics
 
@@ -622,18 +667,45 @@ class GpuMonitor:
         """
         metrics = ProcessGpuMetrics()
 
-        # Check if process has any GPU file descriptors
-        fdinfo_path = f"/proc/{pid}/fdinfo"
-        if not os.path.isdir(fdinfo_path):
+        # Check /proc/<pid>/fd symlinks for DRM render nodes
+        fd_dir = f"/proc/{pid}/fd"
+        if not os.path.isdir(fd_dir):
             return metrics
 
         try:
-            for fd in os.listdir(fdinfo_path):
-                fd_path = os.path.join(fdinfo_path, fd)
-                content = SysfsReader.read_string(fd_path)
-                if "drm-engine-gfx" in content or "amdgpu" in content:
-                    metrics.is_using_gpu = True
-                    break
+            for entry in os.listdir(fd_dir):
+                fd_path = os.path.join(fd_dir, entry)
+                try:
+                    target = os.readlink(fd_path)
+                except OSError:
+                    continue
+
+                # Look for DRM render nodes (e.g. /dev/dri/renderD128)
+                if "/dev/dri/render" not in target:
+                    continue
+
+                # Read fdinfo for this fd and look for VRAM usage lines
+                fdinfo_path = f"/proc/{pid}/fdinfo/{entry}"
+                if not os.path.exists(fdinfo_path):
+                    continue
+
+                try:
+                    with open(fdinfo_path, "r", encoding="utf-8", errors="ignore") as f:
+                        for line in f:
+                            if "drm-memory-vram" in line or "amdgpu-vram" in line:
+                                metrics.is_using_gpu = True
+                                parts = line.split()
+                                # Expect formats like: key: <value>
+                                for tok in parts:
+                                    try:
+                                        val = int(tok)
+                                        # Values are in KiB
+                                        metrics.mem_used_kb += val
+                                        break
+                                    except ValueError:
+                                        continue
+                except OSError:
+                    continue
         except OSError:
             pass
 
@@ -651,18 +723,43 @@ class GpuMonitor:
         """
         metrics = ProcessGpuMetrics()
 
-        # Check if process has any GPU file descriptors
-        fdinfo_path = f"/proc/{pid}/fdinfo"
-        if not os.path.isdir(fdinfo_path):
+        # Check /proc/<pid>/fd symlinks for DRM nodes
+        fd_dir = f"/proc/{pid}/fd"
+        if not os.path.isdir(fd_dir):
             return metrics
 
         try:
-            for fd in os.listdir(fdinfo_path):
-                fd_path = os.path.join(fdinfo_path, fd)
-                content = SysfsReader.read_string(fd_path)
-                if "drm-engine-render" in content or "i915" in content:
-                    metrics.is_using_gpu = True
-                    break
+            for entry in os.listdir(fd_dir):
+                fd_path = os.path.join(fd_dir, entry)
+                try:
+                    target = os.readlink(fd_path)
+                except OSError:
+                    continue
+
+                if "/dev/dri/" not in target:
+                    continue
+
+                fdinfo_path = f"/proc/{pid}/fdinfo/{entry}"
+                if not os.path.exists(fdinfo_path):
+                    continue
+
+                try:
+                    with open(fdinfo_path, "r", encoding="utf-8", errors="ignore") as f:
+                        for line in f:
+                            if "drm-memory-" in line:
+                                metrics.is_using_gpu = True
+                                parts = line.split()
+                                for tok in parts:
+                                    try:
+                                        val = int(tok)
+                                        metrics.mem_used_kb += val
+                                        break
+                                    except ValueError:
+                                        continue
+                            if "drm-engine-render:" in line:
+                                metrics.is_using_gpu = True
+                except OSError:
+                    continue
         except OSError:
             pass
 
@@ -701,11 +798,30 @@ class GpuMonitor:
         Returns:
             Energy delta in microjoules.
         """
-        if power_w > 0:
-            return power_w * 1_000_000.0  # Convert to microjoules per second
+        # Integrate energy over elapsed time and accumulate (microjoules)
+        with self._energy_mutex:
+            current_time = time.time()
+            elapsed_s = current_time - self._last_energy_read_time
+            # Update last read time
+            self._last_energy_read_time = current_time
 
-        # Estimate from utilization
-        idle_power = self._gpu_info.tdp_watts * self._idle_power_factor
-        active_power = self._gpu_info.tdp_watts - idle_power
-        estimated_power = idle_power + active_power * (utilization / 100.0)
-        return estimated_power * 1_000_000.0
+            if elapsed_s <= 0:
+                return self._accumulated_energy_uj
+
+            # If we have an actual power reading, use it
+            if power_w > 0.0:
+                energy_delta_uj = power_w * (elapsed_s * 1_000_000.0)
+                self._accumulated_energy_uj += energy_delta_uj
+            elif self._gpu_info.tdp_watts > 0.0:
+                # Estimate based on TDP and utilization
+                idle_power = self._gpu_info.tdp_watts * self._idle_power_factor
+                dynamic_power = (
+                    self._gpu_info.tdp_watts
+                    * (1.0 - self._idle_power_factor)
+                    * (utilization / 100.0)
+                )
+                estimated_power_w = idle_power + dynamic_power
+                energy_delta_uj = estimated_power_w * (elapsed_s * 1_000_000.0)
+                self._accumulated_energy_uj += energy_delta_uj
+
+            return self._accumulated_energy_uj

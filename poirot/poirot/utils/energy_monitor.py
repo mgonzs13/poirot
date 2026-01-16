@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import time
 import threading
 
@@ -45,8 +46,8 @@ class EnergyMonitor:
         self._energy_mutex = threading.Lock()
         # Accumulated energy in microjoules
         self._accumulated_energy_uj = 0.0
-        # Last energy read time point
-        self._last_energy_read_time = time.time()
+        # Last energy read time point (0 means uninitialized)
+        self._last_energy_read_time = 0.0
         # Last RAPL energy value (for delta calculation)
         self._last_rapl_energy_uj = 0.0
         # Last hwmon energy value (for delta calculation)
@@ -79,15 +80,11 @@ class EnergyMonitor:
 
     def initialize_rapl_max_energy(self) -> None:
         """Initialize RAPL max energy range for wraparound detection."""
-        self._rapl_max_energy_uj = SysfsReader.read_double(
-            self.INTEL_RAPL_MAX_ENERGY_PATH
-        )
-        if self._rapl_max_energy_uj <= 0:
-            # Default to a large value (about 65536 Joules)
-            self._rapl_max_energy_uj = 65536.0 * 1_000_000.0
-
-        # Initialize last energy reading
-        self._last_rapl_energy_uj = SysfsReader.read_double(self.INTEL_RAPL_ENERGY_PATH)
+        # Only set rapl max if the path exists and provides a valid value
+        if os.path.exists(self.INTEL_RAPL_MAX_ENERGY_PATH):
+            max_val = SysfsReader.read_double(self.INTEL_RAPL_MAX_ENERGY_PATH)
+            if max_val > 0:
+                self._rapl_max_energy_uj = max_val
 
     def read_energy_uj(self, cpu_percent: float = 0.0) -> float:
         """
@@ -100,42 +97,98 @@ class EnergyMonitor:
             Accumulated energy consumption in microjoules.
         """
         with self._energy_mutex:
-            current_time = time.time()
-            elapsed_s = current_time - self._last_energy_read_time
+            # Helper to read RAPL-like counters with wraparound handling
+            def _read_rapl_energy(path: str) -> float:
+                if not os.path.exists(path):
+                    return -1.0
 
-            if elapsed_s <= 0:
+                current = SysfsReader.read_double(path)
+                if current <= 0:
+                    return -1.0
+
+                # If we have a previous measurement, accumulate delta (handle wraparound)
+                if self._last_rapl_energy_uj > 0.0:
+                    if current < self._last_rapl_energy_uj:
+                        # Counter wrapped around
+                        if self._rapl_max_energy_uj > 0.0:
+                            delta = (
+                                self._rapl_max_energy_uj
+                                - self._last_rapl_energy_uj
+                                + current
+                            )
+                            self._accumulated_energy_uj += delta
+                    else:
+                        self._accumulated_energy_uj += current - self._last_rapl_energy_uj
+
+                # Update last reading
+                self._last_rapl_energy_uj = current
                 return self._accumulated_energy_uj
 
-            # Try RAPL first
-            current_rapl_uj = SysfsReader.read_double(self.INTEL_RAPL_ENERGY_PATH)
-            if current_rapl_uj > 0:
-                # Handle wraparound
-                if current_rapl_uj < self._last_rapl_energy_uj:
-                    delta_uj = (
-                        self._rapl_max_energy_uj
-                        - self._last_rapl_energy_uj
-                        + current_rapl_uj
-                    )
-                else:
-                    delta_uj = current_rapl_uj - self._last_rapl_energy_uj
+            # 1) Try Intel RAPL
+            energy = _read_rapl_energy(self.INTEL_RAPL_ENERGY_PATH)
+            if energy >= 0.0:
+                return energy
 
-                self._accumulated_energy_uj += delta_uj
-                self._last_rapl_energy_uj = current_rapl_uj
+            # 2) Try AMD RAPL
+            energy = _read_rapl_energy("/sys/class/powercap/amd-rapl:0/energy_uj")
+            if energy >= 0.0:
+                return energy
 
-            else:
-                # Try hwmon energy path
-                energy_path = self._hwmon_scanner.get_energy_path()
-                if energy_path:
-                    current_energy_uj = SysfsReader.read_double(energy_path)
-                    if current_energy_uj > 0:
-                        self._accumulated_energy_uj = current_energy_uj
-                else:
-                    # Estimate from power and CPU usage
-                    estimated_power_w = self._estimate_power_from_cpu(cpu_percent)
-                    energy_delta_uj = estimated_power_w * elapsed_s * 1_000_000.0
-                    self._accumulated_energy_uj += energy_delta_uj
+            # 3) Try hwmon energy path
+            energy_path = self._hwmon_scanner.get_energy_path()
+            if energy_path and os.path.exists(energy_path):
+                current_hwmon = SysfsReader.read_double(energy_path)
+                if current_hwmon > 0.0:
+                    if self._last_hwmon_energy_uj > 0.0:
+                        if current_hwmon >= self._last_hwmon_energy_uj:
+                            # Normal case: accumulate delta
+                            self._accumulated_energy_uj += (
+                                current_hwmon - self._last_hwmon_energy_uj
+                            )
+                        # else: wraparound detected; ignore this reading
 
-            self._last_energy_read_time = current_time
+                    self._last_hwmon_energy_uj = current_hwmon
+                    return self._accumulated_energy_uj
+
+            # 4) Fallback: estimate from power measurements using elapsed time
+            now = time.time()
+
+            # If last read time is uninitialized, set it and return current accumulated
+            if self._last_energy_read_time <= 0.0:
+                self._last_energy_read_time = now
+                return self._accumulated_energy_uj
+
+            elapsed_s = now - self._last_energy_read_time
+            # Update last read time now
+            self._last_energy_read_time = now
+
+            if elapsed_s <= 0.0:
+                return self._accumulated_energy_uj
+
+            elapsed_us = elapsed_s * 1_000_000.0
+
+            # Try to read direct power from hwmon scanner
+            power_w = 0.0
+            try:
+                power_w = self._hwmon_scanner.read_power_w()
+            except Exception:
+                power_w = 0.0
+
+            # If no direct power measurement, estimate from CPU TDP and usage
+            if power_w <= 0.0 and self._cpu_tdp_watts > 0.0:
+                base_power = self._cpu_tdp_watts * self._idle_power_factor
+                dynamic_power = (
+                    self._cpu_tdp_watts
+                    * (1.0 - self._idle_power_factor)
+                    * (cpu_percent / 100.0)
+                )
+                power_w = base_power + dynamic_power
+
+            if power_w > 0.0:
+                # W * us = uJ
+                energy_delta_uj = power_w * elapsed_us
+                self._accumulated_energy_uj += energy_delta_uj
+
             return self._accumulated_energy_uj
 
     def _estimate_power_from_cpu(self, cpu_percent: float) -> float:

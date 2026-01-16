@@ -83,20 +83,39 @@ class SysfsReader:
     def get_thread_status_path(filename: str) -> str:
         """
         Get the path to a thread's status file.
-
-        Args:
-            filename: The filename within the task directory.
-
-        Returns:
-            Path to the thread's status file.
+        Tries to obtain the kernel thread id (TID) and return the
+        thread-specific path /proc/self/task/<tid>/<filename> if it exists.
+        Otherwise falls back to /proc/self/<filename>.
         """
-        pid = os.getpid()
         try:
-            libc = ctypes.CDLL("libc.so.6", use_errno=True)
-            SYS_gettid = 186  # syscall number for gettid on x86_64
-            tid = libc.syscall(SYS_gettid)
-            if tid <= 0:
-                tid = pid
+            # Prefer threading.get_native_id() when available (Python 3.8+)
+            tid = None
+            try:
+                import threading
+
+                tid = threading.get_native_id()  # returns native thread id (TID)
+            except Exception:
+                tid = None
+
+            if not tid:
+                # Fallback to calling the libc syscall for gettid.
+                libc = ctypes.CDLL("libc.so.6", use_errno=True)
+                # SYS_gettid is platform dependent; 186 is common on x86_64.
+                SYS_gettid = 186
+                try:
+                    tid = int(libc.syscall(SYS_gettid))
+                except Exception:
+                    tid = None
+
+            if not tid or tid <= 0:
+                # Could not obtain a valid thread id; fall back to process-level path
+                return f"/proc/self/{filename}"
+
+            path = f"/proc/self/task/{tid}/{filename}"
+            # Return the thread-specific path if it actually exists, otherwise fall back
+            if os.path.exists(path):
+                return path
+
+            return f"/proc/self/{filename}"
         except Exception:
-            tid = pid
-        return f"/proc/{pid}/task/{tid}/{filename}"
+            return f"/proc/self/{filename}"

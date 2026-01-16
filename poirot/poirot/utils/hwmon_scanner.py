@@ -47,16 +47,20 @@ class HwmonScanner:
 
         try:
             for entry in os.listdir(self.HWMON_BASE_PATH):
+                # skip '.' and '..' and hidden entries
+                if entry.startswith("."):
+                    continue
+
                 hwmon_path = os.path.join(self.HWMON_BASE_PATH, entry)
                 if not os.path.isdir(hwmon_path):
                     continue
 
-                name_path = os.path.join(hwmon_path, "name")
-                name = SysfsReader.read_string(name_path)
+                name = SysfsReader.read_string(os.path.join(hwmon_path, "name"))
 
                 if callback(hwmon_path, name):
                     break
         except OSError:
+            # Ignore filesystem access errors
             pass
 
     def search_paths(self) -> None:
@@ -64,23 +68,56 @@ class HwmonScanner:
         if self._paths_searched:
             return
 
+        # Mark as searched early to avoid reentrancy or repeated work
+        self._paths_searched = True
+
         def find_paths(base_path: str, name: str) -> bool:
-            # Look for RAPL energy paths (rapl-* devices)
-            if name.startswith("rapl"):
-                energy_path = os.path.join(base_path, "energy1_input")
-                if os.path.exists(energy_path):
-                    self._cached_energy_path = energy_path
+            # determine if this driver likely provides energy/power
+            is_energy_driver = (
+                name == "zenpower" or name == "amd_energy" or (name and "energy" in name)
+            )
+            is_power_driver = (
+                name == "zenpower"
+                or name == "amd_energy"
+                or name == "coretemp"
+                or name == "k10temp"
+                or (name and "power" in name)
+            )
 
-            # Look for power paths
-            power_path = os.path.join(base_path, "power1_input")
-            if os.path.exists(power_path):
-                self._cached_power_path = power_path
+            # Search for energyN_input (1..10)
+            if is_energy_driver and not self._cached_energy_path:
+                for i in range(1, 11):
+                    energy_path = os.path.join(base_path, f"energy{i}_input")
+                    try:
+                        val = SysfsReader.read_long(energy_path)
+                        if val >= 0:
+                            self._cached_energy_path = energy_path
+                            break
+                    except Exception:
+                        # fallback to existence check
+                        if os.path.exists(energy_path):
+                            self._cached_energy_path = energy_path
+                            break
 
-            # Continue searching
-            return False
+            # Search for powerN_input (1..10)
+            if is_power_driver and not self._cached_power_path:
+                for i in range(1, 11):
+                    power_path = os.path.join(base_path, f"power{i}_input")
+                    # prefer read_long if available, otherwise existence
+                    try:
+                        # If file can be read as integer, accept it
+                        _ = SysfsReader.read_long(power_path)
+                        self._cached_power_path = power_path
+                        break
+                    except Exception:
+                        if os.path.exists(power_path):
+                            self._cached_power_path = power_path
+                            break
+
+            # stop when both cached
+            return bool(self._cached_energy_path and self._cached_power_path)
 
         self.iterate_devices(find_paths)
-        self._paths_searched = True
 
     def read_power_w(self) -> float:
         """
@@ -92,9 +129,14 @@ class HwmonScanner:
         if not self._cached_power_path:
             return 0.0
 
-        # hwmon power readings are in microwatts
-        power_uw = SysfsReader.read_double(self._cached_power_path)
-        return power_uw / 1_000_000.0 if power_uw > 0 else 0.0
+        # hwmon power readings are expressed in microwatts (uW)
+        try:
+            power_uw = SysfsReader.read_long(self._cached_power_path)
+        except Exception:
+            # if read_long isn't available or fails, return 0
+            return 0.0
+
+        return (power_uw / 1_000_000.0) if power_uw > 0 else 0.0
 
     def get_energy_path(self) -> str:
         """

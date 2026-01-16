@@ -39,8 +39,10 @@ class ProcessMetrics:
         """Default constructor."""
         self._pid = os.getpid()
         self._num_cpus = os.cpu_count() or 1
+        # Prev CPU time in microseconds. 0 means "not initialized" (first call)
         self._prev_process_cpu_us: int = 0
-        self._prev_cpu_read_time: float = time.time()
+        # Use a monotonic clock for elapsed time measurements; None until first call
+        self._prev_cpu_read_time: float | None = None
         self._cpu_read_mutex = threading.Lock()
 
     def read_cpu_time_us(self) -> int:
@@ -51,7 +53,10 @@ class ProcessMetrics:
             CPU time in microseconds.
         """
         try:
-            return int(time.clock_gettime(time.CLOCK_PROCESS_CPUTIME_ID) * 1_000_000)
+            # Multiply seconds to microseconds and round to int
+            return int(
+                round(time.clock_gettime(time.CLOCK_PROCESS_CPUTIME_ID) * 1_000_000)
+            )
         except (OSError, AttributeError):
             return 0
 
@@ -72,14 +77,18 @@ class ProcessMetrics:
             Number of threads.
         """
         try:
-            with open(f"/proc/{self._pid}/status", "r") as f:
+            # Reads /proc/self/status and
+            # returns 1 as default when the file cannot be parsed.
+            with open("/proc/self/status", "r") as f:
                 for line in f:
                     if line.startswith("Threads:"):
                         return int(line.split(":")[1].strip())
         except (OSError, ValueError):
+            # Fall through to return default
             pass
 
-        return threading.active_count()
+        # Returns 1 as default if it can't find the Threads: line
+        return 1
 
     def read_cpu_percent(self) -> float:
         """
@@ -91,25 +100,38 @@ class ProcessMetrics:
             CPU usage percentage.
         """
         current_cpu_us = self.read_cpu_time_us()
-        current_time = time.time()
+
+        # If we couldn't read CPU time, return 0
+        if current_cpu_us <= 0:
+            return 0.0
+
+        now = time.monotonic()
 
         with self._cpu_read_mutex:
-            elapsed_time = current_time - self._prev_cpu_read_time
-            if elapsed_time <= 0:
+            # First call: initialize stored state and return 0.0
+            if self._prev_process_cpu_us == 0 or self._prev_cpu_read_time is None:
+                self._prev_process_cpu_us = int(current_cpu_us)
+                self._prev_cpu_read_time = now
                 return 0.0
 
-            cpu_delta_us = current_cpu_us - self._prev_process_cpu_us
-            elapsed_us = elapsed_time * 1_000_000
+            elapsed_us = (now - self._prev_cpu_read_time) * 1_000_000.0
+            if elapsed_us <= 0.0:
+                return 0.0
 
-            # Update previous values
-            self._prev_process_cpu_us = current_cpu_us
-            self._prev_cpu_read_time = current_time
+            process_cpu_delta_us = float(current_cpu_us - self._prev_process_cpu_us)
 
-            # Calculate percentage (accounting for multiple CPUs)
-            if elapsed_us > 0:
-                return (cpu_delta_us / elapsed_us) * 100.0
+            # Total available CPU time in this period across all CPUs
+            total_available_cpu_us = elapsed_us * float(self._num_cpus)
 
-        return 0.0
+            pct = 0.0
+            if total_available_cpu_us > 0.0:
+                pct = (process_cpu_delta_us / total_available_cpu_us) * 100.0
+
+            # Update state
+            self._prev_process_cpu_us = int(current_cpu_us)
+            self._prev_cpu_read_time = now
+
+            return pct
 
     def read_memory_kb(self) -> int:
         """
@@ -119,7 +141,7 @@ class ProcessMetrics:
             Memory usage in kilobytes.
         """
         try:
-            with open(f"/proc/{self._pid}/status", "r") as f:
+            with open("/proc/self/status", "r") as f:
                 for line in f:
                     if line.startswith("VmRSS:"):
                         parts = line.split()
