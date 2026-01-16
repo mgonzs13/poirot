@@ -9,8 +9,10 @@
     <buildtool_depend>ament_cmake</buildtool_depend>
     <depend>rclcpp</depend>
     <depend>poirot_msgs</depend>
-    <exec_depend>libncurses5</exec_depend>
-    <build_depend>libncurses-dev</build_depend>
+    <exec_depend condition="$ROS_DISTRO == 'foxy' or $ROS_DISTRO == 'galactic' or $ROS_DISTRO == 'humble' or $ROS_DISTRO == 'iron'">libncurses5</exec_depend>
+    <exec_depend condition="$ROS_DISTRO != 'foxy' and $ROS_DISTRO != 'galactic' and $ROS_DISTRO != 'humble' and $ROS_DISTRO != 'iron'">libncurses6</exec_depend>
+    <build_depend condition="$ROS_DISTRO == 'foxy' or $ROS_DISTRO == 'galactic' or $ROS_DISTRO == 'humble' or $ROS_DISTRO == 'iron'">libncurses5-dev</build_depend>
+    <build_depend condition="$ROS_DISTRO != 'foxy' and $ROS_DISTRO != 'galactic' and $ROS_DISTRO != 'humble' and $ROS_DISTRO != 'iron'">libncurses-dev</build_depend>
     <build_depend>ros_environment</build_depend>
     <export>
         <build_type>ament_cmake</build_type>
