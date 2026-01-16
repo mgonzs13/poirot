@@ -223,8 +223,10 @@ The TUI provides multiple views and interactive controls:
 5. **IO-R** - I/O read bytes graph over time
 6. **IO-W** - I/O write bytes graph over time
 7. **Ctx** - Context switches graph over time
-8. **Enrg** - Energy consumption graph over time
-9. **CO2** - CO2 emissions graph over time
+8. **CPU Enrg** - Energy consumption graph over time by the CPU
+9. **GPU Enrg** - Energy consumption graph over time by the GPU
+10. **Enrg** - Energy consumption graph over time
+11. **CO2** - CO2 emissions graph over time
 
 ### Recording Data to CSV
 
