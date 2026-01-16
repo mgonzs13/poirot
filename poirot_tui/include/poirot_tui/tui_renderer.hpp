@@ -268,6 +268,16 @@ private:
   void toggle_sort_order();
 
   /**
+   * @brief Scroll table left
+   */
+  void scroll_left();
+
+  /**
+   * @brief Scroll table right
+   */
+  void scroll_right();
+
+  /**
    * @brief Set sort column directly
    * @param col Column to set
    */
@@ -293,6 +303,8 @@ private:
   int selected_row_;
   /// @brief Scroll offset for table view
   int scroll_offset_;
+  /// @brief Horizontal scroll offset for table view
+  int horizontal_scroll_offset_;
   /// @brief Scroll offset for graph view
   int graph_scroll_offset_;
   /// @brief Maximum number of rows that can be displayed

@@ -26,8 +26,9 @@ using namespace poirot_tui;
 TuiRenderer::TuiRenderer()
     : initialized_(false), mouse_enabled_(false), current_tab_(Tab::TABLE),
       sort_column_(SortColumn::WALL_TIME), sort_ascending_(false),
-      selected_row_(0), scroll_offset_(0), graph_scroll_offset_(0),
-      max_rows_(0), terminal_width_(0), terminal_height_(0) {}
+      selected_row_(0), scroll_offset_(0), horizontal_scroll_offset_(0),
+      graph_scroll_offset_(0), max_rows_(0), terminal_width_(0),
+      terminal_height_(0) {}
 
 TuiRenderer::~TuiRenderer() { this->shutdown(); }
 
@@ -76,7 +77,7 @@ bool TuiRenderer::initialize() {
 
   getmaxyx(stdscr, this->terminal_height_, this->terminal_width_);
   this->max_rows_ =
-      this->terminal_height_ - 4; // Header + column headers + footer
+      this->terminal_height_ - 5; // Header + column headers + footer (2 lines)
 
   this->initialized_ = true;
   return true;
@@ -212,61 +213,79 @@ void TuiRenderer::render_table_view(const DataManager &data_manager) {
   auto rows =
       data_manager.get_sorted_rows(this->sort_column_, this->sort_ascending_);
 
+  // Define columns
+  struct Column {
+    std::string name;
+    int width;
+    SortColumn sort_col;
+  };
+
+  std::vector<Column> columns = {{"PID", 15, SortColumn::PID},
+                                 {"Function", 43, SortColumn::FUNCTION_NAME},
+                                 {"Calls", 13, SortColumn::CALL_COUNT},
+                                 {"Wall(us)", 17, SortColumn::WALL_TIME},
+                                 {"CPU(us)", 17, SortColumn::CPU_TIME},
+                                 {"Mem(KB)", 15, SortColumn::MEMORY},
+                                 {"GPU-M(KB)", 15, SortColumn::GPU_MEMORY},
+                                 {"IO-R(B)", 15, SortColumn::IO_READ},
+                                 {"IO-W(B)", 15, SortColumn::IO_WRITE},
+                                 {"CtxSw", 13, SortColumn::CTX_SWITCHES},
+                                 {"CPU-E(uJ)", 16, SortColumn::CPU_ENERGY},
+                                 {"GPU-E(uJ)", 16, SortColumn::GPU_ENERGY},
+                                 {"Enrg(uJ)", 16, SortColumn::ENERGY},
+                                 {"CO2(ug)", 15, SortColumn::CO2}};
+
+  // Calculate total table width
+  int total_table_width = 0;
+  for (const auto &col : columns) {
+    total_table_width += col.width;
+  }
+
+  // Adjust horizontal scroll offset to be valid
+  if (this->horizontal_scroll_offset_ < 0) {
+    this->horizontal_scroll_offset_ = 0;
+  }
+  if (this->horizontal_scroll_offset_ >
+      total_table_width - this->terminal_width_) {
+    this->horizontal_scroll_offset_ =
+        std::max(0, total_table_width - this->terminal_width_);
+  }
+
   // Column header
   attron(COLOR_PAIR(COLOR_HEADER) | A_BOLD);
   mvhline(2, 0, ' ', this->terminal_width_);
 
-  // Define column widths
-  int col_pid = 15;
-  int col_func = 43;
-  int col_calls = 13;
-  int col_wall = 17;
-  int col_cpu = 17;
-  int col_mem = 15;
-  int col_gpu_mem = 15;
-  int col_ior = 15;
-  int col_iow = 15;
-  int col_ctx = 13;
-  int col_cpu_energy = 16;
-  int col_gpu_energy = 16;
-  int col_energy = 16;
-  int col_co2 = 15;
-
   // Store column positions for mouse click sorting
   this->column_positions_.clear();
-  int x = 0;
+  int x = -this->horizontal_scroll_offset_;
 
-  auto print_header = [this, &x](const std::string &name, int width,
-                                 SortColumn col) {
-    // Store column position
-    this->column_positions_.push_back({x, col});
+  for (const auto &col : columns) {
+    // Store column position (adjusted for scroll)
+    int display_x = x;
+    if (display_x < this->terminal_width_ && display_x + col.width > 0) {
+      this->column_positions_.push_back({std::max(0, display_x), col.sort_col});
+    }
 
     std::string indicator = "";
-    if (this->sort_column_ == col) {
+    if (this->sort_column_ == col.sort_col) {
       indicator = this->sort_ascending_ ? " ^" : " v";
     }
-    std::string header = name + indicator;
-    if (static_cast<int>(header.length()) > width - 1) {
-      header = header.substr(0, width - 1);
-    }
-    mvprintw(2, x, "%-*s", width, header.c_str());
-    x += width;
-  };
 
-  print_header("PID", col_pid, SortColumn::PID);
-  print_header("Function", col_func, SortColumn::FUNCTION_NAME);
-  print_header("Calls", col_calls, SortColumn::CALL_COUNT);
-  print_header("Wall(us)", col_wall, SortColumn::WALL_TIME);
-  print_header("CPU(us)", col_cpu, SortColumn::CPU_TIME);
-  print_header("Mem(KB)", col_mem, SortColumn::MEMORY);
-  print_header("GPU-M(KB)", col_gpu_mem, SortColumn::GPU_MEMORY);
-  print_header("IO-R(B)", col_ior, SortColumn::IO_READ);
-  print_header("IO-W(B)", col_iow, SortColumn::IO_WRITE);
-  print_header("CtxSw", col_ctx, SortColumn::CTX_SWITCHES);
-  print_header("CPU-E(uJ)", col_cpu_energy, SortColumn::CPU_ENERGY);
-  print_header("GPU-E(uJ)", col_gpu_energy, SortColumn::GPU_ENERGY);
-  print_header("Enrg(uJ)", col_energy, SortColumn::ENERGY);
-  print_header("CO2(ug)", col_co2, SortColumn::CO2);
+    std::string header = col.name + indicator;
+    if (static_cast<int>(header.length()) > col.width - 1) {
+      header = header.substr(0, col.width - 1);
+    }
+
+    // Only print if visible
+    if (display_x < this->terminal_width_ && display_x + col.width > 0) {
+      int print_x = std::max(0, display_x);
+      int print_width = std::min(col.width, this->terminal_width_ - print_x);
+      mvprintw(2, print_x, "%-*s", print_width,
+               header.substr(0, print_width).c_str());
+    }
+
+    x += col.width;
+  }
 
   attroff(COLOR_PAIR(COLOR_HEADER) | A_BOLD);
 
@@ -298,75 +317,173 @@ void TuiRenderer::render_table_view(const DataManager &data_manager) {
 
     mvhline(row_y, 0, ' ', this->terminal_width_);
 
-    x = 0;
+    x = -this->horizontal_scroll_offset_;
 
     // PID
-    mvprintw(row_y, x, "%-*d", col_pid, row.pid);
-    x += col_pid;
+    if (x < this->terminal_width_ && x + columns[0].width > 0) {
+      int print_x = std::max(0, x);
+      mvprintw(row_y, print_x, "%-*d",
+               std::min(columns[0].width, this->terminal_width_ - print_x),
+               row.pid);
+    }
+
+    x += columns[0].width;
 
     // Function name (truncate if needed)
     std::string func = row.function_name;
     if (func.empty()) {
       func = "<unknown>";
     }
-    if (static_cast<int>(func.length()) > col_func - 1) {
-      func = func.substr(0, col_func - 2) + "~";
+    if (static_cast<int>(func.length()) > columns[1].width - 1) {
+      func = func.substr(0, columns[1].width - 2) + "~";
     }
-    mvprintw(row_y, x, "%-*s", col_func, func.c_str());
-    x += col_func;
+
+    if (x < this->terminal_width_ && x + columns[1].width > 0) {
+      int print_x = std::max(0, x);
+      mvprintw(row_y, print_x, "%-*s",
+               std::min(columns[1].width, this->terminal_width_ - print_x),
+               func.c_str());
+    }
+
+    x += columns[1].width;
 
     // Call count
-    mvprintw(row_y, x, "%-*d", col_calls, row.call_count);
-    x += col_calls;
+    if (x < this->terminal_width_ && x + columns[2].width > 0) {
+      int print_x = std::max(0, x);
+      mvprintw(row_y, print_x, "%-*d",
+               std::min(columns[2].width, this->terminal_width_ - print_x),
+               row.call_count);
+    }
+
+    x += columns[2].width;
 
     // Wall time
-    mvprintw(row_y, x, "%-*ld", col_wall, row.wall_time_us);
-    x += col_wall;
+    if (x < this->terminal_width_ && x + columns[3].width > 0) {
+      int print_x = std::max(0, x);
+      mvprintw(row_y, print_x, "%-*ld",
+               std::min(columns[3].width, this->terminal_width_ - print_x),
+               row.wall_time_us);
+    }
+
+    x += columns[3].width;
 
     // CPU time
-    mvprintw(row_y, x, "%-*ld", col_cpu, row.cpu_time_us);
-    x += col_cpu;
+    if (x < this->terminal_width_ && x + columns[4].width > 0) {
+      int print_x = std::max(0, x);
+      mvprintw(row_y, print_x, "%-*ld",
+               std::min(columns[4].width, this->terminal_width_ - print_x),
+               row.cpu_time_us);
+    }
+
+    x += columns[4].width;
 
     // Memory
-    mvprintw(row_y, x, "%-*ld", col_mem, static_cast<long>(row.mem_kb));
-    x += col_mem;
+    if (x < this->terminal_width_ && x + columns[5].width > 0) {
+      int print_x = std::max(0, x);
+      mvprintw(row_y, print_x, "%-*ld",
+               std::min(columns[5].width, this->terminal_width_ - print_x),
+               static_cast<long>(row.mem_kb));
+    }
+
+    x += columns[5].width;
 
     // GPU Memory
-    mvprintw(row_y, x, "%-*ld", col_gpu_mem, static_cast<long>(row.gpu_mem_kb));
-    x += col_gpu_mem;
+    if (x < this->terminal_width_ && x + columns[6].width > 0) {
+      int print_x = std::max(0, x);
+      mvprintw(row_y, print_x, "%-*ld",
+               std::min(columns[6].width, this->terminal_width_ - print_x),
+               static_cast<long>(row.gpu_mem_kb));
+    }
+
+    x += columns[6].width;
 
     // IO Read
-    mvprintw(row_y, x, "%-*ld", col_ior, static_cast<long>(row.io_read_bytes));
-    x += col_ior;
+    if (x < this->terminal_width_ && x + columns[7].width > 0) {
+      int print_x = std::max(0, x);
+      mvprintw(row_y, print_x, "%-*ld",
+               std::min(columns[7].width, this->terminal_width_ - print_x),
+               static_cast<long>(row.io_read_bytes));
+    }
+
+    x += columns[7].width;
 
     // IO Write
-    mvprintw(row_y, x, "%-*ld", col_iow, static_cast<long>(row.io_write_bytes));
-    x += col_iow;
+    if (x < this->terminal_width_ && x + columns[8].width > 0) {
+      int print_x = std::max(0, x);
+      mvprintw(row_y, print_x, "%-*ld",
+               std::min(columns[8].width, this->terminal_width_ - print_x),
+               static_cast<long>(row.io_write_bytes));
+    }
+
+    x += columns[8].width;
 
     // Context switches
-    mvprintw(row_y, x, "%-*ld", col_ctx, static_cast<long>(row.ctx_switches));
-    x += col_ctx;
+    if (x < this->terminal_width_ && x + columns[9].width > 0) {
+      int print_x = std::max(0, x);
+      mvprintw(row_y, print_x, "%-*ld",
+               std::min(columns[9].width, this->terminal_width_ - print_x),
+               static_cast<long>(row.ctx_switches));
+    }
+
+    x += columns[9].width;
 
     // CPU Energy
-    mvprintw(row_y, x, "%-*.2f", col_cpu_energy, row.cpu_energy_uj);
-    x += col_cpu_energy;
+    if (x < this->terminal_width_ && x + columns[10].width > 0) {
+      int print_x = std::max(0, x);
+      mvprintw(row_y, print_x, "%-*.2f",
+               std::min(columns[10].width, this->terminal_width_ - print_x),
+               row.cpu_energy_uj);
+    }
+
+    x += columns[10].width;
 
     // GPU Energy
-    mvprintw(row_y, x, "%-*.2f", col_gpu_energy, row.gpu_energy_uj);
-    x += col_gpu_energy;
+    if (x < this->terminal_width_ && x + columns[11].width > 0) {
+      int print_x = std::max(0, x);
+      mvprintw(row_y, print_x, "%-*.2f",
+               std::min(columns[11].width, this->terminal_width_ - print_x),
+               row.gpu_energy_uj);
+    }
+
+    x += columns[11].width;
 
     // Total Energy
-    mvprintw(row_y, x, "%-*.2f", col_energy, row.energy_uj);
-    x += col_energy;
+    if (x < this->terminal_width_ && x + columns[12].width > 0) {
+      int print_x = std::max(0, x);
+      mvprintw(row_y, print_x, "%-*.2f",
+               std::min(columns[12].width, this->terminal_width_ - print_x),
+               row.energy_uj);
+    }
+
+    x += columns[12].width;
 
     // CO2
-    mvprintw(row_y, x, "%-*.2f", col_co2, row.co2_ug);
+    if (x < this->terminal_width_ && x + columns[13].width > 0) {
+      int print_x = std::max(0, x);
+      mvprintw(row_y, print_x, "%-*.2f",
+               std::min(columns[13].width, this->terminal_width_ - print_x),
+               row.co2_ug);
+    }
 
     if (i == this->selected_row_) {
       attroff(COLOR_PAIR(COLOR_SELECTED) | A_BOLD);
     } else {
       attroff(COLOR_PAIR(COLOR_NORMAL));
     }
+  }
+
+  // Show scroll indicators
+  if (this->horizontal_scroll_offset_ > 0) {
+    attron(A_BOLD);
+    mvprintw(2, 0, "<");
+    attroff(A_BOLD);
+  }
+
+  if (this->horizontal_scroll_offset_ <
+      total_table_width - this->terminal_width_) {
+    attron(A_BOLD);
+    mvprintw(2, this->terminal_width_ - 1, ">");
+    attroff(A_BOLD);
   }
 
   // Show row count info
@@ -974,6 +1091,10 @@ void TuiRenderer::render_footer() {
   int x = 1;
 
   auto print_key = [this, &x](const std::string &key, const std::string &desc) {
+    if (x + static_cast<int>(key.length() + desc.length() + 3) >=
+        this->terminal_width_) {
+      return; // Skip if not enough space
+    }
     attron(COLOR_PAIR(COLOR_HELP_KEY) | A_BOLD);
     mvprintw(this->terminal_height_ - 1, x, "%s", key.c_str());
     attroff(COLOR_PAIR(COLOR_HELP_KEY) | A_BOLD);
@@ -984,22 +1105,25 @@ void TuiRenderer::render_footer() {
     x += static_cast<int>(desc.length()) + 2;
   };
 
+  // Always show common keys
   print_key("Q", "Quit");
-  print_key("Tab", "Next Tab");
+  print_key("Tab/Sh-Tab", "Next/Prev");
+  print_key("1-0", "Tabs");
 
-  if (this->current_tab_ == Tab::TABLE) {
-    print_key("Up/Dn", "Navigate");
-    print_key("Home/End", "First/Last");
-    print_key("PgUp/Dn", "Page");
-    print_key("S", "Sort");
-    print_key("R", "Reverse");
-    print_key("C", "Clear");
-  } else {
-    print_key("Up/Dn", "Select");
-    print_key("Space/Enter", "Toggle");
-    print_key("A", "All");
-    print_key("N", "None");
-  }
+  // Navigation controls
+  print_key("Up/k/Dn/j", "Nav");
+  print_key("Home/g/End/G", "First/Last");
+  print_key("PgUp/Dn", "Page");
+  print_key("Left/Right", "Tabs");
+  print_key("h/l", "ScrollH");
+  print_key("S", "Sort");
+  print_key("R/o", "Reverse");
+  print_key("C", "Clear");
+
+  // Graph controls
+  print_key("Space/Enter", "Toggle");
+  print_key("A", "All");
+  print_key("N", "None");
 
   if (this->mouse_enabled_) {
     print_key("Mouse", "Click");
@@ -1030,13 +1154,33 @@ bool TuiRenderer::handle_input(DataManager &data_manager) {
     return false;
 
   case '\t':
-  case KEY_RIGHT:
     this->next_tab();
     break;
 
   case KEY_BTAB: // Shift+Tab
+    this->prev_tab();
+    break;
+
   case KEY_LEFT:
     this->prev_tab();
+    break;
+
+  case KEY_RIGHT:
+    this->next_tab();
+    break;
+
+  case 'h':
+  case 'H':
+    if (this->current_tab_ == Tab::TABLE) {
+      this->scroll_left();
+    }
+    break;
+
+  case 'l':
+  case 'L':
+    if (this->current_tab_ == Tab::TABLE) {
+      this->scroll_right();
+    }
     break;
 
   case KEY_UP:
@@ -1127,6 +1271,7 @@ bool TuiRenderer::handle_input(DataManager &data_manager) {
     data_manager.clear();
     this->selected_row_ = 0;
     this->scroll_offset_ = 0;
+    this->horizontal_scroll_offset_ = 0;
     this->graph_scroll_offset_ = 0;
     break;
 
@@ -1425,6 +1570,7 @@ void TuiRenderer::next_tab() {
   this->current_tab_ = static_cast<Tab>(tab_int);
   this->selected_row_ = 0;
   this->scroll_offset_ = 0;
+  this->horizontal_scroll_offset_ = 0;
   this->graph_scroll_offset_ = 0;
 }
 
@@ -1434,6 +1580,7 @@ void TuiRenderer::prev_tab() {
   this->current_tab_ = static_cast<Tab>(tab_int);
   this->selected_row_ = 0;
   this->scroll_offset_ = 0;
+  this->horizontal_scroll_offset_ = 0;
   this->graph_scroll_offset_ = 0;
 }
 
@@ -1442,6 +1589,7 @@ void TuiRenderer::select_tab(Tab tab) {
     this->current_tab_ = tab;
     this->selected_row_ = 0;
     this->scroll_offset_ = 0;
+    this->horizontal_scroll_offset_ = 0;
     this->graph_scroll_offset_ = 0;
   }
 }
@@ -1463,6 +1611,7 @@ void TuiRenderer::page_down() { this->selected_row_ += this->max_rows_; }
 void TuiRenderer::move_to_first() {
   this->selected_row_ = 0;
   this->scroll_offset_ = 0;
+  this->horizontal_scroll_offset_ = 0;
   this->graph_scroll_offset_ = 0;
 }
 
@@ -1470,6 +1619,7 @@ void TuiRenderer::move_to_last(int total_rows) {
   if (total_rows > 0) {
     this->selected_row_ = total_rows - 1;
   }
+  this->horizontal_scroll_offset_ = 0;
 }
 
 void TuiRenderer::cycle_sort_column() {
@@ -1482,4 +1632,18 @@ void TuiRenderer::set_sort_column(SortColumn col) { this->sort_column_ = col; }
 
 void TuiRenderer::toggle_sort_order() {
   this->sort_ascending_ = !this->sort_ascending_;
+}
+
+void TuiRenderer::scroll_left() {
+  if (this->horizontal_scroll_offset_ > 0) {
+    this->horizontal_scroll_offset_ -= 10; // Scroll by 10 columns
+    if (this->horizontal_scroll_offset_ < 0) {
+      this->horizontal_scroll_offset_ = 0;
+    }
+  }
+}
+
+void TuiRenderer::scroll_right() {
+  // We don't know the total width here, but we'll clamp it in render_table_view
+  this->horizontal_scroll_offset_ += 10; // Scroll by 10 columns
 }

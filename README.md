@@ -193,10 +193,11 @@ The TUI provides multiple views and interactive controls:
 **General Navigation**:
 
 - `Q` / `ESC` - Quit
-- `Tab` / `→` - Next tab
-- `Shift+Tab` / `←` - Previous tab
-- `1-9` - Jump to specific tab
+- `Tab` / `Shift+Tab` - Next/Previous tab
+- `←` / `→` - Previous/Next tab
+- `1-0` - Jump to specific tab
 - `C` - Clear all data
+- `Mouse` - Click to interact
 
 **Table View**:
 
@@ -204,6 +205,7 @@ The TUI provides multiple views and interactive controls:
 - `PgUp` / `PgDn` - Page up/down
 - `Home` / `G` - First row
 - `End` / `Shift+G` - Last row
+- `H` / `L` - Scroll table left/right horizontally
 - `S` - Cycle sort column
 - `R` / `O` - Toggle sort order
 
