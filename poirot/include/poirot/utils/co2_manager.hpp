@@ -89,6 +89,10 @@ private:
   mutable std::mutex co2_factors_mutex_;
   /// @brief Flag indicating if CO2 factors have been loaded
   bool co2_factors_loaded_ = false;
+  /// @brief Cache for timezone to country mapping
+  std::map<std::string, std::string> timezone_to_country_;
+  /// @brief Flag indicating if timezone mapping has been loaded
+  bool timezone_map_loaded_ = false;
 
   /**
    * @brief CURL write callback function.
@@ -106,6 +110,11 @@ private:
    * @param csv_data Raw CSV data string.
    */
   void parse_csv_data(const std::string &csv_data);
+
+  /**
+   * @brief Load timezone to country mapping from system zone.tab file.
+   */
+  void load_timezone_mapping();
 };
 
 } // namespace utils
