@@ -13,15 +13,14 @@
 # limitations under the License.
 
 
-import functools
 import os
 import sys
-import threading
 import time
+import functools
+import threading
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Optional, TypeVar
 
-import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile
 

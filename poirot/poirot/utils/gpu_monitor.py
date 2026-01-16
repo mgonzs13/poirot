@@ -322,6 +322,7 @@ class GpuMonitor:
                 text=True,
                 timeout=5,
             )
+
             if result.returncode == 0 and result.stdout.strip():
                 try:
                     # nvidia-smi reports memory in MiB
@@ -340,6 +341,7 @@ class GpuMonitor:
                 text=True,
                 timeout=5,
             )
+
             if result.returncode == 0 and result.stdout.strip():
                 power_str = result.stdout.strip()
                 if "[N/A]" not in power_str:
@@ -368,6 +370,7 @@ class GpuMonitor:
                 text=True,
                 timeout=5,
             )
+
             if result.returncode == 0 and result.stdout.strip():
                 if "[N/A]" not in result.stdout:
                     self._gpu_info.power_monitoring = True
@@ -582,20 +585,25 @@ class GpuMonitor:
             )
 
             if result.returncode == 0 and result.stdout.strip():
+
                 for line in result.stdout.strip().split("\n"):
+
                     parts = line.split(",")
                     if len(parts) >= 2:
+
                         proc_pid = int(parts[0].strip())
                         if proc_pid == pid:
                             metrics.is_using_gpu = True
                             metrics.mem_used_kb = int(float(parts[1].strip()) * 1024)
                             # Estimate utilization based on memory usage
+
                             if self._gpu_info.mem_total_kb > 0:
                                 metrics.estimated_utilization_percent = (
                                     metrics.mem_used_kb
                                     / self._gpu_info.mem_total_kb
                                     * 100.0
                                 )
+
                             break
         except (subprocess.SubprocessError, ValueError):
             pass

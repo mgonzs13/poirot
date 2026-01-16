@@ -13,8 +13,8 @@
 # limitations under the License.
 
 import os
-import platform
 import socket
+import platform
 from dataclasses import dataclass
 
 

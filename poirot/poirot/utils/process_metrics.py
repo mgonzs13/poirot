@@ -13,9 +13,9 @@
 # limitations under the License.
 
 import os
+import time
 import resource
 import threading
-import time
 from dataclasses import dataclass
 
 

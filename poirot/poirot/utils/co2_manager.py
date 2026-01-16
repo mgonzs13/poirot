@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+import time
 import json
 import threading
-import time
 from typing import Dict
 
 # Default CO2 factor in kg CO2 per kWh (global average)
@@ -164,8 +165,6 @@ class Co2Manager:
 
         try:
             # Try to read from /etc/localtime symlink
-            import os
-
             link = os.readlink("/etc/localtime")
             # Extract timezone from path like /usr/share/zoneinfo/Europe/Madrid
             if "zoneinfo/" in link:

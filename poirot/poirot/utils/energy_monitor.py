@@ -121,6 +121,7 @@ class EnergyMonitor:
 
                 self._accumulated_energy_uj += delta_uj
                 self._last_rapl_energy_uj = current_rapl_uj
+
             else:
                 # Try hwmon energy path
                 energy_path = self._hwmon_scanner.get_energy_path()
