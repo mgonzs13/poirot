@@ -325,9 +325,7 @@ class GpuMonitor:
             if result.returncode == 0 and result.stdout.strip():
                 try:
                     # nvidia-smi reports memory in MiB
-                    self._gpu_info.mem_total_kb = int(
-                        float(result.stdout.strip()) * 1024
-                    )
+                    self._gpu_info.mem_total_kb = int(float(result.stdout.strip()) * 1024)
                 except ValueError:
                     self._gpu_info.mem_total_kb = 0
 
