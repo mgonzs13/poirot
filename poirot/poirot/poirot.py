@@ -17,6 +17,7 @@ import os
 import sys
 import time
 import functools
+import inspect
 import threading
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Optional, TypeVar
@@ -54,6 +55,8 @@ class ThreadProfilingContext:
     """Context structure to hold per-thread profiling data."""
 
     function_name: str = ""
+    file: str = ""
+    line: int = 0
     start_time: float = 0.0
     start_cpu_time_us: int = 0
     start_process_cpu_time_us: int = 0
@@ -245,17 +248,21 @@ class Poirot:
         self._process_info.cpu_percent = self._process_metrics.read_cpu_percent()
         self._process_info.threads = self._process_metrics.read_thread_count()
 
-    def start_profiling(self, function_name: str) -> None:
+    def start_profiling(self, function_name: str, file: str, line: int) -> None:
         """
         Start profiling a function.
 
         Args:
             function_name: Name of the function being profiled.
+            file: Source file where the function is defined.
+            line: Line number in the source file.
         """
         self._read_process_data()
 
         ctx = self._get_thread_context()
         ctx.function_name = function_name
+        ctx.file = file
+        ctx.line = line
         ctx.start_time = time.perf_counter()
         ctx.start_cpu_time_us = self._thread_metrics.read_cpu_time_us()
         ctx.start_process_cpu_time_us = self._process_metrics.read_cpu_time_us()
@@ -377,6 +384,8 @@ class Poirot:
                 self._statistics[ctx.function_name] = FunctionStats()
             stats = self._statistics[ctx.function_name]
             stats.name = ctx.function_name
+            stats.file = ctx.file
+            stats.line = ctx.line
             stats.call_count += 1
             stats.call = call
 
@@ -505,11 +514,13 @@ def profile_function(func: F) -> F:
         profiler = Poirot.get_instance()
 
         # Get the fully qualified function name
-        module = func.__module__ if hasattr(func, "__module__") else ""
         qualname = func.__qualname__ if hasattr(func, "__qualname__") else func.__name__
-        function_name = f"{module}.{qualname}" if module else qualname
 
-        profiler.start_profiling(function_name)
+        # Add file and line information
+        file = os.path.abspath(func.__code__.co_filename)
+        line = func.__code__.co_firstlineno
+
+        profiler.start_profiling(qualname, file, line)
         try:
             return func(*args, **kwargs)
         finally:

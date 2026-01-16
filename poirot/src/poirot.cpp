@@ -188,12 +188,15 @@ void Poirot::read_process_data() {
   this->process_info_.threads = this->process_metrics_.read_thread_count();
 }
 
-void Poirot::start_profiling(const std::string &function_name) {
+void Poirot::start_profiling(const std::string &function_name,
+                             const std::string &file, int line) {
   this->read_process_data();
 
   // Get thread-local context
   ThreadProfilingContext &ctx = this->get_thread_context();
   ctx.function_name = function_name;
+  ctx.file = file;
+  ctx.line = line;
   ctx.start_time = std::chrono::steady_clock::now();
   ctx.start_cpu_time_us = this->thread_metrics_.read_cpu_time_us();
   ctx.start_process_cpu_time_us = this->process_metrics_.read_cpu_time_us();
@@ -319,6 +322,8 @@ void Poirot::stop_profiling() {
 
     auto &stats = this->statistics_[ctx.function_name];
     stats.name = ctx.function_name;
+    stats.file = ctx.file;
+    stats.line = ctx.line;
     stats.call_count++;
     stats.call = call;
   }
@@ -432,9 +437,7 @@ std::string ScopedPoirot::extract_function_name(const char *pretty_function) {
 ScopedPoirot::ScopedPoirot(Poirot &profiler, const char *func, const char *file,
                            int line)
     : profiler_(profiler) {
-  (void)file;
-  (void)line;
-  profiler_.start_profiling(extract_function_name(func));
+  profiler_.start_profiling(extract_function_name(func), file, line);
 }
 
 ScopedPoirot::~ScopedPoirot() { profiler_.stop_profiling(); }
