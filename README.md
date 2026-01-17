@@ -64,6 +64,16 @@ rosdep install --from-paths src --ignore-src -r -y
 colcon build
 ```
 
+### API Keys Setup
+
+POIROT uses the Ember Climate API to fetch real CO2 emission factors for energy consumption calculations. To enable CO2 monitoring, you need to obtain a free API key from [Ember](https://ember-energy.org/data/api/) and set it as an environment variable:
+
+```shell
+export EMBER_KEY="your_api_key_here"
+```
+
+Without this key, POIROT will use a global average CO2 factor as fallback.
+
 ## Usage
 
 1. **Add dependency in `package.xml`**:

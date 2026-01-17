@@ -49,9 +49,6 @@ Poirot::Poirot()
 }
 
 void Poirot::auto_configure() {
-  // Download CO2 factors
-  this->co2_manager_.download_factors();
-
   // Initialize GPU monitoring
   this->gpu_monitor_.initialize();
 
@@ -164,14 +161,8 @@ void Poirot::detect_system_info() {
   std::string timezone = this->co2_manager_.get_system_timezone();
   this->system_info_.country_code =
       this->co2_manager_.get_country_from_timezone(timezone);
-  if (this->co2_manager_.factors_loaded()) {
-    this->system_info_.co2_factor_kg_per_kwh =
-        this->co2_manager_.get_factor_for_country(
-            this->system_info_.country_code);
-  } else {
-    this->system_info_.co2_factor_kg_per_kwh =
-        utils::DEFAULT_CO2_FACTOR_KG_PER_KWH;
-  }
+  this->system_info_.co2_factor_kg_per_kwh =
+      this->co2_manager_.get_co2_factor(this->system_info_.country_code);
 }
 
 ThreadProfilingContext &Poirot::get_thread_context() {

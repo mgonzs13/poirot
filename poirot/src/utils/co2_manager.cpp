@@ -22,12 +22,16 @@
 #include <sstream>
 #include <vector>
 
+#include <nlohmann/json.hpp>
+
 #include "ament_index_cpp/get_package_share_directory.hpp"
 
 #include "poirot/utils/co2_manager.hpp"
 
 namespace poirot {
 namespace utils {
+
+Co2Manager::Co2Manager() { this->load_iso_mapping(); }
 
 size_t Co2Manager::curl_write_callback(void *contents, size_t size,
                                        size_t nmemb, void *userp) {
@@ -37,88 +41,37 @@ size_t Co2Manager::curl_write_callback(void *contents, size_t size,
   return total_size;
 }
 
-void Co2Manager::parse_csv_data(const std::string &csv_data) {
-  std::istringstream stream(csv_data);
-  std::string line;
-  bool first_line = true;
-
-  // Map to store the most recent data for each country
-  std::map<std::string, std::pair<int, double>> country_data;
-
-  while (std::getline(stream, line)) {
-    if (line.empty()) {
-      continue;
-    }
-
-    if (first_line) {
-      first_line = false;
-      continue; // Skip header
-    }
-
-    std::istringstream line_stream(line);
-    std::string cell;
-    std::vector<std::string> columns;
-
-    while (std::getline(line_stream, cell, ',')) {
-      // Remove quotes if present
-      if (cell.size() >= 2 && cell.front() == '"' && cell.back() == '"') {
-        cell = cell.substr(1, cell.size() - 2);
-      }
-      columns.push_back(cell);
-    }
-
-    // Expected format: Entity,Code,Year,Lifecycle carbon intensity of
-    // electricity - gCO2/kWh
-    if (columns.size() < 4) {
-      continue;
-    }
-
-    std::string entity = columns[0];
-    std::string code = columns[1];
-    std::string year_str = columns[2];
-    std::string intensity_str = columns[3];
-
-    // Skip if no country code or invalid data
-    if (code.empty() || intensity_str.empty()) {
-      continue;
-    }
-
-    try {
-      int year = std::stoi(year_str);
-      double intensity = std::stod(intensity_str);
-      // Convert from gCO2/kWh to kgCO2/kWh
-      double intensity_kg = intensity / 1000.0;
-
-      // Keep the most recent year for each country
-      auto it = country_data.find(code);
-      if (it == country_data.end() || year > it->second.first) {
-        country_data[code] = std::make_pair(year, intensity_kg);
-      }
-    } catch (...) {
-      // Skip invalid rows
-      continue;
-    }
+double Co2Manager::get_co2_factor(const std::string &country_code) {
+  // Get API key from environment
+  const char *api_key = std::getenv("EMBER_KEY");
+  if (!api_key) {
+    return DEFAULT_CO2_FACTOR_KG_PER_KWH;
   }
 
-  // Store the most recent values
-  for (const auto &[code, data] : country_data) {
-    this->co2_factors_by_country_[code] = data.second;
+  // Convert to ISO3
+  std::string iso3 = country_code;
+  if (country_code.length() == 2 && this->iso_map_loaded_) {
+    auto it = this->iso2_to_iso3_.find(country_code);
+    if (it != this->iso2_to_iso3_.end()) {
+      iso3 = it->second;
+    } else {
+      return DEFAULT_CO2_FACTOR_KG_PER_KWH;
+    }
   }
-}
-
-bool Co2Manager::download_factors() {
-  // Download ISO mapping first
-  this->load_iso_mapping();
 
   CURL *curl = curl_easy_init();
   if (!curl) {
-    return false;
+    return DEFAULT_CO2_FACTOR_KG_PER_KWH;
   }
 
   std::string response_data;
 
-  // Try to download from Our World in Data carbon intensity electricity data
-  curl_easy_setopt(curl, CURLOPT_URL, CO2_INTENSITY_DATA_URL);
+  // Construct API URL
+  std::string url = std::string(EMBER_API_BASE_URL) +
+                    "/carbon-intensity/monthly?api_key=" + api_key +
+                    "&entity_code=" + iso3;
+
+  curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_callback);
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_data);
   curl_easy_setopt(curl, CURLOPT_TIMEOUT, CURL_TIMEOUT_SECONDS);
@@ -129,50 +82,26 @@ bool Co2Manager::download_factors() {
   curl_easy_cleanup(curl);
 
   if (res != CURLE_OK) {
-    return false;
+    return DEFAULT_CO2_FACTOR_KG_PER_KWH;
   }
 
-  // Parse the CSV data
-  {
-    std::lock_guard<std::mutex> lock(this->co2_factors_mutex_);
-    this->parse_csv_data(response_data);
-    this->co2_factors_loaded_ = !this->co2_factors_by_country_.empty();
-  }
-
-  return this->co2_factors_loaded_;
-}
-
-double
-Co2Manager::get_factor_for_country(const std::string &country_code) const {
-  std::lock_guard<std::mutex> lock(this->co2_factors_mutex_);
-
-  // Try direct match (handles both 2-letter and 3-letter codes)
-  auto it = this->co2_factors_by_country_.find(country_code);
-  if (it != this->co2_factors_by_country_.end()) {
-    return it->second;
-  }
-
-  // Try 2-letter to 3-letter conversion
-  if (country_code.length() == 2 && this->iso_map_loaded_) {
-    auto iso_it = this->iso2_to_iso3_.find(country_code);
-    if (iso_it != this->iso2_to_iso3_.end()) {
-      auto factor_it = this->co2_factors_by_country_.find(iso_it->second);
-      if (factor_it != this->co2_factors_by_country_.end()) {
-        return factor_it->second;
+  // Parse the JSON data
+  try {
+    auto j = nlohmann::json::parse(response_data);
+    if (j.contains("data") && j["data"].is_array() && !j["data"].empty()) {
+      // Get the last (most recent) data point
+      auto last_entry = j["data"].back();
+      if (last_entry.contains("emissions_intensity_gco2_per_kwh")) {
+        double value = last_entry["emissions_intensity_gco2_per_kwh"];
+        return value / 1000.0;
       }
     }
-  }
-
-  // Try 3-letter to 2-letter conversion (less common)
-  if (country_code.length() == 3 && this->iso_map_loaded_) {
-    for (const auto &[iso2, iso3] : this->iso2_to_iso3_) {
-      if (iso3 == country_code) {
-        auto factor_it = this->co2_factors_by_country_.find(iso3);
-        if (factor_it != this->co2_factors_by_country_.end()) {
-          return factor_it->second;
-        }
-      }
-    }
+  } catch (const nlohmann::json::parse_error &e) {
+    // JSON parsing failed
+    return DEFAULT_CO2_FACTOR_KG_PER_KWH;
+  } catch (const std::exception &e) {
+    // Other errors
+    return DEFAULT_CO2_FACTOR_KG_PER_KWH;
   }
 
   return DEFAULT_CO2_FACTOR_KG_PER_KWH;

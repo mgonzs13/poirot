@@ -124,9 +124,6 @@ class Poirot:
 
     def _auto_configure(self) -> None:
         """Auto-configure the profiler."""
-        # Download CO2 factors
-        self._co2_manager.download_factors()
-
         # Initialize GPU monitoring
         self._gpu_monitor.initialize()
 
@@ -225,12 +222,9 @@ class Poirot:
         self._system_info.country_code = self._co2_manager.get_country_from_timezone(
             timezone
         )
-        if self._co2_manager.factors_loaded:
-            self._system_info.co2_factor_kg_per_kwh = (
-                self._co2_manager.get_factor_for_country(self._system_info.country_code)
-            )
-        else:
-            self._system_info.co2_factor_kg_per_kwh = DEFAULT_CO2_FACTOR_KG_PER_KWH
+        self._system_info.co2_factor_kg_per_kwh = self._co2_manager.get_co2_factor(
+            self._system_info.country_code
+        )
 
     def _get_thread_context(self) -> ThreadProfilingContext:
         """Get the thread-local profiling context."""

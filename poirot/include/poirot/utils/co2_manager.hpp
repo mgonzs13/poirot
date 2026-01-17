@@ -26,9 +26,8 @@ namespace utils {
 constexpr double DEFAULT_CO2_FACTOR_KG_PER_KWH = 0.436;
 /// @brief Timeout for CURL requests in seconds
 constexpr long CURL_TIMEOUT_SECONDS = 3;
-/// @brief URL for downloading CO2 intensity data
-constexpr const char *CO2_INTENSITY_DATA_URL =
-    "https://ourworldindata.org/grapher/carbon-intensity-electricity.csv";
+/// @brief Ember API base URL
+constexpr const char *EMBER_API_BASE_URL = "https://api.ember-energy.org/v1";
 
 /**
  * @class Co2Manager
@@ -42,20 +41,14 @@ public:
   /**
    * @brief Constructor.
    */
-  Co2Manager() = default;
-
-  /**
-   * @brief Download CO2 factors from online source.
-   * @return True if download succeeded, false otherwise.
-   */
-  bool download_factors();
+  Co2Manager();
 
   /**
    * @brief Get CO2 factor for a specific country.
    * @param country_code ISO 2-letter country code.
    * @return CO2 factor in kg CO2 per kWh.
    */
-  double get_factor_for_country(const std::string &country_code) const;
+  double get_co2_factor(const std::string &country_code);
 
   /**
    * @brief Get country code from timezone.
@@ -70,28 +63,7 @@ public:
    */
   std::string get_system_timezone();
 
-  /**
-   * @brief Check if CO2 factors have been loaded.
-   * @return True if factors are loaded.
-   */
-  bool factors_loaded() const { return this->co2_factors_loaded_; }
-
-  /**
-   * @brief Get the number of loaded country factors.
-   * @return Number of countries with CO2 factors.
-   */
-  size_t get_factor_count() const {
-    std::lock_guard<std::mutex> lock(this->co2_factors_mutex_);
-    return this->co2_factors_by_country_.size();
-  }
-
 private:
-  /// @brief Map of country code to CO2 factor
-  std::map<std::string, double> co2_factors_by_country_;
-  /// @brief Mutex for thread-safe access to CO2 factors
-  mutable std::mutex co2_factors_mutex_;
-  /// @brief Flag indicating if CO2 factors have been loaded
-  bool co2_factors_loaded_ = false;
   /// @brief Cache for timezone to country mapping
   std::map<std::string, std::string> timezone_to_country_;
   /// @brief Flag indicating if timezone mapping has been loaded
@@ -113,26 +85,20 @@ private:
                                     void *userp);
 
   /**
-   * @brief Parse CSV data to extract CO2 factors.
-   * @param csv_data Raw CSV data string.
-   */
-  void parse_csv_data(const std::string &csv_data);
-
-  /**
    * @brief Load timezone to country mapping from system zone.tab file.
    */
   void load_timezone_mapping();
+
+  /**
+   * @brief Load ISO mapping from installed file.
+   */
+  void load_iso_mapping();
 
   /**
    * @brief Parse CSV data to extract ISO mappings.
    * @param csv_data Raw CSV data string.
    */
   void parse_iso_csv(const std::string &csv_data);
-
-  /**
-   * @brief Load ISO mapping from installed file.
-   */
-  void load_iso_mapping();
 };
 
 } // namespace utils

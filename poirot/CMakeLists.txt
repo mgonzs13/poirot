@@ -17,6 +17,7 @@ find_package(rclpy REQUIRED)
 find_package(poirot_msgs REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(CURL REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
   src/poirot.cpp
@@ -41,11 +42,12 @@ target_link_libraries(${PROJECT_NAME}
   rclcpp::rclcpp
   ${poirot_msgs_TARGETS}
   ament_index_cpp::ament_index_cpp
+  nlohmann_json::nlohmann_json
 )
 
 ament_export_include_directories(include)
 ament_export_libraries(${PROJECT_NAME})
-ament_export_dependencies(rclcpp poirot_msgs CURL ament_index_cpp)
+ament_export_dependencies(rclcpp poirot_msgs CURL ament_index_cpp nlohmann_json)
 
 install(DIRECTORY include/
   DESTINATION include/
