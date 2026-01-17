@@ -74,7 +74,7 @@ void PoirotRecorderNode::write_csv_header() {
       << "gpu_tdp_watts,gpu_tdp_watts_type,gpu_power_monitoring,"
       << "country_code,co2_factor_kg_per_kwh,"
       << "process_pid,process_cpu_percent,process_threads,"
-      << "function_name,call_count,wall_time_us,"
+      << "function_name,file,line,call_count,wall_time_us,"
       << "cpu_time_us,process_cpu_time_us,system_cpu_time_us,"
       << "memory_kb,io_read_bytes,io_write_bytes,"
       << "ctx_switches,cpu_energy_uj,cpu_total_energy_uj,"
@@ -131,7 +131,8 @@ void PoirotRecorderNode::data_callback(
 
                   // Function Call Info
                   << this->escape_csv(msg->function.name) << ","
-                  << msg->function.call_count
+                  << this->escape_csv(msg->function.file) << ","
+                  << msg->function.line << "," << msg->function.call_count
                   << ","
 
                   // CPU metrics
@@ -150,7 +151,7 @@ void PoirotRecorderNode::data_callback(
                   // GPU metrics
                   << msg->function.call.data.gpu_mem_kb << ","
                   << msg->function.call.data.gpu_energy_uj << ","
-                  << msg->function.call.data.gpu_utilization_percent << ","
+                  << msg->function.call.data.gpu_utilization_percent
                   << ","
 
                   // Total energy
