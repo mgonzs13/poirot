@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <curl/curl.h>
+#include <rapidjson/document.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -21,8 +22,6 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
-
-#include <nlohmann/json.hpp>
 
 #include "ament_index_cpp/get_package_share_directory.hpp"
 
@@ -86,22 +85,19 @@ double Co2Manager::get_co2_factor(const std::string &country_code) {
   }
 
   // Parse the JSON data
-  try {
-    auto j = nlohmann::json::parse(response_data);
-    if (j.contains("data") && j["data"].is_array() && !j["data"].empty()) {
-      // Get the last (most recent) data point
-      auto last_entry = j["data"].back();
-      if (last_entry.contains("emissions_intensity_gco2_per_kwh")) {
-        double value = last_entry["emissions_intensity_gco2_per_kwh"];
-        return value / 1000.0;
-      }
+  rapidjson::Document j;
+  if (j.Parse(response_data.c_str()).HasParseError()) {
+    return DEFAULT_CO2_FACTOR_KG_PER_KWH;
+  }
+
+  if (j.HasMember("data") && j["data"].IsArray() && !j["data"].Empty()) {
+    // Get the last (most recent) data point
+    const rapidjson::Value &last_entry = j["data"][j["data"].Size() - 1];
+    if (last_entry.HasMember("emissions_intensity_gco2_per_kwh") &&
+        last_entry["emissions_intensity_gco2_per_kwh"].IsNumber()) {
+      double value = last_entry["emissions_intensity_gco2_per_kwh"].GetDouble();
+      return value / 1000.0;
     }
-  } catch (const nlohmann::json::parse_error &e) {
-    // JSON parsing failed
-    return DEFAULT_CO2_FACTOR_KG_PER_KWH;
-  } catch (const std::exception &e) {
-    // Other errors
-    return DEFAULT_CO2_FACTOR_KG_PER_KWH;
   }
 
   return DEFAULT_CO2_FACTOR_KG_PER_KWH;
