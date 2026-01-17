@@ -19,9 +19,13 @@ import urllib.request
 from typing import Dict
 
 # Default CO2 factor in kg CO2 per kWh (global average)
-DEFAULT_CO2_FACTOR_KG_PER_KWH = 0.5
+DEFAULT_CO2_FACTOR_KG_PER_KWH = 0.436
 # Timeout for CURL requests in seconds
 CURL_TIMEOUT_SECONDS = 3
+# URL for downloading CO2 intensity data
+CO2_INTENSITY_DATA_URL = (
+    "https://ourworldindata.org/grapher/carbon-intensity-electricity.csv"
+)
 
 
 class Co2Manager:
@@ -43,6 +47,10 @@ class Co2Manager:
         # Cache for timezone to country mapping
         self._timezone_to_country: Dict[str, str] = {}
         self._timezone_map_loaded = False
+        # ISO2 to ISO3 mapping
+        self._iso2_to_iso3: Dict[str, str] = {}
+        # Flag indicating if ISO mapping has been loaded
+        self._iso_map_loaded = False
 
     def download_factors(self) -> bool:
         """
@@ -51,12 +59,15 @@ class Co2Manager:
         Returns:
             True if download succeeded, False otherwise.
         """
+        # Download ISO mapping first
+        self._load_iso_mapping()
+
         # Download carbon intensity data from Our World in Data
         try:
             # Our World in Data carbon intensity electricity CSV
-            url = "https://ourworldindata.org/grapher/carbon-intensity-electricity.csv"
-
-            request = urllib.request.Request(url, headers={"User-Agent": "Poirot/1.0"})
+            request = urllib.request.Request(
+                CO2_INTENSITY_DATA_URL, headers={"User-Agent": "Poirot/1.0"}
+            )
 
             with urllib.request.urlopen(
                 request, timeout=CURL_TIMEOUT_SECONDS
@@ -87,264 +98,14 @@ class Co2Manager:
                 return self._co2_factors_by_country[country_code]
 
             # Try converting 2-letter to 3-letter codes
-            iso2_to_iso3 = {
-                "AF": "AFG",
-                "AL": "ALB",
-                "DZ": "DZA",
-                "AS": "ASM",
-                "AD": "AND",
-                "AO": "AGO",
-                "AI": "AIA",
-                "AQ": "ATA",
-                "AG": "ATG",
-                "AR": "ARG",
-                "AM": "ARM",
-                "AW": "ABW",
-                "AU": "AUS",
-                "AT": "AUT",
-                "AZ": "AZE",
-                "BS": "BHS",
-                "BH": "BHR",
-                "BD": "BGD",
-                "BB": "BRB",
-                "BY": "BLR",
-                "BE": "BEL",
-                "BZ": "BLZ",
-                "BJ": "BEN",
-                "BM": "BMU",
-                "BT": "BTN",
-                "BO": "BOL",
-                "BA": "BIH",
-                "BW": "BWA",
-                "BV": "BVT",
-                "BR": "BRA",
-                "IO": "IOT",
-                "BN": "BRN",
-                "BG": "BGR",
-                "BF": "BFA",
-                "BI": "BDI",
-                "KH": "KHM",
-                "CM": "CMR",
-                "CA": "CAN",
-                "CV": "CPV",
-                "KY": "CYM",
-                "CF": "CAF",
-                "TD": "TCD",
-                "CL": "CHL",
-                "CN": "CHN",
-                "CX": "CXR",
-                "CC": "CCK",
-                "CO": "COL",
-                "KM": "COM",
-                "CG": "COG",
-                "CD": "COD",
-                "CK": "COK",
-                "CR": "CRI",
-                "CI": "CIV",
-                "HR": "HRV",
-                "CU": "CUB",
-                "CY": "CYP",
-                "CZ": "CZE",
-                "DK": "DNK",
-                "DJ": "DJI",
-                "DM": "DMA",
-                "DO": "DOM",
-                "EC": "ECU",
-                "EG": "EGY",
-                "SV": "SLV",
-                "GQ": "GNQ",
-                "ER": "ERI",
-                "EE": "EST",
-                "ET": "ETH",
-                "FK": "FLK",
-                "FO": "FRO",
-                "FJ": "FJI",
-                "FI": "FIN",
-                "FR": "FRA",
-                "GF": "GUF",
-                "PF": "PYF",
-                "TF": "ATF",
-                "GA": "GAB",
-                "GM": "GMB",
-                "GE": "GEO",
-                "DE": "DEU",
-                "GH": "GHA",
-                "GI": "GIB",
-                "GR": "GRC",
-                "GL": "GRL",
-                "GD": "GRD",
-                "GP": "GLP",
-                "GU": "GUM",
-                "GT": "GTM",
-                "GG": "GGY",
-                "GN": "GIN",
-                "GW": "GNB",
-                "GY": "GUY",
-                "HT": "HTI",
-                "HM": "HMD",
-                "VA": "VAT",
-                "HN": "HND",
-                "HK": "HKG",
-                "HU": "HUN",
-                "IS": "ISL",
-                "IN": "IND",
-                "ID": "IDN",
-                "IR": "IRN",
-                "IQ": "IRQ",
-                "IE": "IRL",
-                "IM": "IMN",
-                "IL": "ISR",
-                "IT": "ITA",
-                "JM": "JAM",
-                "JP": "JPN",
-                "JE": "JEY",
-                "JO": "JOR",
-                "KZ": "KAZ",
-                "KE": "KEN",
-                "KI": "KIR",
-                "KP": "PRK",
-                "KR": "KOR",
-                "KW": "KWT",
-                "KG": "KGZ",
-                "LA": "LAO",
-                "LV": "LVA",
-                "LB": "LBN",
-                "LS": "LSO",
-                "LR": "LBR",
-                "LY": "LBY",
-                "LI": "LIE",
-                "LT": "LTU",
-                "LU": "LUX",
-                "MO": "MAC",
-                "MK": "MKD",
-                "MG": "MDG",
-                "MW": "MWI",
-                "MY": "MYS",
-                "MV": "MDV",
-                "ML": "MLI",
-                "MT": "MLT",
-                "MH": "MHL",
-                "MQ": "MTQ",
-                "MR": "MRT",
-                "MU": "MUS",
-                "YT": "MYT",
-                "MX": "MEX",
-                "FM": "FSM",
-                "MD": "MDA",
-                "MC": "MCO",
-                "MN": "MNG",
-                "ME": "MNE",
-                "MS": "MSR",
-                "MA": "MAR",
-                "MZ": "MOZ",
-                "MM": "MMR",
-                "NA": "NAM",
-                "NR": "NRU",
-                "NP": "NPL",
-                "NL": "NLD",
-                "NC": "NCL",
-                "NZ": "NZL",
-                "NI": "NIC",
-                "NE": "NER",
-                "NG": "NGA",
-                "NU": "NIU",
-                "NF": "NFK",
-                "MP": "MNP",
-                "NO": "NOR",
-                "OM": "OMN",
-                "PK": "PAK",
-                "PW": "PLW",
-                "PS": "PSE",
-                "PA": "PAN",
-                "PG": "PNG",
-                "PY": "PRY",
-                "PE": "PER",
-                "PH": "PHL",
-                "PN": "PCN",
-                "PL": "POL",
-                "PT": "PRT",
-                "PR": "PRI",
-                "QA": "QAT",
-                "RE": "REU",
-                "RO": "ROU",
-                "RU": "RUS",
-                "RW": "RWA",
-                "BL": "BLM",
-                "SH": "SHN",
-                "KN": "KNA",
-                "LC": "LCA",
-                "MF": "MAF",
-                "PM": "SPM",
-                "VC": "VCT",
-                "WS": "WSM",
-                "SM": "SMR",
-                "ST": "STP",
-                "SA": "SAU",
-                "SN": "SEN",
-                "RS": "SRB",
-                "SC": "SYC",
-                "SL": "SLE",
-                "SG": "SGP",
-                "SX": "SXM",
-                "SK": "SVK",
-                "SI": "SVN",
-                "SB": "SLB",
-                "SO": "SOM",
-                "ZA": "ZAF",
-                "GS": "SGS",
-                "SS": "SSD",
-                "ES": "ESP",
-                "LK": "LKA",
-                "SD": "SDN",
-                "SR": "SUR",
-                "SJ": "SJM",
-                "SZ": "SWZ",
-                "SE": "SWE",
-                "CH": "CHE",
-                "SY": "SYR",
-                "TW": "TWN",
-                "TJ": "TJK",
-                "TZ": "TZA",
-                "TH": "THA",
-                "TL": "TLS",
-                "TG": "TGO",
-                "TK": "TKL",
-                "TO": "TON",
-                "TT": "TTO",
-                "TN": "TUN",
-                "TR": "TUR",
-                "TM": "TKM",
-                "TC": "TCA",
-                "TV": "TUV",
-                "UG": "UGA",
-                "UA": "UKR",
-                "AE": "ARE",
-                "GB": "GBR",
-                "US": "USA",
-                "UM": "UMI",
-                "UY": "URY",
-                "UZ": "UZB",
-                "VU": "VUT",
-                "VE": "VEN",
-                "VN": "VNM",
-                "VG": "VGB",
-                "VI": "VIR",
-                "WF": "WLF",
-                "EH": "ESH",
-                "YE": "YEM",
-                "ZM": "ZMB",
-                "ZW": "ZWE",
-            }
-
-            # Try 2-letter to 3-letter conversion
-            if len(country_code) == 2:
-                iso3_code = iso2_to_iso3.get(country_code.upper())
+            if len(country_code) == 2 and self._iso_map_loaded:
+                iso3_code = self._iso2_to_iso3.get(country_code.upper())
                 if iso3_code and iso3_code in self._co2_factors_by_country:
                     return self._co2_factors_by_country[iso3_code]
 
-            # Try 3-letter to 2-letter conversion
-            if len(country_code) == 3:
-                for iso2, iso3 in iso2_to_iso3.items():
+            # Try 3-letter to 2-letter conversion (less common)
+            if len(country_code) == 3 and self._iso_map_loaded:
+                for iso2, iso3 in self._iso2_to_iso3.items():
                     if iso3 == country_code.upper():
                         return self._co2_factors_by_country.get(
                             iso3, DEFAULT_CO2_FACTOR_KG_PER_KWH
@@ -487,6 +248,44 @@ class Co2Manager:
         # Store the most recent values
         for code, (year, intensity_kg) in country_data.items():
             self._co2_factors_by_country[code] = intensity_kg
+
+    def _load_iso_mapping(self) -> None:
+        """
+        Load ISO2 to ISO3 mapping from installed CSV file.
+        """
+        try:
+            import ament_index_python
+
+            package_path = ament_index_python.get_package_share_directory("poirot")
+            csv_path = os.path.join(package_path, "iso_country_codes.csv")
+            with open(csv_path, "r", encoding="utf-8") as f:
+                csv_data = f.read()
+            self._parse_iso_csv(csv_data)
+            self._iso_map_loaded = True
+        except Exception:
+            self._iso_map_loaded = False
+
+    def _parse_iso_csv(self, csv_data: str) -> None:
+        """
+        Parse ISO CSV data and populate iso2_to_iso3.
+
+        Expected columns: name,alpha-2,alpha-3,country-code,iso_3166-2,region,sub-region
+        """
+        reader = csv.reader(csv_data.splitlines())
+        rows = list(reader)
+        if not rows:
+            return
+
+        # Skip header
+        data_rows = rows[1:]
+
+        for row in data_rows:
+            if len(row) < 3:
+                continue
+            alpha2 = row[1].strip()
+            alpha3 = row[2].strip()
+            if alpha2 and alpha3:
+                self._iso2_to_iso3[alpha2] = alpha3
 
     def factors_loaded(self) -> bool:
         """

@@ -26,6 +26,9 @@ namespace utils {
 constexpr double DEFAULT_CO2_FACTOR_KG_PER_KWH = 0.436;
 /// @brief Timeout for CURL requests in seconds
 constexpr long CURL_TIMEOUT_SECONDS = 3;
+/// @brief URL for downloading CO2 intensity data
+constexpr const char *CO2_INTENSITY_DATA_URL =
+    "https://ourworldindata.org/grapher/carbon-intensity-electricity.csv";
 
 /**
  * @class Co2Manager
@@ -93,6 +96,10 @@ private:
   std::map<std::string, std::string> timezone_to_country_;
   /// @brief Flag indicating if timezone mapping has been loaded
   bool timezone_map_loaded_ = false;
+  /// @brief ISO2 to ISO3 mapping
+  std::map<std::string, std::string> iso2_to_iso3_;
+  /// @brief Flag indicating if ISO mapping has been loaded
+  bool iso_map_loaded_ = false;
 
   /**
    * @brief CURL write callback function.
@@ -115,6 +122,17 @@ private:
    * @brief Load timezone to country mapping from system zone.tab file.
    */
   void load_timezone_mapping();
+
+  /**
+   * @brief Parse CSV data to extract ISO mappings.
+   * @param csv_data Raw CSV data string.
+   */
+  void parse_iso_csv(const std::string &csv_data);
+
+  /**
+   * @brief Load ISO mapping from installed file.
+   */
+  void load_iso_mapping();
 };
 
 } // namespace utils

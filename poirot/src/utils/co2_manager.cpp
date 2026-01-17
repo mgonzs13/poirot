@@ -22,6 +22,8 @@
 #include <sstream>
 #include <vector>
 
+#include "ament_index_cpp/get_package_share_directory.hpp"
+
 #include "poirot/utils/co2_manager.hpp"
 
 namespace poirot {
@@ -105,6 +107,9 @@ void Co2Manager::parse_csv_data(const std::string &csv_data) {
 }
 
 bool Co2Manager::download_factors() {
+  // Download ISO mapping first
+  this->load_iso_mapping();
+
   CURL *curl = curl_easy_init();
   if (!curl) {
     return false;
@@ -113,10 +118,7 @@ bool Co2Manager::download_factors() {
   std::string response_data;
 
   // Try to download from Our World in Data carbon intensity electricity data
-  const char *url =
-      "https://ourworldindata.org/grapher/carbon-intensity-electricity.csv";
-
-  curl_easy_setopt(curl, CURLOPT_URL, url);
+  curl_easy_setopt(curl, CURLOPT_URL, CO2_INTENSITY_DATA_URL);
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_callback);
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_data);
   curl_easy_setopt(curl, CURLOPT_TIMEOUT, CURL_TIMEOUT_SECONDS);
@@ -150,63 +152,10 @@ Co2Manager::get_factor_for_country(const std::string &country_code) const {
     return it->second;
   }
 
-  // ISO 2-letter to 3-letter mapping
-  static const std::map<std::string, std::string> iso2_to_iso3 = {
-      {"AF", "AFG"}, {"AL", "ALB"}, {"DZ", "DZA"}, {"AS", "ASM"}, {"AD", "AND"},
-      {"AO", "AGO"}, {"AI", "AIA"}, {"AQ", "ATA"}, {"AG", "ATG"}, {"AR", "ARG"},
-      {"AM", "ARM"}, {"AW", "ABW"}, {"AU", "AUS"}, {"AT", "AUT"}, {"AZ", "AZE"},
-      {"BS", "BHS"}, {"BH", "BHR"}, {"BD", "BGD"}, {"BB", "BRB"}, {"BY", "BLR"},
-      {"BE", "BEL"}, {"BZ", "BLZ"}, {"BJ", "BEN"}, {"BM", "BMU"}, {"BT", "BTN"},
-      {"BO", "BOL"}, {"BA", "BIH"}, {"BW", "BWA"}, {"BV", "BVT"}, {"BR", "BRA"},
-      {"IO", "IOT"}, {"BN", "BRN"}, {"BG", "BGR"}, {"BF", "BFA"}, {"BI", "BDI"},
-      {"KH", "KHM"}, {"CM", "CMR"}, {"CA", "CAN"}, {"CV", "CPV"}, {"KY", "CYM"},
-      {"CF", "CAF"}, {"TD", "TCD"}, {"CL", "CHL"}, {"CN", "CHN"}, {"CX", "CXR"},
-      {"CC", "CCK"}, {"CO", "COL"}, {"KM", "COM"}, {"CG", "COG"}, {"CD", "COD"},
-      {"CK", "COK"}, {"CR", "CRI"}, {"CI", "CIV"}, {"HR", "HRV"}, {"CU", "CUB"},
-      {"CY", "CYP"}, {"CZ", "CZE"}, {"DK", "DNK"}, {"DJ", "DJI"}, {"DM", "DMA"},
-      {"DO", "DOM"}, {"EC", "ECU"}, {"EG", "EGY"}, {"SV", "SLV"}, {"GQ", "GNQ"},
-      {"ER", "ERI"}, {"EE", "EST"}, {"ET", "ETH"}, {"FK", "FLK"}, {"FO", "FRO"},
-      {"FJ", "FJI"}, {"FI", "FIN"}, {"FR", "FRA"}, {"GF", "GUF"}, {"PF", "PYF"},
-      {"TF", "ATF"}, {"GA", "GAB"}, {"GM", "GMB"}, {"GE", "GEO"}, {"DE", "DEU"},
-      {"GH", "GHA"}, {"GI", "GIB"}, {"GR", "GRC"}, {"GL", "GRL"}, {"GD", "GRD"},
-      {"GP", "GLP"}, {"GU", "GUM"}, {"GT", "GTM"}, {"GG", "GGY"}, {"GN", "GIN"},
-      {"GW", "GNB"}, {"GY", "GUY"}, {"HT", "HTI"}, {"HM", "HMD"}, {"VA", "VAT"},
-      {"HN", "HND"}, {"HK", "HKG"}, {"HU", "HUN"}, {"IS", "ISL"}, {"IN", "IND"},
-      {"ID", "IDN"}, {"IR", "IRN"}, {"IQ", "IRQ"}, {"IE", "IRL"}, {"IM", "IMN"},
-      {"IL", "ISR"}, {"IT", "ITA"}, {"JM", "JAM"}, {"JP", "JPN"}, {"JE", "JEY"},
-      {"JO", "JOR"}, {"KZ", "KAZ"}, {"KE", "KEN"}, {"KI", "KIR"}, {"KP", "PRK"},
-      {"KR", "KOR"}, {"KW", "KWT"}, {"KG", "KGZ"}, {"LA", "LAO"}, {"LV", "LVA"},
-      {"LB", "LBN"}, {"LS", "LSO"}, {"LR", "LBR"}, {"LY", "LBY"}, {"LI", "LIE"},
-      {"LT", "LTU"}, {"LU", "LUX"}, {"MO", "MAC"}, {"MK", "MKD"}, {"MG", "MDG"},
-      {"MW", "MWI"}, {"MY", "MYS"}, {"MV", "MDV"}, {"ML", "MLI"}, {"MT", "MLT"},
-      {"MH", "MHL"}, {"MQ", "MTQ"}, {"MR", "MRT"}, {"MU", "MUS"}, {"YT", "MYT"},
-      {"MX", "MEX"}, {"FM", "FSM"}, {"MD", "MDA"}, {"MC", "MCO"}, {"MN", "MNG"},
-      {"ME", "MNE"}, {"MS", "MSR"}, {"MA", "MAR"}, {"MZ", "MOZ"}, {"MM", "MMR"},
-      {"NA", "NAM"}, {"NR", "NRU"}, {"NP", "NPL"}, {"NL", "NLD"}, {"NC", "NCL"},
-      {"NZ", "NZL"}, {"NI", "NIC"}, {"NE", "NER"}, {"NG", "NGA"}, {"NU", "NIU"},
-      {"NF", "NFK"}, {"MP", "MNP"}, {"NO", "NOR"}, {"OM", "OMN"}, {"PK", "PAK"},
-      {"PW", "PLW"}, {"PS", "PSE"}, {"PA", "PAN"}, {"PG", "PNG"}, {"PY", "PRY"},
-      {"PE", "PER"}, {"PH", "PHL"}, {"PN", "PCN"}, {"PL", "POL"}, {"PT", "PRT"},
-      {"PR", "PRI"}, {"QA", "QAT"}, {"RE", "REU"}, {"RO", "ROU"}, {"RU", "RUS"},
-      {"RW", "RWA"}, {"BL", "BLM"}, {"SH", "SHN"}, {"KN", "KNA"}, {"LC", "LCA"},
-      {"MF", "MAF"}, {"PM", "SPM"}, {"VC", "VCT"}, {"WS", "WSM"}, {"SM", "SMR"},
-      {"ST", "STP"}, {"SA", "SAU"}, {"SN", "SEN"}, {"RS", "SRB"}, {"SC", "SYC"},
-      {"SL", "SLE"}, {"SG", "SGP"}, {"SX", "SXM"}, {"SK", "SVK"}, {"SI", "SVN"},
-      {"SB", "SLB"}, {"SO", "SOM"}, {"ZA", "ZAF"}, {"GS", "SGS"}, {"SS", "SSD"},
-      {"ES", "ESP"}, {"LK", "LKA"}, {"SD", "SDN"}, {"SR", "SUR"}, {"SJ", "SJM"},
-      {"SZ", "SWZ"}, {"SE", "SWE"}, {"CH", "CHE"}, {"SY", "SYR"}, {"TW", "TWN"},
-      {"TJ", "TJK"}, {"TZ", "TZA"}, {"TH", "THA"}, {"TL", "TLS"}, {"TG", "TGO"},
-      {"TK", "TKL"}, {"TO", "TON"}, {"TT", "TTO"}, {"TN", "TUN"}, {"TR", "TUR"},
-      {"TM", "TKM"}, {"TC", "TCA"}, {"TV", "TUV"}, {"UG", "UGA"}, {"UA", "UKR"},
-      {"AE", "ARE"}, {"GB", "GBR"}, {"US", "USA"}, {"UM", "UMI"}, {"UY", "URY"},
-      {"UZ", "UZB"}, {"VU", "VUT"}, {"VE", "VEN"}, {"VN", "VNM"}, {"VG", "VGB"},
-      {"VI", "VIR"}, {"WF", "WLF"}, {"EH", "ESH"}, {"YE", "YEM"}, {"ZM", "ZMB"},
-      {"ZW", "ZWE"}};
-
   // Try 2-letter to 3-letter conversion
-  if (country_code.length() == 2) {
-    auto iso_it = iso2_to_iso3.find(country_code);
-    if (iso_it != iso2_to_iso3.end()) {
+  if (country_code.length() == 2 && this->iso_map_loaded_) {
+    auto iso_it = this->iso2_to_iso3_.find(country_code);
+    if (iso_it != this->iso2_to_iso3_.end()) {
       auto factor_it = this->co2_factors_by_country_.find(iso_it->second);
       if (factor_it != this->co2_factors_by_country_.end()) {
         return factor_it->second;
@@ -214,9 +163,9 @@ Co2Manager::get_factor_for_country(const std::string &country_code) const {
     }
   }
 
-  // Try 3-letter to 2-letter conversion
-  if (country_code.length() == 3) {
-    for (const auto &[iso2, iso3] : iso2_to_iso3) {
+  // Try 3-letter to 2-letter conversion (less common)
+  if (country_code.length() == 3 && this->iso_map_loaded_) {
+    for (const auto &[iso2, iso3] : this->iso2_to_iso3_) {
       if (iso3 == country_code) {
         auto factor_it = this->co2_factors_by_country_.find(iso3);
         if (factor_it != this->co2_factors_by_country_.end()) {
@@ -322,6 +271,69 @@ void Co2Manager::load_timezone_mapping() {
   // If we couldn't load from any file, mark as loaded anyway to avoid repeated
   // attempts
   this->timezone_map_loaded_ = true;
+}
+
+void Co2Manager::load_iso_mapping() {
+  try {
+    // Get the package share directory
+    std::string package_path =
+        ament_index_cpp::get_package_share_directory("poirot");
+    std::string csv_path = package_path + "/iso_country_codes.csv";
+
+    std::ifstream file(csv_path);
+    if (!file.is_open()) {
+      this->iso_map_loaded_ = false;
+      return;
+    }
+
+    std::string csv_data((std::istreambuf_iterator<char>(file)),
+                         std::istreambuf_iterator<char>());
+
+    this->parse_iso_csv(csv_data);
+    this->iso_map_loaded_ = true;
+  } catch (...) {
+    this->iso_map_loaded_ = false;
+  }
+}
+
+void Co2Manager::parse_iso_csv(const std::string &csv_data) {
+  std::istringstream stream(csv_data);
+  std::string line;
+  bool first_line = true;
+
+  while (std::getline(stream, line)) {
+    if (line.empty()) {
+      continue;
+    }
+
+    if (first_line) {
+      first_line = false;
+      continue; // Skip header
+    }
+
+    std::istringstream line_stream(line);
+    std::string cell;
+    std::vector<std::string> columns;
+
+    while (std::getline(line_stream, cell, ',')) {
+      // Remove quotes if present
+      if (cell.size() >= 2 && cell.front() == '"' && cell.back() == '"') {
+        cell = cell.substr(1, cell.size() - 2);
+      }
+      columns.push_back(cell);
+    }
+
+    if (columns.size() < 3) {
+      continue;
+    }
+
+    std::string alpha2 = columns[1];
+    std::string alpha3 = columns[2];
+
+    if (!alpha2.empty() && !alpha3.empty()) {
+      this->iso2_to_iso3_[alpha2] = alpha3;
+    }
+  }
 }
 
 } // namespace utils

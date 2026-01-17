@@ -15,6 +15,7 @@ find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(poirot_msgs REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 find_package(CURL REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
@@ -39,11 +40,12 @@ target_link_libraries(${PROJECT_NAME}
   CURL::libcurl
   rclcpp::rclcpp
   ${poirot_msgs_TARGETS}
+  ament_index_cpp::ament_index_cpp
 )
 
 ament_export_include_directories(include)
 ament_export_libraries(${PROJECT_NAME})
-ament_export_dependencies(rclcpp poirot_msgs CURL)
+ament_export_dependencies(rclcpp poirot_msgs CURL ament_index_cpp)
 
 install(DIRECTORY include/
   DESTINATION include/
@@ -55,6 +57,11 @@ install(TARGETS ${PROJECT_NAME}
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION bin
+)
+
+# Install data files
+install(FILES data/iso_country_codes.csv
+  DESTINATION share/${PROJECT_NAME}
 )
 
 ament_export_targets(${PROJECT_NAME})

@@ -397,10 +397,10 @@ class Poirot:
                 f"Mem: {call.data.mem_kb}KB | "
                 f"IO R/W: {call.data.io_read_bytes}/{call.data.io_write_bytes}B | "
                 f"CtxSw: {call.data.ctx_switches} | "
-                f"CPU Energy: {call.data.cpu_energy_uj:.2f}uJ | "
-                f"GPU Energy: {call.data.gpu_energy_uj:.2f}uJ | "
-                f"Total Energy: {call.data.total_energy_uj:.2f}uJ | "
-                f"CO2: {call.data.co2_ug:.2f}ug",
+                f"CPU Energy: {call.data.cpu_energy_uj}uJ | "
+                f"GPU Energy: {call.data.gpu_energy_uj}uJ | "
+                f"Total Energy: {call.data.total_energy_uj}uJ | "
+                f"CO2: {call.data.co2_ug}ug",
                 file=sys.stderr,
             )
 
@@ -465,7 +465,7 @@ class Poirot:
             f"RAPL:     {'Yes' if info.cpu_info.rapl_available else 'No'}",
             file=sys.stderr,
         )
-        print(f"CPU TDP:  {info.cpu_info.tdp_watts:.2f} W", file=sys.stderr)
+        print(f"CPU TDP:  {info.cpu_info.tdp_watts} W", file=sys.stderr)
         print(f"TDP Type: {info.cpu_info.tdp_watts_type}", file=sys.stderr)
         print("-" * 64, file=sys.stderr)
         print(
@@ -476,7 +476,7 @@ class Poirot:
         if info.gpu_info.available:
             print(f"GPU Vendor: {info.gpu_info.vendor}", file=sys.stderr)
             print(f"GPU Memory: {info.gpu_info.mem_total_kb // 1024} MB", file=sys.stderr)
-            print(f"GPU TDP:  {info.gpu_info.tdp_watts:.2f} W", file=sys.stderr)
+            print(f"GPU TDP:  {info.gpu_info.tdp_watts} W", file=sys.stderr)
             print(
                 f"GPU Power Mon: {'Yes' if info.gpu_info.power_monitoring else 'No'}",
                 file=sys.stderr,
@@ -484,7 +484,7 @@ class Poirot:
 
         print("-" * 64, file=sys.stderr)
         print(f"Country:  {info.country_code}", file=sys.stderr)
-        print(f"CO2:      {info.co2_factor_kg_per_kwh:.4f} kg/kWh", file=sys.stderr)
+        print(f"CO2:      {info.co2_factor_kg_per_kwh} kg/kWh", file=sys.stderr)
         print("=" * 64, file=sys.stderr)
 
 
