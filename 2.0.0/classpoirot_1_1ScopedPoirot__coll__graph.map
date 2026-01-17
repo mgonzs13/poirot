@@ -1,0 +1,52 @@
+<map id="poirot::ScopedPoirot" name="poirot::ScopedPoirot">
+<area shape="rect" id="Node000001" title="RAII class to automatically profile a function&#39;s execution. This class starts profiling upon construc..." alt="" coords="1371,325,1508,351"/>
+<area shape="rect" id="Node000002" href="$classpoirot_1_1Poirot.html" title="Main class for the Poirot profiler. This class provides methods to start and stop profiling,..." alt="" coords="1181,325,1275,351"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="1290,335,1370,335,1370,341,1290,341"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="872,13,1002,39"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="1018,16,1054,18,1092,24,1128,37,1159,59,1174,79,1187,110,1207,187,1221,267,1228,324,1223,325,1215,268,1202,188,1182,111,1169,82,1155,63,1125,42,1090,29,1053,23,1017,21"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="874,63,1000,88"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="1016,76,1099,86,1135,94,1159,107,1182,131,1199,160,1211,191,1220,223,1228,282,1230,325,1224,325,1223,282,1215,224,1206,193,1194,162,1177,134,1156,111,1133,99,1098,91,1015,81"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="640,104,822,159"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="838,118,915,118,1000,128,1043,139,1084,153,1123,173,1159,197,1186,228,1206,263,1226,324,1221,326,1201,265,1182,231,1156,201,1121,177,1082,158,1041,144,999,134,915,123,838,123"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="178,297,255,323"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="220,281,238,225,255,196,278,173,320,148,365,130,413,118,462,110,557,107,639,113,639,118,556,112,462,115,414,123,367,135,322,153,281,178,259,200,243,227,225,282"/>
+<area shape="rect" id="Node000010" href="$structpoirot_1_1ThreadProfilingContext.html" title="Context structure to hold per&#45;thread profiling data. This structure maintains the starting metrics fo..." alt="" coords="426,192,616,218"/>
+<area shape="poly" id="edge10_Node000010_Node000006" title=" " alt="" coords="234,283,254,263,278,245,314,229,351,218,425,205,426,211,353,223,316,234,281,250,257,267,238,287"/>
+<area shape="rect" id="Node000012" title=" " alt="" coords="450,248,592,289"/>
+<area shape="poly" id="edge13_Node000012_Node000006" title=" " alt="" coords="270,298,279,297,450,274,450,279,280,302,271,303"/>
+<area shape="rect" id="Node000013" href="$classpoirot_1_1utils_1_1HwmonScanner.html" title="Class for scanning and caching hwmon device paths." alt="" coords="430,335,612,360"/>
+<area shape="poly" id="edge15_Node000013_Node000006" title=" " alt="" coords="250,329,280,342,317,349,355,354,429,354,429,359,355,359,316,355,279,347,248,334"/>
+<area shape="rect" id="Node000016" href="$classpoirot_1_1utils_1_1GpuMonitor.html" title="Class for monitoring GPU metrics and energy consumption." alt="" coords="858,737,1015,763"/>
+<area shape="poly" id="edge25_Node000016_Node000006" title=" " alt="" coords="224,338,241,421,256,475,276,533,303,591,337,647,378,696,428,737,450,744,490,749,606,753,858,750,858,755,606,759,490,754,449,749,425,741,374,700,332,650,298,594,271,535,251,477,236,422,219,339"/>
+<area shape="rect" id="Node000017" href="$structpoirot_1_1utils_1_1GpuInfo.html" title="Structure to hold static GPU information." alt="" coords="453,799,589,824"/>
+<area shape="poly" id="edge23_Node000017_Node000006" title=" " alt="" coords="222,338,241,593,259,727,270,773,281,797,302,812,324,822,375,832,426,830,472,822,473,828,427,835,375,837,323,827,299,816,277,800,265,775,254,728,236,594,217,338"/>
+<area shape="rect" id="Node000007" title=" " alt="" coords="5,290,129,330"/>
+<area shape="poly" id="edge6_Node000006_Node000007" title=" " alt="" coords="144,307,178,307,178,313,144,313"/>
+<area shape="rect" id="Node000008" title=" " alt="" coords="481,427,561,452"/>
+<area shape="poly" id="edge7_Node000002_Node000008" title=" " alt="" coords="576,448,663,463,775,476,901,480,965,477,1027,469,1096,456,1123,444,1156,424,1176,407,1193,387,1217,350,1222,353,1197,390,1179,410,1159,428,1126,449,1097,461,1028,474,965,482,901,485,775,481,662,468,575,454"/>
+<area shape="rect" id="Node000015" href="$classpoirot_1_1utils_1_1EnergyMonitor.html" title="Class for monitoring CPU energy consumption." alt="" coords="851,419,1022,444"/>
+<area shape="poly" id="edge20_Node000015_Node000008" title=" " alt="" coords="577,438,822,436,850,435,851,440,822,441,577,443"/>
+<area shape="rect" id="Node000019" href="$classpoirot_1_1utils_1_1ProcessMetrics.html" title="Class for reading process&#45;level metrics with state tracking." alt="" coords="846,532,1027,558"/>
+<area shape="poly" id="edge28_Node000019_Node000008" title=" " alt="" coords="578,442,598,450,618,461,627,476,630,490,632,504,641,515,676,529,727,537,846,543,846,549,727,543,674,534,638,519,627,506,625,491,622,478,614,465,596,454,576,447"/>
+<area shape="rect" id="Node000009" title=" " alt="" coords="852,176,1021,231"/>
+<area shape="poly" id="edge8_Node000002_Node000009" title=" " alt="" coords="1037,213,1099,230,1159,257,1179,272,1196,290,1221,323,1216,326,1192,293,1175,276,1156,262,1097,235,1035,218"/>
+<area shape="poly" id="edge9_Node000009_Node000010" title=" " alt="" coords="631,202,852,201,852,206,631,207"/>
+<area shape="rect" id="Node000011" href="$classpoirot_1_1utils_1_1Co2Manager.html" title="Class for managing CO2 emission factors." alt="" coords="856,256,1018,282"/>
+<area shape="poly" id="edge11_Node000002_Node000011" title=" " alt="" coords="1034,274,1096,284,1158,300,1207,322,1204,327,1156,305,1095,289,1033,279"/>
+<area shape="poly" id="edge12_Node000011_Node000012" title=" " alt="" coords="607,266,855,266,855,271,607,271"/>
+<area shape="poly" id="edge14_Node000002_Node000013" title=" " alt="" coords="627,335,640,334,795,330,949,329,1181,334,1181,339,949,335,795,335,640,339,628,340"/>
+<area shape="rect" id="Node000014" href="$classpoirot_1_1utils_1_1PowerEstimator.html" title="Class for estimating power consumption and TDP values." alt="" coords="846,369,1027,395"/>
+<area shape="poly" id="edge17_Node000014_Node000013" title=" " alt="" coords="628,354,846,372,845,377,627,359"/>
+<area shape="poly" id="edge19_Node000015_Node000013" title=" " alt="" coords="567,364,640,389,750,410,851,423,851,428,749,416,639,394,565,369"/>
+<area shape="poly" id="edge16_Node000002_Node000014" title=" " alt="" coords="1042,369,1157,352,1180,347,1181,352,1158,357,1043,374"/>
+<area shape="poly" id="edge18_Node000002_Node000015" title=" " alt="" coords="1037,420,1097,408,1156,388,1187,370,1211,349,1215,354,1190,374,1158,393,1099,413,1039,425"/>
+<area shape="poly" id="edge21_Node000002_Node000016" title=" " alt="" coords="975,727,1017,701,1066,665,1114,622,1155,572,1186,512,1206,448,1218,391,1223,351,1228,352,1223,392,1211,449,1191,514,1160,575,1118,625,1069,669,1020,705,977,732"/>
+<area shape="poly" id="edge22_Node000016_Node000017" title=" " alt="" coords="604,808,709,800,821,781,845,772,880,761,882,766,847,777,823,786,709,805,605,813"/>
+<area shape="rect" id="Node000018" title=" " alt="" coords="451,848,591,874"/>
+<area shape="poly" id="edge24_Node000016_Node000018" title=" " alt="" coords="607,871,659,872,715,867,771,853,797,842,820,827,830,815,832,802,834,787,844,772,861,761,864,766,848,776,839,789,837,803,834,817,824,831,799,846,772,858,716,873,659,877,607,876"/>
+<area shape="poly" id="edge26_Node000002_Node000019" title=" " alt="" coords="1042,551,1102,541,1130,531,1156,515,1174,498,1188,477,1208,430,1219,385,1223,351,1229,352,1224,386,1213,432,1193,480,1178,501,1159,519,1133,535,1103,546,1043,556"/>
+<area shape="rect" id="Node000020" title=" " alt="" coords="445,476,597,502"/>
+<area shape="poly" id="edge27_Node000019_Node000020" title=" " alt="" coords="600,506,617,517,626,529,629,541,633,552,641,560,673,575,708,583,744,585,780,584,847,572,901,556,902,561,848,577,780,589,744,591,707,588,672,580,638,565,628,554,624,543,621,532,614,521,597,511"/>
+<area shape="rect" id="Node000021" href="$classpoirot_1_1utils_1_1ThreadMetrics.html" title="Utility class for reading thread&#45;level metrics." alt="" coords="850,787,1023,812"/>
+<area shape="poly" id="edge29_Node000002_Node000021" title=" " alt="" coords="1020,779,1057,766,1094,748,1128,724,1155,694,1169,666,1182,625,1202,523,1223,351,1228,352,1207,524,1187,626,1174,668,1160,697,1131,728,1097,753,1059,771,1022,784"/>
+</map>
