@@ -57,7 +57,7 @@ class PowerEstimator:
     """
 
     INTEL_RAPL_PATH = "/sys/class/powercap/intel-rapl/intel-rapl:0"
-    AMD_RAPL_PATH = "/sys/devices/platform/amd_energy.0/hwmon"
+    AMD_RAPL_PATH = "/sys/class/powercap/amd-rapl/amd-rapl:0"
 
     def __init__(self, hwmon_scanner: HwmonScanner) -> None:
         """
@@ -97,7 +97,7 @@ class PowerEstimator:
         """
         # Check for energy_uj presence (more reliable)
         intel_energy = os.path.join(self.INTEL_RAPL_PATH, "energy_uj")
-        amd_energy = os.path.join("/sys/class/powercap/amd-rapl/amd-rapl:0", "energy_uj")
+        amd_energy = os.path.join(self.AMD_RAPL_PATH, "energy_uj")
         return os.path.exists(intel_energy) or os.path.exists(amd_energy)
 
     def read_tdp_watts(self) -> Tuple[float, TdpType]:
@@ -175,18 +175,14 @@ class PowerEstimator:
         Returns:
             Power limit in watts or 0.0 if not available.
         """
-        if not os.path.isdir(self.AMD_RAPL_PATH):
-            return 0.0
+        amd_rapl_paths = [
+            f"{self.AMD_RAPL_PATH}/constraint_0_power_limit_uw",
+        ]
 
-        try:
-            for entry in os.listdir(self.AMD_RAPL_PATH):
-                hwmon_path = os.path.join(self.AMD_RAPL_PATH, entry)
-                power_path = os.path.join(hwmon_path, "power1_cap")
-                power_uw = SysfsReader.read_long(power_path)
-                if power_uw > 0:
-                    return power_uw / 1_000_000.0
-        except OSError:
-            pass
+        for path in amd_rapl_paths:
+            power_uw = SysfsReader.read_long(path)
+            if power_uw > 0:
+                return power_uw / 1_000_000.0
 
         return 0.0
 
@@ -250,7 +246,7 @@ class PowerEstimator:
         min_power_paths = [
             f"{self.INTEL_RAPL_PATH}/constraint_0_min_power_uw",
             f"{self.INTEL_RAPL_PATH}/constraint_1_min_power_uw",
-            "/sys/class/powercap/amd-rapl/amd-rapl:0/constraint_0_min_power_uw",
+            f"{self.AMD_RAPL_PATH}/constraint_0_min_power_uw",
         ]
 
         for path in min_power_paths:
@@ -281,7 +277,7 @@ class PowerEstimator:
         max_power_paths = [
             f"{self.INTEL_RAPL_PATH}/constraint_0_max_power_uw",
             f"{self.INTEL_RAPL_PATH}/constraint_1_max_power_uw",
-            "/sys/class/powercap/amd-rapl/amd-rapl:0/constraint_0_max_power_uw",
+            f"{self.AMD_RAPL_PATH}/constraint_0_max_power_uw",
         ]
 
         for path in max_power_paths:
