@@ -332,6 +332,14 @@ class PowerEstimator:
         if idle_uw > 0:
             idle_power_w = idle_uw / 1_000_000.0
 
+        # Try AMD
+        if idle_power_w == 0.0:
+            idle_uw = SysfsReader.read_long(
+                f"{self.AMD_RAPL_PATH}/constraint_1_power_limit_uw"
+            )
+            if idle_uw > 0:
+                idle_power_w = idle_uw / 1_000_000.0
+
         # Try sustainable_power from thermal zone
         if idle_power_w == 0.0:
             sustainable_mw = SysfsReader.read_long(

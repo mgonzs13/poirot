@@ -263,6 +263,14 @@ double PowerEstimator::read_idle_power_factor() {
   }
 
   if (idle_power_w == 0.0) {
+    idle_uw = SysfsReader::read_long("/sys/class/powercap/amd-rapl/amd-rapl:0/"
+                                     "constraint_1_power_limit_uw");
+    if (idle_uw > 0) {
+      idle_power_w = static_cast<double>(idle_uw) / 1e6;
+    }
+  }
+
+  if (idle_power_w == 0.0) {
     long sustainable_mw = SysfsReader::read_long(
         "/sys/class/thermal/thermal_zone0/sustainable_power");
     if (sustainable_mw > 0) {
