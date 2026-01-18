@@ -65,10 +65,9 @@ public:
 
   /**
    * @brief Read accumulated CPU energy consumption in microjoules.
-   * @param cpu_percent Current CPU utilization percentage for estimation.
    * @return Accumulated energy consumption in microjoules.
    */
-  double read_energy_uj(double cpu_percent = 0.0);
+  double read_energy_uj();
 
   /**
    * @brief Calculate thread energy consumption using hierarchical attribution.

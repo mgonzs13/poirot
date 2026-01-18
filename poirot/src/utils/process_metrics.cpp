@@ -59,58 +59,6 @@ int ProcessMetrics::read_thread_count() const {
   return 1;
 }
 
-double ProcessMetrics::read_cpu_percent() {
-  std::lock_guard<std::mutex> lock(this->cpu_read_mutex_);
-
-  // Read current process CPU time
-  int64_t current_process_cpu_us = this->read_cpu_time_us();
-
-  if (current_process_cpu_us <= 0) {
-    return 0.0;
-  }
-
-  // First call - initialize state and return 0
-  uint64_t prev_process = this->prev_process_cpu_us_.load();
-  if (prev_process == 0) {
-    this->prev_process_cpu_us_.store(
-        static_cast<uint64_t>(current_process_cpu_us));
-    this->prev_cpu_read_time_ = std::chrono::steady_clock::now();
-    return 0.0;
-  }
-
-  // Calculate time elapsed since last measurement
-  auto now = std::chrono::steady_clock::now();
-  double elapsed_us =
-      static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(
-                              now - this->prev_cpu_read_time_)
-                              .count());
-
-  if (elapsed_us <= 0.0) {
-    return 0.0;
-  }
-
-  // Calculate CPU time delta for process
-  double process_cpu_delta_us = static_cast<double>(current_process_cpu_us) -
-                                static_cast<double>(prev_process);
-
-  // Total available CPU time in this period
-  double total_available_cpu_us =
-      elapsed_us * static_cast<double>(this->num_cpus_);
-
-  // Calculate percentage
-  double pct = 0.0;
-  if (total_available_cpu_us > 0.0) {
-    pct = (process_cpu_delta_us / total_available_cpu_us) * 100.0;
-  }
-
-  // Update state for next measurement
-  this->prev_process_cpu_us_.store(
-      static_cast<uint64_t>(current_process_cpu_us));
-  this->prev_cpu_read_time_ = now;
-
-  return pct;
-}
-
 int64_t ProcessMetrics::read_memory_kb() const {
   std::ifstream file("/proc/self/status");
   if (!file.is_open()) {

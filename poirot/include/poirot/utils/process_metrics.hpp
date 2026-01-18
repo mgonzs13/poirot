@@ -15,10 +15,7 @@
 #ifndef POIROT__UTILS__PROCESS_METRICS_HPP_
 #define POIROT__UTILS__PROCESS_METRICS_HPP_
 
-#include <atomic>
-#include <chrono>
 #include <cstdint>
-#include <mutex>
 
 namespace poirot {
 namespace utils {
@@ -70,14 +67,6 @@ public:
   int read_thread_count() const;
 
   /**
-   * @brief Read process CPU usage percentage.
-   *
-   * This method requires state tracking and should be called on an instance.
-   * @return CPU usage percentage.
-   */
-  double read_cpu_percent();
-
-  /**
    * @brief Read process memory usage in kilobytes.
    * @return Memory usage in kilobytes.
    */
@@ -90,12 +79,6 @@ public:
   ProcessIoBytes read_io_bytes() const;
 
 private:
-  /// @brief Previous process CPU time in microseconds
-  std::atomic<uint64_t> prev_process_cpu_us_{0};
-  /// @brief Previous CPU read time point
-  std::chrono::steady_clock::time_point prev_cpu_read_time_;
-  /// @brief Mutex for CPU read time updates
-  mutable std::mutex cpu_read_mutex_;
   /// @brief Number of CPU cores
   int num_cpus_ = 1;
 };

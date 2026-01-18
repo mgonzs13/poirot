@@ -97,12 +97,9 @@ class EnergyMonitor:
         # Fallback: if neither found, rapl_max_energy_uj_ remains 0
         self._rapl_max_energy_uj = 0.0
 
-    def read_energy_uj(self, cpu_percent: float = 0.0) -> float:
+    def read_energy_uj(self) -> float:
         """
         Read accumulated CPU energy consumption in microjoules.
-
-        Args:
-            cpu_percent: Current CPU utilization percentage for estimation.
 
         Returns:
             Accumulated energy consumption in microjoules.
@@ -188,11 +185,7 @@ class EnergyMonitor:
             # If no direct power measurement, estimate from CPU TDP and usage
             if power_w <= 0.0 and self._cpu_tdp_watts > 0.0:
                 base_power = self._cpu_tdp_watts * self._idle_power_factor
-                dynamic_power = (
-                    self._cpu_tdp_watts
-                    * (1.0 - self._idle_power_factor)
-                    * (cpu_percent / 100.0)
-                )
+                dynamic_power = self._cpu_tdp_watts * (1.0 - self._idle_power_factor)
                 power_w = base_power + dynamic_power
 
             if power_w > 0.0:
@@ -201,21 +194,6 @@ class EnergyMonitor:
                 self._accumulated_energy_uj += energy_delta_uj
 
             return self._accumulated_energy_uj
-
-    def _estimate_power_from_cpu(self, cpu_percent: float) -> float:
-        """
-        Estimate power consumption from CPU percentage.
-
-        Args:
-            cpu_percent: CPU utilization percentage.
-
-        Returns:
-            Estimated power in watts.
-        """
-        # Simple linear model: idle_power + (tdp - idle_power) * (cpu_percent / 100)
-        idle_power = self._cpu_tdp_watts * self._idle_power_factor
-        active_power = self._cpu_tdp_watts - idle_power
-        return idle_power + active_power * (cpu_percent / 100.0)
 
     def calculate_thread_energy_uj(
         self,
