@@ -122,6 +122,8 @@ class GpuMonitor:
         self._intel_freq_path = ""
         self._intel_power_path = ""
 
+        self.initialize()
+
     def initialize(self) -> bool:
         """
         Initialize GPU monitoring and detect available GPUs.

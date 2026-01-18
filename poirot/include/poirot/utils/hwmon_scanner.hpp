@@ -31,9 +31,9 @@ namespace utils {
 class HwmonScanner {
 public:
   /**
-   * @brief Default constructor.
+   * @brief Constructor.
    */
-  HwmonScanner() = default;
+  HwmonScanner();
 
   /**
    * @brief Iterate over hwmon devices.

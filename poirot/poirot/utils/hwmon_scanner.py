@@ -30,9 +30,14 @@ class HwmonScanner:
 
     def __init__(self) -> None:
         """Default constructor."""
+        # Cached hwmon paths
         self._cached_energy_path: str = ""
+        # Cached hwmon power path
         self._cached_power_path: str = ""
+        # Flag indicating if paths have been searched
         self._paths_searched: bool = False
+
+        self.search_paths()
 
     def iterate_devices(self, callback: Callable[[str, str], bool]) -> None:
         """

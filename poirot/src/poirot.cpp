@@ -49,12 +49,6 @@ Poirot::Poirot()
 }
 
 void Poirot::auto_configure() {
-  // Initialize GPU monitoring
-  this->gpu_monitor_.initialize();
-
-  // Search for hwmon paths
-  this->hwmon_scanner_.search_paths();
-
   // Detect system information
   this->detect_system_info();
 }

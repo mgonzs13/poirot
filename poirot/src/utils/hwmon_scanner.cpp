@@ -22,6 +22,8 @@
 namespace poirot {
 namespace utils {
 
+HwmonScanner::HwmonScanner() : paths_searched_(false) { this->search_paths(); }
+
 void HwmonScanner::iterate_devices(
     const std::function<bool(const std::string &, const std::string &)>
         &callback) {

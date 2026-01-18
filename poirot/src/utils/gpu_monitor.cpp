@@ -33,7 +33,9 @@ namespace fs = std::filesystem;
 
 GpuMonitor::GpuMonitor()
     : last_energy_read_time_(std::chrono::steady_clock::now()),
-      last_process_energy_read_time_(std::chrono::steady_clock::now()) {}
+      last_process_energy_read_time_(std::chrono::steady_clock::now()) {
+  this->initialize();
+}
 
 bool GpuMonitor::initialize() {
   // Try to detect GPUs in order of preference

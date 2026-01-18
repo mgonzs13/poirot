@@ -122,11 +122,6 @@ class Poirot:
 
     def _auto_configure(self) -> None:
         """Auto-configure the profiler."""
-        # Initialize GPU monitoring
-        self._gpu_monitor.initialize()
-
-        # Search for hwmon paths
-        self._hwmon_scanner.search_paths()
 
         # Detect system information
         self._detect_system_info()
