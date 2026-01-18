@@ -128,9 +128,6 @@ class Poirot:
         # Search for hwmon paths
         self._hwmon_scanner.search_paths()
 
-        # Initialize energy monitor
-        self._energy_monitor.initialize_rapl_max_energy()
-
         # Detect system information
         self._detect_system_info()
 

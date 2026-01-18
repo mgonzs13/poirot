@@ -55,9 +55,6 @@ void Poirot::auto_configure() {
   // Search for hwmon paths
   this->hwmon_scanner_.search_paths();
 
-  // Initialize energy monitor with RAPL max energy range
-  this->energy_monitor_.initialize_rapl_max_energy();
-
   // Detect system information
   this->detect_system_info();
 }

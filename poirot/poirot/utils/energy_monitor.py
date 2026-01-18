@@ -28,11 +28,6 @@ class EnergyMonitor:
     from power measurements. Maintains state for tracking accumulated energy.
     """
 
-    INTEL_RAPL_ENERGY_PATH = "/sys/class/powercap/intel-rapl/intel-rapl:0/energy_uj"
-    INTEL_RAPL_MAX_ENERGY_PATH = (
-        "/sys/class/powercap/intel-rapl/intel-rapl:0/max_energy_range_uj"
-    )
-
     def __init__(self, hwmon_scanner: HwmonScanner) -> None:
         """
         Constructor.
@@ -60,6 +55,8 @@ class EnergyMonitor:
         # Idle power factor for estimation (typical: 0.10-0.20)
         self._idle_power_factor = 0.15
 
+        self.initialize_rapl_max_energy()
+
     def set_cpu_tdp_watts(self, tdp: float) -> None:
         """
         Set the CPU TDP in watts for estimation.
@@ -80,11 +77,25 @@ class EnergyMonitor:
 
     def initialize_rapl_max_energy(self) -> None:
         """Initialize RAPL max energy range for wraparound detection."""
-        # Only set rapl max if the path exists and provides a valid value
-        if os.path.exists(self.INTEL_RAPL_MAX_ENERGY_PATH):
-            max_val = SysfsReader.read_double(self.INTEL_RAPL_MAX_ENERGY_PATH)
+
+        # Try Intel RAPL first
+        intel_max_range_path = "/sys/class/powercap/intel-rapl:0/max_energy_range_uj"
+        if os.path.exists(intel_max_range_path):
+            max_val = SysfsReader.read_double(intel_max_range_path)
             if max_val > 0:
                 self._rapl_max_energy_uj = max_val
+                return
+
+        # Try AMD RAPL if Intel not available
+        amd_max_range_path = "/sys/class/powercap/amd-rapl:0/max_energy_range_uj"
+        if os.path.exists(amd_max_range_path):
+            max_val = SysfsReader.read_double(amd_max_range_path)
+            if max_val > 0:
+                self._rapl_max_energy_uj = max_val
+                return
+
+        # Fallback: if neither found, rapl_max_energy_uj_ remains 0
+        self._rapl_max_energy_uj = 0.0
 
     def read_energy_uj(self, cpu_percent: float = 0.0) -> float:
         """
@@ -125,7 +136,7 @@ class EnergyMonitor:
                 return self._accumulated_energy_uj
 
             # 1) Try Intel RAPL
-            energy = _read_rapl_energy(self.INTEL_RAPL_ENERGY_PATH)
+            energy = _read_rapl_energy("/sys/class/powercap/intel-rapl:0/energy_uj")
             if energy >= 0.0:
                 return energy
 

@@ -28,19 +28,37 @@ namespace fs = std::filesystem;
 
 EnergyMonitor::EnergyMonitor(HwmonScanner &hwmon_scanner)
     : hwmon_scanner_(hwmon_scanner),
-      last_energy_read_time_(std::chrono::steady_clock::now()) {}
+      last_energy_read_time_(std::chrono::steady_clock::now()) {
+  this->initialize_rapl_max_energy();
+}
 
 void EnergyMonitor::initialize_rapl_max_energy() {
-  // Get max energy range for wraparound detection
-  const std::string max_range_path =
+  // Try Intel RAPL first
+  const std::string intel_max_range_path =
       "/sys/class/powercap/intel-rapl:0/max_energy_range_uj";
 
-  if (fs::exists(max_range_path)) {
-    double max_range = SysfsReader::read_double(max_range_path);
+  if (fs::exists(intel_max_range_path)) {
+    double max_range = SysfsReader::read_double(intel_max_range_path);
     if (max_range > 0) {
       this->rapl_max_energy_uj_ = max_range;
+      return;
     }
   }
+
+  // Try AMD RAPL if Intel not available
+  const std::string amd_max_range_path =
+      "/sys/class/powercap/amd-rapl:0/max_energy_range_uj";
+
+  if (fs::exists(amd_max_range_path)) {
+    double max_range = SysfsReader::read_double(amd_max_range_path);
+    if (max_range > 0) {
+      this->rapl_max_energy_uj_ = max_range;
+      return;
+    }
+  }
+
+  // Fallback: if neither found, rapl_max_energy_uj_ remains 0
+  this->rapl_max_energy_uj_ = 0.0;
 }
 
 double EnergyMonitor::read_energy_uj(double cpu_percent) {
