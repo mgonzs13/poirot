@@ -17,7 +17,6 @@ import os
 import sys
 import time
 import functools
-import inspect
 import threading
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Optional, TypeVar
@@ -35,7 +34,7 @@ from poirot_msgs.msg import (
     SystemInfo,
 )
 
-from poirot.utils.co2_manager import Co2Manager, DEFAULT_CO2_FACTOR_KG_PER_KWH
+from poirot.utils.co2_manager import Co2Manager
 from poirot.utils.energy_monitor import EnergyMonitor
 from poirot.utils.gpu_monitor import GpuMonitor, GpuTdpType
 from poirot.utils.hwmon_scanner import HwmonScanner
@@ -218,13 +217,10 @@ class Poirot:
             self._system_info.gpu_info.power_monitoring = False
 
         # CO2 factor
-        timezone = self._co2_manager.get_system_timezone()
-        self._system_info.country_code = self._co2_manager.get_country_from_timezone(
-            timezone
-        )
-        self._system_info.co2_factor_kg_per_kwh = self._co2_manager.get_co2_factor(
-            self._system_info.country_code
-        )
+        co2_info = self._co2_manager.get_co2_info()
+        self._system_info.co2_info.country_code = co2_info.country
+        self._system_info.co2_info.co2_factor_loaded = co2_info.co2_factor_loaded
+        self._system_info.co2_info.co2_factor_kg_per_kwh = co2_info.co2_factor_kg_per_kwh
 
     def _get_thread_context(self) -> ThreadProfilingContext:
         """Get the thread-local profiling context."""
@@ -371,7 +367,9 @@ class Poirot:
         UJ_TO_KWH = 1.0 / 1e6 / 3600.0 / 1000.0
         KG_TO_UG = 1e9
         energy_kwh = call.data.total_energy_uj * UJ_TO_KWH
-        call.data.co2_ug = energy_kwh * self._system_info.co2_factor_kg_per_kwh * KG_TO_UG
+        call.data.co2_ug = (
+            energy_kwh * self._system_info.co2_info.co2_factor_kg_per_kwh * KG_TO_UG
+        )
 
         with self._statistics_lock:
             if ctx.function_name not in self._statistics:
@@ -477,8 +475,12 @@ class Poirot:
             )
 
         print("-" * 64, file=sys.stderr)
-        print(f"Country:  {info.country_code}", file=sys.stderr)
-        print(f"CO2:      {info.co2_factor_kg_per_kwh} kg/kWh", file=sys.stderr)
+        print(f"Country:  {info.co2_info.country_code}", file=sys.stderr)
+        print(
+            f"CO2 Loaded: {'Yes' if info.co2_info.co2_factor_loaded else 'No'}",
+            file=sys.stderr,
+        )
+        print(f"CO2:      {info.co2_info.co2_factor_kg_per_kwh} kg/kWh", file=sys.stderr)
         print("=" * 64, file=sys.stderr)
 
 

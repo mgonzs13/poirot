@@ -22,12 +22,23 @@
 namespace poirot {
 namespace utils {
 
-/// @brief Default CO2 factor in kg CO2 per kWh (global average)
-constexpr double DEFAULT_CO2_FACTOR_KG_PER_KWH = 0.436;
 /// @brief Timeout for CURL requests in seconds
 constexpr long CURL_TIMEOUT_SECONDS = 3;
 /// @brief Ember API base URL
 constexpr const char *EMBER_API_BASE_URL = "https://api.ember-energy.org/v1";
+
+/**
+ * @struct Co2Info
+ * @brief Structure to hold CO2 factor information.
+ */
+struct Co2Info {
+  /// @brief Country code (ISO 2-letter)
+  std::string country_code;
+  /// @brief Flag indicating if CO2 factor was successfully loaded
+  bool co2_factor_loaded = false;
+  /// @brief CO2 factor in kg CO2 per kWh
+  double co2_factor_kg_per_kwh = 0.0;
+};
 
 /**
  * @class Co2Manager
@@ -44,11 +55,10 @@ public:
   Co2Manager();
 
   /**
-   * @brief Get CO2 factor for a specific country.
-   * @param country_code ISO 2-letter country code.
-   * @return CO2 factor in kg CO2 per kWh.
+   * @brief Get CO2 factor for the current system timezone.
+   * @return CO2 factor information.
    */
-  double get_co2_factor(const std::string &country_code);
+  Co2Info get_co2_info();
 
   /**
    * @brief Get country code from timezone.
@@ -62,6 +72,14 @@ public:
    * @return Timezone string.
    */
   std::string get_system_timezone();
+
+protected:
+  /**
+   * @brief Get CO2 factor for a specific country.
+   * @param country_code ISO 2-letter country code.
+   * @return CO2 factor information.
+   */
+  Co2Info get_co2_factor(const std::string &country_code);
 
 private:
   /// @brief Cache for timezone to country mapping

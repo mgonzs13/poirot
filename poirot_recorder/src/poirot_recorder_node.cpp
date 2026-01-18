@@ -72,7 +72,7 @@ void PoirotRecorderNode::write_csv_header() {
       << "rapl_available,cpu_tdp_watts,cpu_tdp_watts_type,"
       << "gpu_available,gpu_model,gpu_vendor,gpu_mem_total_kb,"
       << "gpu_tdp_watts,gpu_tdp_watts_type,gpu_power_monitoring,"
-      << "country_code,co2_factor_kg_per_kwh,"
+      << "country_code,co2_factor_loaded,co2_factor_kg_per_kwh,"
       << "process_pid,process_cpu_percent,process_threads,"
       << "function_name,file,line,call_count,wall_time_us,"
       << "cpu_time_us,process_cpu_time_us,system_cpu_time_us,"
@@ -119,8 +119,10 @@ void PoirotRecorderNode::data_callback(
                   << ","
 
                   // CO2 Info
-                  << this->escape_csv(msg->system_info.country_code) << ","
-                  << msg->system_info.co2_factor_kg_per_kwh
+                  << this->escape_csv(msg->system_info.co2_info.country_code)
+                  << ","
+                  << (msg->system_info.co2_info.co2_factor_loaded ? "1" : "0")
+                  << "," << msg->system_info.co2_info.co2_factor_kg_per_kwh
                   << ","
 
                   // Process Info

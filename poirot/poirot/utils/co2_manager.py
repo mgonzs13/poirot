@@ -18,13 +18,22 @@ import csv
 import threading
 import urllib.request
 from typing import Dict
+from dataclasses import dataclass
 
-# Default CO2 factor in kg CO2 per kWh (global average)
-DEFAULT_CO2_FACTOR_KG_PER_KWH = 0.436
+
 # Timeout for requests in seconds
 CURL_TIMEOUT_SECONDS = 3
 # Ember API base URL
 EMBER_API_BASE_URL = "https://api.ember-energy.org/v1"
+
+
+@dataclass
+class Co2Info:
+    """Structure to hold CO2 information."""
+
+    country: str = ""
+    co2_factor_loaded: bool = False
+    co2_factor_kg_per_kwh: float = 0.0
 
 
 class Co2Manager:
@@ -50,23 +59,38 @@ class Co2Manager:
 
         self._load_iso_mapping()
 
-    def get_co2_factor(self, country: str) -> float:
+    def get_co2_info(self) -> Co2Info:
+        """
+        Get CO2 factor based on system timezone.
+
+        Returns:
+            CO2 factor information as a Co2Info object.
+        """
+        timezone = self.get_system_timezone()
+        country_code = self.get_country_from_timezone(timezone)
+        return self._get_co2_factor(country_code)
+
+    def _get_co2_factor(self, country: str) -> Co2Info:
         """
         Download CO2 factor for a specific country from Ember API.
         Args:
             country: Country name (e.g., "Spain").
         Returns:
-            CO2 factor in kg CO2 per kWh.
+            CO2 factor information as a Co2Info object.
         """
+
+        co2_info = Co2Info()
+        co2_info.country = country
+
         # Get API key from environment
         api_key = os.getenv("EMBER_KEY")
         if not api_key:
-            return DEFAULT_CO2_FACTOR_KG_PER_KWH
+            return co2_info
 
         try:
             country = self._iso2_to_iso3.get(country)
         except KeyError:
-            return DEFAULT_CO2_FACTOR_KG_PER_KWH
+            return co2_info
 
         # Fetch CO2 intensity data from Ember API
         try:
@@ -82,12 +106,14 @@ class Co2Manager:
                 try:
                     factor = data["data"][-1]["emissions_intensity_gco2_per_kwh"] / 1000.0
                 except (KeyError, IndexError):
-                    return DEFAULT_CO2_FACTOR_KG_PER_KWH
+                    return co2_info
 
-            return factor
+            co2_info.co2_factor_loaded = True
+            co2_info.co2_factor_kg_per_kwh = factor
+            return co2_info
 
         except Exception:
-            return DEFAULT_CO2_FACTOR_KG_PER_KWH
+            return co2_info
 
     def get_country_from_timezone(self, timezone: str) -> str:
         """

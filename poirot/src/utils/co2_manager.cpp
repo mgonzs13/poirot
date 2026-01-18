@@ -40,11 +40,21 @@ size_t Co2Manager::curl_write_callback(void *contents, size_t size,
   return total_size;
 }
 
-double Co2Manager::get_co2_factor(const std::string &country_code) {
+Co2Info Co2Manager::get_co2_info() {
+  std::string timezone = this->get_system_timezone();
+  std::string country_code = this->get_country_from_timezone(timezone);
+  return this->get_co2_factor(country_code);
+}
+
+Co2Info Co2Manager::get_co2_factor(const std::string &country_code) {
+
+  Co2Info co2_info;
+  co2_info.country_code = country_code;
+
   // Get API key from environment
   const char *api_key = std::getenv("EMBER_KEY");
   if (!api_key) {
-    return DEFAULT_CO2_FACTOR_KG_PER_KWH;
+    return co2_info;
   }
 
   // Convert to ISO3
@@ -54,13 +64,13 @@ double Co2Manager::get_co2_factor(const std::string &country_code) {
     if (it != this->iso2_to_iso3_.end()) {
       iso3 = it->second;
     } else {
-      return DEFAULT_CO2_FACTOR_KG_PER_KWH;
+      return co2_info;
     }
   }
 
   CURL *curl = curl_easy_init();
   if (!curl) {
-    return DEFAULT_CO2_FACTOR_KG_PER_KWH;
+    return co2_info;
   }
 
   std::string response_data;
@@ -81,13 +91,13 @@ double Co2Manager::get_co2_factor(const std::string &country_code) {
   curl_easy_cleanup(curl);
 
   if (res != CURLE_OK) {
-    return DEFAULT_CO2_FACTOR_KG_PER_KWH;
+    return co2_info;
   }
 
   // Parse the JSON data
   rapidjson::Document j;
   if (j.Parse(response_data.c_str()).HasParseError()) {
-    return DEFAULT_CO2_FACTOR_KG_PER_KWH;
+    return co2_info;
   }
 
   if (j.HasMember("data") && j["data"].IsArray() && !j["data"].Empty()) {
@@ -96,11 +106,13 @@ double Co2Manager::get_co2_factor(const std::string &country_code) {
     if (last_entry.HasMember("emissions_intensity_gco2_per_kwh") &&
         last_entry["emissions_intensity_gco2_per_kwh"].IsNumber()) {
       double value = last_entry["emissions_intensity_gco2_per_kwh"].GetDouble();
-      return value / 1000.0;
+      co2_info.co2_factor_loaded = true;
+      co2_info.co2_factor_kg_per_kwh = value / 1000.0;
+      return co2_info;
     }
   }
 
-  return DEFAULT_CO2_FACTOR_KG_PER_KWH;
+  return co2_info;
 }
 
 std::string Co2Manager::get_system_timezone() {

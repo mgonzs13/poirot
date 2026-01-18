@@ -158,11 +158,11 @@ void Poirot::detect_system_info() {
   }
 
   // CO2 factor from timezone
-  std::string timezone = this->co2_manager_.get_system_timezone();
-  this->system_info_.country_code =
-      this->co2_manager_.get_country_from_timezone(timezone);
-  this->system_info_.co2_factor_kg_per_kwh =
-      this->co2_manager_.get_co2_factor(this->system_info_.country_code);
+  auto co2_info = this->co2_manager_.get_co2_info();
+  this->system_info_.co2_info.country_code = co2_info.country_code;
+  this->system_info_.co2_info.co2_factor_loaded = co2_info.co2_factor_loaded;
+  this->system_info_.co2_info.co2_factor_kg_per_kwh =
+      co2_info.co2_factor_kg_per_kwh;
 }
 
 ThreadProfilingContext &Poirot::get_thread_context() {
@@ -306,7 +306,7 @@ void Poirot::stop_profiling() {
   constexpr double KG_TO_UG = 1e9;
   double energy_kwh = call.data.total_energy_uj * UJ_TO_KWH;
   call.data.co2_ug =
-      energy_kwh * this->system_info_.co2_factor_kg_per_kwh * KG_TO_UG;
+      energy_kwh * this->system_info_.co2_info.co2_factor_kg_per_kwh * KG_TO_UG;
 
   {
     std::unique_lock<std::shared_mutex> lock(this->statistics_mutex_);
@@ -382,9 +382,12 @@ void Poirot::print_system_info() {
 
   fprintf(stderr,
           "----------------------------------------------------------------\n");
-  fprintf(stderr, "Country:  %s\n", instance.system_info_.country_code.c_str());
+  fprintf(stderr, "Country:  %s\n",
+          instance.system_info_.co2_info.country_code.c_str());
+  fprintf(stderr, "CO2 Factor Loaded: %s\n",
+          instance.system_info_.co2_info.co2_factor_loaded ? "Yes" : "No");
   fprintf(stderr, "CO2:      %f kg/kWh\n",
-          instance.system_info_.co2_factor_kg_per_kwh);
+          instance.system_info_.co2_info.co2_factor_kg_per_kwh);
   fprintf(stderr,
           "================================================================\n");
 }
