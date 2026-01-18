@@ -227,6 +227,7 @@ class Poirot:
         """Read process-level data."""
         self._process_info.pid = os.getpid()
         self._process_info.cpu_percent = self._process_metrics.read_cpu_percent()
+        self._process_info.thread_cpu_percent = self._thread_metrics.read_cpu_percent()
         self._process_info.threads = self._process_metrics.read_thread_count()
 
     def start_profiling(self, function_name: str, file: str, line: int) -> None:
@@ -255,7 +256,7 @@ class Poirot:
 
         ctx.start_context_switches = self._thread_metrics.read_context_switches()
         ctx.start_cpu_energy_uj = self._energy_monitor.read_energy_uj(
-            self._process_info.cpu_percent
+            self._process_info.thread_cpu_percent
         )
 
         if self._gpu_monitor.is_available():
@@ -287,7 +288,7 @@ class Poirot:
 
         end_context_switches = self._thread_metrics.read_context_switches()
         end_cpu_energy_uj = self._energy_monitor.read_energy_uj(
-            self._process_info.cpu_percent
+            self._process_info.thread_cpu_percent
         )
 
         # GPU metrics

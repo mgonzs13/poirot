@@ -38,11 +38,13 @@ class ProcessMetrics:
     def __init__(self) -> None:
         """Default constructor."""
         self._pid = os.getpid()
+        # Number of CPU cores
         self._num_cpus = os.cpu_count() or 1
         # Prev CPU time in microseconds. 0 means "not initialized" (first call)
         self._prev_process_cpu_us: int = 0
         # Use a monotonic clock for elapsed time measurements; None until first call
         self._prev_cpu_read_time: float | None = None
+        # Mutex for thread-safe CPU percentage readings
         self._cpu_read_mutex = threading.Lock()
 
     def read_cpu_time_us(self) -> int:

@@ -15,7 +15,10 @@
 #ifndef POIROT__UTILS__THREAD_METRICS_HPP_
 #define POIROT__UTILS__THREAD_METRICS_HPP_
 
+#include <atomic>
+#include <chrono>
 #include <cstdint>
+#include <mutex>
 
 namespace poirot {
 namespace utils {
@@ -40,9 +43,9 @@ struct ThreadIoBytes {
 class ThreadMetrics {
 public:
   /**
-   * @brief Default constructor.
+   * @brief Constructor.
    */
-  ThreadMetrics() = default;
+  ThreadMetrics();
 
   /**
    * @brief Default destructor.
@@ -54,6 +57,14 @@ public:
    * @return CPU time in microseconds.
    */
   int64_t read_cpu_time_us() const;
+
+  /**
+   * @brief Read thread CPU usage percentage.
+   *
+   * This method requires state tracking and should be called on an instance.
+   * @return CPU usage percentage.
+   */
+  double read_cpu_percent();
 
   /**
    * @brief Read thread memory usage in KB.
@@ -72,6 +83,16 @@ public:
    * @return Total number of context switches.
    */
   int64_t read_context_switches() const;
+
+private:
+  /// @brief Previous thread CPU time in microseconds
+  std::atomic<uint64_t> prev_thread_cpu_us_{0};
+  /// @brief Previous CPU read time point
+  std::chrono::steady_clock::time_point prev_cpu_read_time_;
+  /// @brief Mutex for CPU read time updates
+  mutable std::mutex cpu_read_mutex_;
+  /// @brief Number of CPU cores
+  int num_cpus_ = 1;
 };
 
 } // namespace utils

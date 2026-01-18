@@ -73,7 +73,7 @@ void PoirotRecorderNode::write_csv_header() {
       << "gpu_available,gpu_model,gpu_vendor,gpu_mem_total_kb,"
       << "gpu_tdp_watts,gpu_tdp_watts_type,gpu_power_monitoring,"
       << "country_code,co2_factor_loaded,co2_factor_kg_per_kwh,"
-      << "process_pid,process_cpu_percent,process_threads,"
+      << "process_pid,process_cpu_percent,thread_cpu_percent,process_threads,"
       << "function_name,file,line,call_count,wall_time_us,"
       << "cpu_time_us,process_cpu_time_us,system_cpu_time_us,"
       << "memory_kb,io_read_bytes,io_write_bytes,"
@@ -128,6 +128,7 @@ void PoirotRecorderNode::data_callback(
                   // Process Info
                   << msg->process_info.pid << ","
                   << msg->process_info.cpu_percent << ","
+                  << msg->process_info.thread_cpu_percent << ","
                   << std::to_string(msg->process_info.threads)
                   << ","
 

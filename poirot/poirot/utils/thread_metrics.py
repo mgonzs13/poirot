@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import time
 import resource
+import threading
 from dataclasses import dataclass
 
 from .sysfs_reader import SysfsReader
@@ -38,7 +40,13 @@ class ThreadMetrics:
 
     def __init__(self) -> None:
         """Default constructor."""
-        self._pid = None
+        # Number of CPU cores
+        self._num_cpus = os.cpu_count() or 1
+        self._prev_thread_cpu_us: int = 0
+        # Use a monotonic clock for elapsed time measurements; None until first call
+        self._prev_cpu_read_time: float | None = None
+        # Mutex for thread-safe CPU percentage readings
+        self._cpu_read_mutex = threading.Lock()
 
     def read_cpu_time_us(self) -> int:
         """
@@ -51,6 +59,49 @@ class ThreadMetrics:
             return int(time.clock_gettime(time.CLOCK_THREAD_CPUTIME_ID) * 1_000_000)
         except (OSError, AttributeError):
             return 0
+
+    def read_cpu_percent(self) -> float:
+        """
+        Read thread CPU usage percentage.
+
+        This method requires state tracking and should be called on an instance.
+
+        Returns:
+            CPU usage percentage.
+        """
+        current_cpu_us = self.read_cpu_time_us()
+
+        # If we couldn't read CPU time, return 0
+        if current_cpu_us <= 0:
+            return 0.0
+
+        now = time.monotonic()
+
+        with self._cpu_read_mutex:
+            # First call: initialize stored state and return 0.0
+            if self._prev_thread_cpu_us == 0 or self._prev_cpu_read_time is None:
+                self._prev_thread_cpu_us = int(current_cpu_us)
+                self._prev_cpu_read_time = now
+                return 0.0
+
+            elapsed_us = (now - self._prev_cpu_read_time) * 1_000_000.0
+            if elapsed_us <= 0.0:
+                return 0.0
+
+            thread_cpu_delta_us = float(current_cpu_us - self._prev_thread_cpu_us)
+
+            # Total available CPU time in this period across all CPUs
+            total_available_cpu_us = elapsed_us * float(self._num_cpus)
+
+            pct = 0.0
+            if total_available_cpu_us > 0.0:
+                pct = (thread_cpu_delta_us / total_available_cpu_us) * 100.0
+
+            # Update state
+            self._prev_thread_cpu_us = int(current_cpu_us)
+            self._prev_cpu_read_time = now
+
+            return pct
 
     def read_memory_kb(self) -> int:
         """

@@ -167,6 +167,8 @@ ThreadProfilingContext &Poirot::get_thread_context() {
 void Poirot::read_process_data() {
   this->process_info_.pid = getpid();
   this->process_info_.cpu_percent = this->process_metrics_.read_cpu_percent();
+  this->process_info_.thread_cpu_percent =
+      this->thread_metrics_.read_cpu_percent();
   this->process_info_.threads = this->process_metrics_.read_thread_count();
 }
 
@@ -189,8 +191,8 @@ void Poirot::start_profiling(const std::string &function_name,
   ctx.start_io_write_bytes = io_bytes.write_bytes;
 
   ctx.start_context_switches = this->thread_metrics_.read_context_switches();
-  ctx.start_cpu_energy_uj =
-      this->energy_monitor_.read_energy_uj(this->process_info_.cpu_percent);
+  ctx.start_cpu_energy_uj = this->energy_monitor_.read_energy_uj(
+      this->process_info_.thread_cpu_percent);
 
   // Capture GPU energy start if GPU is available
   if (this->gpu_monitor_.is_available()) {
@@ -223,8 +225,8 @@ void Poirot::stop_profiling() {
   int64_t end_io_write_bytes = end_io_bytes.write_bytes;
 
   int64_t end_context_switches = this->thread_metrics_.read_context_switches();
-  double end_cpu_energy_uj =
-      this->energy_monitor_.read_energy_uj(this->process_info_.cpu_percent);
+  double end_cpu_energy_uj = this->energy_monitor_.read_energy_uj(
+      this->process_info_.thread_cpu_percent);
 
   // Read GPU metrics if available
   double end_gpu_utilization_percent = 0.0;
