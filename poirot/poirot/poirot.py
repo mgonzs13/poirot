@@ -44,7 +44,6 @@ from poirot.utils.string_utils import StringUtils
 from poirot.utils.system_info_reader import SystemInfoReader
 from poirot.utils.thread_metrics import ThreadMetrics
 
-
 # Type variable for generic function decoration
 F = TypeVar("F", bound=Callable[..., Any])
 
