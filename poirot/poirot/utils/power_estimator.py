@@ -19,7 +19,6 @@ from typing import Tuple
 from poirot.utils.hwmon_scanner import HwmonScanner
 from poirot.utils.sysfs_reader import SysfsReader
 
-
 # Fallback minimum TDP in watts if system detection fails
 FALLBACK_MIN_TDP_WATTS = 15.0
 # Fallback maximum TDP in watts if system detection fails

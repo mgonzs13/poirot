@@ -18,10 +18,9 @@ import time
 import threading
 import subprocess
 from dataclasses import dataclass
-from enum import IntEnum, auto
+from enum import IntEnum
 
 from poirot.utils.sysfs_reader import SysfsReader
-
 
 # Fallback GPU TDP in watts if detection fails
 FALLBACK_GPU_TDP_WATTS = 150.0

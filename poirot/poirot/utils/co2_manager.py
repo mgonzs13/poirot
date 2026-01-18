@@ -20,7 +20,6 @@ import urllib.request
 from typing import Dict
 from dataclasses import dataclass
 
-
 # Timeout for requests in seconds
 CURL_TIMEOUT_SECONDS = 3
 # Ember API base URL
