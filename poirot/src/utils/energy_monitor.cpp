@@ -33,24 +33,12 @@ EnergyMonitor::EnergyMonitor(HwmonScanner &hwmon_scanner)
 }
 
 void EnergyMonitor::initialize_rapl_max_energy() {
-  // Try Intel RAPL first
+
   const std::string intel_max_range_path =
       "/sys/class/powercap/intel-rapl:0/max_energy_range_uj";
 
   if (fs::exists(intel_max_range_path)) {
     double max_range = SysfsReader::read_double(intel_max_range_path);
-    if (max_range > 0) {
-      this->rapl_max_energy_uj_ = max_range;
-      return;
-    }
-  }
-
-  // Try AMD RAPL if Intel not available
-  const std::string amd_max_range_path =
-      "/sys/class/powercap/amd-rapl:0/max_energy_range_uj";
-
-  if (fs::exists(amd_max_range_path)) {
-    double max_range = SysfsReader::read_double(amd_max_range_path);
     if (max_range > 0) {
       this->rapl_max_energy_uj_ = max_range;
       return;
@@ -95,20 +83,14 @@ std::pair<double, EnergyType> EnergyMonitor::read_energy_uj(float elapsed_us) {
     return this->accumulated_energy_uj_;
   };
 
-  // 1. Try Intel RAPL (most accurate for Intel CPUs)
+  // 1. Try RAPL (most accurate for Intel CPUs)
   double energy =
       read_rapl_energy("/sys/class/powercap/intel-rapl:0/energy_uj");
   if (energy >= 0) {
-    return {energy, EnergyType::ENERGY_TYPE_RAPL_INTEL};
+    return {energy, EnergyType::ENERGY_TYPE_RAPL};
   }
 
-  // 2. Try AMD RAPL
-  energy = read_rapl_energy("/sys/class/powercap/amd-rapl:0/energy_uj");
-  if (energy >= 0) {
-    return {energy, EnergyType::ENERGY_TYPE_RAPL_AMD};
-  }
-
-  // 3. Try hwmon energy path
+  // 2. Try hwmon energy path
   const std::string &hwmon_energy_path = this->hwmon_scanner_.get_energy_path();
   if (!hwmon_energy_path.empty() && fs::exists(hwmon_energy_path)) {
     double current_hwmon_energy = SysfsReader::read_double(hwmon_energy_path);
@@ -128,7 +110,7 @@ std::pair<double, EnergyType> EnergyMonitor::read_energy_uj(float elapsed_us) {
     }
   }
 
-  // 4. Estimate energy based on power measurements and elapsed time
+  // 3. Estimate energy based on power measurements and elapsed time
   float power_w = this->hwmon_scanner_.read_power_w();
   EnergyType energy_type = EnergyType::ENERGY_TYPE_HWMON_ESTIMATED;
 

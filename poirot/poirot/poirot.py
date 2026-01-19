@@ -149,17 +149,13 @@ class Poirot:
         # Configure power estimator
         self._power_estimator.set_cpu_cores(self._system_info.cpu_info.cores)
 
-        # RAPL detection
-        self._system_info.cpu_info.rapl_available = self._power_estimator.rapl_available()
-
         # TDP detection
         tdp_watts, tdp_type = self._power_estimator.read_tdp_watts()
         self._system_info.cpu_info.tdp_watts = tdp_watts
 
         tdp_type_map = {
-            TdpType.INTEL_RAPL_TDP_TYPE: CpuInfo.INTEL_RAPL_TDP_TYPE,
-            TdpType.AMD_RAPL_TDP_TYPE: CpuInfo.AMD_RAPL_TDP_TYPE,
-            TdpType.HWMON_RAPL_TDP_TYPE: CpuInfo.HWMON_RAPL_TDP_TYPE,
+            TdpType.RAPL_TDP_TYPE: CpuInfo.RAPL_TDP_TYPE,
+            TdpType.HWMON_TDP_TYPE: CpuInfo.HWMON_TDP_TYPE,
             TdpType.THERMAL_POWER_TDP_TYPE: CpuInfo.THERMAL_POWER_TDP_TYPE,
             TdpType.CPU_CORES_FREQUENCY_TYPE: CpuInfo.CPU_CORES_FREQUENCY_TYPE,
             TdpType.CPU_CORES_TYPE: CpuInfo.CPU_CORES_TYPE,
@@ -209,7 +205,9 @@ class Poirot:
         co2_info = self._co2_manager.get_co2_info()
         self._system_info.co2_info.country_code = co2_info.country_code
         self._system_info.co2_info.co2_factor_loaded = co2_info.co2_factor_loaded
-        self._system_info.co2_info.co2_factor_kg_per_kwh = co2_info.co2_factor_kg_per_kwh
+        self._system_info.co2_info.co2_factor_kg_per_kwh = (
+            co2_info.co2_factor_kg_per_kwh
+        )
 
     def _get_thread_context(self) -> ThreadProfilingContext:
         """Get the thread-local profiling context."""
@@ -349,10 +347,8 @@ class Poirot:
         call.data.gpu_energy_uj = gpu_energy_delta_uj
 
         # Energy
-        if energy_type == EnergyType.ENERGY_TYPE_RAPL_INTEL:
-            call.data.cpu_energy_type = Data.ENERGY_TYPE_RAPL_INTEL
-        elif energy_type == EnergyType.ENERGY_TYPE_RAPL_AMD:
-            call.data.cpu_energy_type = Data.ENERGY_TYPE_RAPL_AMD
+        if energy_type == EnergyType.ENERGY_TYPE_RAPL:
+            call.data.cpu_energy_type = Data.ENERGY_TYPE_RAPL
         elif energy_type == EnergyType.ENERGY_TYPE_HWMON:
             call.data.cpu_energy_type = Data.ENERGY_TYPE_HWMON
         elif energy_type == EnergyType.ENERGY_TYPE_HWMON_ESTIMATED:
@@ -452,10 +448,6 @@ class Poirot:
         print(f"CPU:      {info.cpu_info.model}", file=sys.stderr)
         print(f"Cores:    {info.cpu_info.cores}", file=sys.stderr)
         print(f"Memory:   {info.mem_total_kb // 1024} MB", file=sys.stderr)
-        print(
-            f"RAPL:     {'Yes' if info.cpu_info.rapl_available else 'No'}",
-            file=sys.stderr,
-        )
         print(f"CPU TDP:  {info.cpu_info.tdp_watts:.4f} W", file=sys.stderr)
         print(f"TDP Type: {info.cpu_info.tdp_watts_type}", file=sys.stderr)
         print("-" * 64, file=sys.stderr)
@@ -466,7 +458,9 @@ class Poirot:
 
         if info.gpu_info.available:
             print(f"GPU Vendor: {info.gpu_info.vendor}", file=sys.stderr)
-            print(f"GPU Memory: {info.gpu_info.mem_total_kb // 1024} MB", file=sys.stderr)
+            print(
+                f"GPU Memory: {info.gpu_info.mem_total_kb // 1024} MB", file=sys.stderr
+            )
             print(f"GPU TDP:  {info.gpu_info.tdp_watts:.4f} W", file=sys.stderr)
             print(
                 f"GPU Power Mon: {'Yes' if info.gpu_info.power_monitoring else 'No'}",

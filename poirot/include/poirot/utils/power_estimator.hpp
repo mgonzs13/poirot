@@ -42,12 +42,11 @@ constexpr double FALLBACK_WATTS_PER_CORE = 12.0;
 
 /// @brief CPU TDP detection type constants
 enum class TdpType {
-  INTEL_RAPL_TDP_TYPE = 1,
-  AMD_RAPL_TDP_TYPE = 2,
-  HWMON_RAPL_TDP_TYPE = 3,
-  THERMAL_POWER_TDP_TYPE = 4,
-  CPU_CORES_FREQUENCY_TYPE = 5,
-  CPU_CORES_TYPE = 6
+  RAPL_TDP_TYPE = 1,
+  HWMON_TDP_TYPE = 2,
+  THERMAL_POWER_TDP_TYPE = 3,
+  CPU_CORES_FREQUENCY_TYPE = 4,
+  CPU_CORES_TYPE = 5
 };
 
 /**
@@ -79,12 +78,6 @@ public:
   void set_cpu_tdp_watts(double tdp) { this->cpu_tdp_watts_ = tdp; }
 
   /**
-   * @brief Check if RAPL is available.
-   * @return True if RAPL is available, false otherwise.
-   */
-  bool rapl_available();
-
-  /**
    * @brief Read CPU TDP in watts.
    * @return TDP in watts or 0.0 if not available.
    */
@@ -95,12 +88,6 @@ public:
    * @return Power limit in watts or 0.0 if not available.
    */
   double read_rapl_power_limit_w();
-
-  /**
-   * @brief Read Intel RAPL power limit in watts.
-   * @return Power limit in watts or 0.0 if not available.
-   */
-  double read_intel_rapl_power_limit_w();
 
   /**
    * @brief Read AMD RAPL power limit in watts.

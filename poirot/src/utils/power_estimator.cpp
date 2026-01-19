@@ -29,44 +29,28 @@ namespace utils {
 PowerEstimator::PowerEstimator(HwmonScanner &hwmon_scanner)
     : hwmon_scanner_(hwmon_scanner) {}
 
-bool PowerEstimator::rapl_available() {
-  return std::filesystem::exists(
-             "/sys/class/powercap/intel-rapl/intel-rapl:0/energy_uj") ||
-         std::filesystem::exists(
-             "/sys/class/powercap/amd-rapl/amd-rapl:0/energy_uj");
-}
-
 std::pair<double, TdpType> PowerEstimator::read_tdp_watts() {
 
   double tdp_watts = 0.0;
   TdpType tdp_type;
 
-  // 1. Try Intel RAPL power limit (most accurate for Intel CPUs)
-  double intel_rapl_power = this->read_intel_rapl_power_limit_w();
-  if (intel_rapl_power > 0) {
-    tdp_watts = intel_rapl_power;
-    tdp_type = TdpType::INTEL_RAPL_TDP_TYPE;
+  // 1. Try RAPL power limit
+  double rapl_power = this->read_rapl_power_limit_w();
+  if (rapl_power > 0) {
+    tdp_watts = rapl_power;
+    tdp_type = TdpType::RAPL_TDP_TYPE;
   }
 
-  // 2. Try AMD RAPL power limit
-  if (tdp_watts == 0.0) {
-    double amd_rapl_power = this->read_amd_rapl_power_limit_w();
-    if (amd_rapl_power > 0) {
-      tdp_watts = amd_rapl_power;
-      tdp_type = TdpType::AMD_RAPL_TDP_TYPE;
-    }
-  }
-
-  // 3. Try hwmon power limit (TDP from hwmon drivers)
+  // 2. Try hwmon power limit (TDP from hwmon drivers)
   if (tdp_watts == 0.0) {
     double hwmon_tdp = this->read_hwmon_tdp_watts();
     if (hwmon_tdp > 0) {
       tdp_watts = hwmon_tdp;
-      tdp_type = TdpType::HWMON_RAPL_TDP_TYPE;
+      tdp_type = TdpType::HWMON_TDP_TYPE;
     }
   }
 
-  // 4. Try thermal zone power budget
+  // 3. Try thermal zone power budget
   if (tdp_watts == 0.0) {
     double thermal_tdp = this->read_thermal_tdp_watts();
     if (thermal_tdp > 0) {
@@ -75,7 +59,7 @@ std::pair<double, TdpType> PowerEstimator::read_tdp_watts() {
     }
   }
 
-  // 5. Estimate from CPU frequency and core count (physics-based)
+  // 4. Estimate from CPU frequency and core count (physics-based)
   if (tdp_watts == 0.0) {
     double freq_tdp = this->estimate_frequency_tdp_watts();
     if (freq_tdp > 0) {
@@ -84,7 +68,7 @@ std::pair<double, TdpType> PowerEstimator::read_tdp_watts() {
     }
   }
 
-  // 6. Final fallback: estimate from core count alone
+  // 5. Final fallback: estimate from core count alone
   if (tdp_watts == 0.0) {
     tdp_watts = this->estimate_cores_tdp_watts();
     tdp_type = TdpType::CPU_CORES_TYPE;
@@ -93,9 +77,11 @@ std::pair<double, TdpType> PowerEstimator::read_tdp_watts() {
   return {tdp_watts, tdp_type};
 }
 
-double PowerEstimator::read_intel_rapl_power_limit_w() {
+double PowerEstimator::read_rapl_power_limit_w() {
+
   static const std::vector<std::string> intel_rapl_paths = {
-      "/sys/class/powercap/intel-rapl/intel-rapl:0/constraint_0_power_limit_uw",
+      "/sys/class/powercap/intel-rapl/intel-rapl:0/"
+      "constraint_0_power_limit_uw",
       "/sys/class/powercap/intel-rapl/intel-rapl:0/"
       "constraint_1_power_limit_uw"};
 
@@ -105,28 +91,8 @@ double PowerEstimator::read_intel_rapl_power_limit_w() {
       return static_cast<double>(power_uw) / 1e6;
     }
   }
+
   return 0.0;
-}
-
-double PowerEstimator::read_amd_rapl_power_limit_w() {
-  static const std::vector<std::string> amd_rapl_paths = {
-      "/sys/class/powercap/amd-rapl/amd-rapl:0/constraint_0_power_limit_uw"};
-
-  for (const auto &path : amd_rapl_paths) {
-    long power_uw = SysfsReader::read_long(path);
-    if (power_uw > 0) {
-      return static_cast<double>(power_uw) / 1e6;
-    }
-  }
-  return 0.0;
-}
-
-double PowerEstimator::read_rapl_power_limit_w() {
-  double intel_power = this->read_intel_rapl_power_limit_w();
-  if (intel_power > 0) {
-    return intel_power;
-  }
-  return this->read_amd_rapl_power_limit_w();
 }
 
 double PowerEstimator::read_battery_power_w() {
@@ -180,7 +146,7 @@ double PowerEstimator::read_min_tdp_watts() {
   static const std::vector<std::string> min_power_paths = {
       "/sys/class/powercap/intel-rapl/intel-rapl:0/constraint_0_min_power_uw",
       "/sys/class/powercap/intel-rapl/intel-rapl:0/constraint_1_min_power_uw",
-      "/sys/class/powercap/amd-rapl/amd-rapl:0/constraint_0_min_power_uw"};
+  };
 
   for (const auto &path : min_power_paths) {
     long power_uw = SysfsReader::read_long(path);
@@ -208,7 +174,7 @@ double PowerEstimator::read_max_tdp_watts() {
   static const std::vector<std::string> max_power_paths = {
       "/sys/class/powercap/intel-rapl/intel-rapl:0/constraint_0_max_power_uw",
       "/sys/class/powercap/intel-rapl/intel-rapl:0/constraint_1_max_power_uw",
-      "/sys/class/powercap/amd-rapl/amd-rapl:0/constraint_0_max_power_uw"};
+  };
 
   for (const auto &path : max_power_paths) {
     long power_uw = SysfsReader::read_long(path);
@@ -260,14 +226,6 @@ double PowerEstimator::read_idle_power_factor() {
                              "constraint_1_power_limit_uw");
   if (idle_uw > 0) {
     idle_power_w = static_cast<double>(idle_uw) / 1e6;
-  }
-
-  if (idle_power_w == 0.0) {
-    idle_uw = SysfsReader::read_long("/sys/class/powercap/amd-rapl/amd-rapl:0/"
-                                     "constraint_1_power_limit_uw");
-    if (idle_uw > 0) {
-      idle_power_w = static_cast<double>(idle_uw) / 1e6;
-    }
   }
 
   if (idle_power_w == 0.0) {

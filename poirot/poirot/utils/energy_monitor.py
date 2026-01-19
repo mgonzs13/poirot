@@ -24,11 +24,10 @@ from poirot.utils.sysfs_reader import SysfsReader
 class EnergyType(IntEnum):
     """Energy detection type constants."""
 
-    ENERGY_TYPE_RAPL_INTEL = 1
-    ENERGY_TYPE_RAPL_AMD = 2
-    ENERGY_TYPE_HWMON = 3
-    ENERGY_TYPE_HWMON_ESTIMATED = 4
-    ENERGY_TYPE_ESTIMATED = 5
+    ENERGY_TYPE_RAPL = 1
+    ENERGY_TYPE_HWMON = 2
+    ENERGY_TYPE_HWMON_ESTIMATED = 3
+    ENERGY_TYPE_ESTIMATED = 4
 
 
 class EnergyMonitor:
@@ -76,18 +75,9 @@ class EnergyMonitor:
     def initialize_rapl_max_energy(self) -> None:
         """Initialize RAPL max energy range for wraparound detection."""
 
-        # Try Intel RAPL first
         intel_max_range_path = "/sys/class/powercap/intel-rapl:0/max_energy_range_uj"
         if os.path.exists(intel_max_range_path):
             max_val = SysfsReader.read_double(intel_max_range_path)
-            if max_val > 0:
-                self._rapl_max_energy_uj = max_val
-                return
-
-        # Try AMD RAPL if Intel not available
-        amd_max_range_path = "/sys/class/powercap/amd-rapl:0/max_energy_range_uj"
-        if os.path.exists(amd_max_range_path):
-            max_val = SysfsReader.read_double(amd_max_range_path)
             if max_val > 0:
                 self._rapl_max_energy_uj = max_val
                 return
@@ -124,7 +114,9 @@ class EnergyMonitor:
                             )
                             self._accumulated_energy_uj += delta
                     else:
-                        self._accumulated_energy_uj += current - self._last_rapl_energy_uj
+                        self._accumulated_energy_uj += (
+                            current - self._last_rapl_energy_uj
+                        )
 
                 # Update last reading
                 self._last_rapl_energy_uj = current
@@ -133,14 +125,9 @@ class EnergyMonitor:
             # 1) Try Intel RAPL
             energy = _read_rapl_energy("/sys/class/powercap/intel-rapl:0/energy_uj")
             if energy >= 0.0:
-                return energy, EnergyType.ENERGY_TYPE_RAPL_INTEL
+                return energy, EnergyType.ENERGY_TYPE_RAPL
 
-            # 2) Try AMD RAPL
-            energy = _read_rapl_energy("/sys/class/powercap/amd-rapl:0/energy_uj")
-            if energy >= 0.0:
-                return energy, EnergyType.ENERGY_TYPE_RAPL_AMD
-
-            # 3) Try hwmon energy path
+            # 2) Try hwmon energy path
             energy_path = self._hwmon_scanner.get_energy_path()
             if energy_path and os.path.exists(energy_path):
                 current_hwmon = SysfsReader.read_double(energy_path)
@@ -156,7 +143,7 @@ class EnergyMonitor:
                     self._last_hwmon_energy_uj = current_hwmon
                     return self._accumulated_energy_uj, EnergyType.ENERGY_TYPE_HWMON
 
-            # 4) Fallback: estimate from power measurements using elapsed time
+            # 3) Fallback: estimate from power measurements using elapsed time
             power_w = 0.0
             energy_type = EnergyType.ENERGY_TYPE_HWMON_ESTIMATED
             try:

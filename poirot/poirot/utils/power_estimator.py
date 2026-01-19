@@ -40,12 +40,11 @@ FALLBACK_WATTS_PER_CORE = 12.0
 class TdpType(IntEnum):
     """CPU TDP detection type constants."""
 
-    INTEL_RAPL_TDP_TYPE = 1
-    AMD_RAPL_TDP_TYPE = 2
-    HWMON_RAPL_TDP_TYPE = 3
-    THERMAL_POWER_TDP_TYPE = 4
-    CPU_CORES_FREQUENCY_TYPE = 5
-    CPU_CORES_TYPE = 6
+    RAPL_TDP_TYPE = 1
+    HWMON_TDP_TYPE = 2
+    THERMAL_POWER_TDP_TYPE = 3
+    CPU_CORES_FREQUENCY_TYPE = 4
+    CPU_CORES_TYPE = 5
 
 
 class PowerEstimator:
@@ -57,7 +56,6 @@ class PowerEstimator:
     """
 
     INTEL_RAPL_PATH = "/sys/class/powercap/intel-rapl/intel-rapl:0"
-    AMD_RAPL_PATH = "/sys/class/powercap/amd-rapl/amd-rapl:0"
 
     def __init__(self, hwmon_scanner: HwmonScanner) -> None:
         """
@@ -88,18 +86,6 @@ class PowerEstimator:
         """
         self._cpu_tdp_watts = tdp
 
-    def rapl_available(self) -> bool:
-        """
-        Check if RAPL is available.
-
-        Returns:
-            True if RAPL is available, False otherwise.
-        """
-        # Check for energy_uj presence (more reliable)
-        intel_energy = os.path.join(self.INTEL_RAPL_PATH, "energy_uj")
-        amd_energy = os.path.join(self.AMD_RAPL_PATH, "energy_uj")
-        return os.path.exists(intel_energy) or os.path.exists(amd_energy)
-
     def read_tdp_watts(self) -> Tuple[float, TdpType]:
         """
         Read CPU TDP in watts.
@@ -107,20 +93,15 @@ class PowerEstimator:
         Returns:
             Tuple of (TDP in watts, TdpType).
         """
-        # Try Intel RAPL
-        tdp = self.read_intel_rapl_power_limit_w()
+        # Try RAPL
+        tdp = self.read_rapl_power_limit_w()
         if tdp > 0:
-            return tdp, TdpType.INTEL_RAPL_TDP_TYPE
+            return tdp, TdpType.RAPL_TDP_TYPE
 
-        # Try AMD RAPL
-        tdp = self.read_amd_rapl_power_limit_w()
-        if tdp > 0:
-            return tdp, TdpType.AMD_RAPL_TDP_TYPE
-
-        # Try hwmon RAPL
+        # Try hwmon TDP
         tdp = self.read_hwmon_tdp_watts()
         if tdp > 0:
-            return tdp, TdpType.HWMON_RAPL_TDP_TYPE
+            return tdp, TdpType.HWMON_TDP_TYPE
 
         # Try thermal power
         tdp = self.read_thermal_tdp_watts()
@@ -143,18 +124,7 @@ class PowerEstimator:
         Returns:
             Power limit in watts or 0.0 if not available.
         """
-        result = self.read_intel_rapl_power_limit_w()
-        if result > 0:
-            return result
-        return self.read_amd_rapl_power_limit_w()
 
-    def read_intel_rapl_power_limit_w(self) -> float:
-        """
-        Read Intel RAPL power limit in watts.
-
-        Returns:
-            Power limit in watts or 0.0 if not available.
-        """
         # Try both constraints
         intel_rapl_paths = [
             f"{self.INTEL_RAPL_PATH}/constraint_0_power_limit_uw",
@@ -162,24 +132,6 @@ class PowerEstimator:
         ]
 
         for path in intel_rapl_paths:
-            power_uw = SysfsReader.read_long(path)
-            if power_uw > 0:
-                return power_uw / 1_000_000.0
-
-        return 0.0
-
-    def read_amd_rapl_power_limit_w(self) -> float:
-        """
-        Read AMD RAPL power limit in watts.
-
-        Returns:
-            Power limit in watts or 0.0 if not available.
-        """
-        amd_rapl_paths = [
-            f"{self.AMD_RAPL_PATH}/constraint_0_power_limit_uw",
-        ]
-
-        for path in amd_rapl_paths:
             power_uw = SysfsReader.read_long(path)
             if power_uw > 0:
                 return power_uw / 1_000_000.0
@@ -246,7 +198,6 @@ class PowerEstimator:
         min_power_paths = [
             f"{self.INTEL_RAPL_PATH}/constraint_0_min_power_uw",
             f"{self.INTEL_RAPL_PATH}/constraint_1_min_power_uw",
-            f"{self.AMD_RAPL_PATH}/constraint_0_min_power_uw",
         ]
 
         for path in min_power_paths:
@@ -277,7 +228,6 @@ class PowerEstimator:
         max_power_paths = [
             f"{self.INTEL_RAPL_PATH}/constraint_0_max_power_uw",
             f"{self.INTEL_RAPL_PATH}/constraint_1_max_power_uw",
-            f"{self.AMD_RAPL_PATH}/constraint_0_max_power_uw",
         ]
 
         for path in max_power_paths:
@@ -331,14 +281,6 @@ class PowerEstimator:
         )
         if idle_uw > 0:
             idle_power_w = idle_uw / 1_000_000.0
-
-        # Try AMD
-        if idle_power_w == 0.0:
-            idle_uw = SysfsReader.read_long(
-                f"{self.AMD_RAPL_PATH}/constraint_1_power_limit_uw"
-            )
-            if idle_uw > 0:
-                idle_power_w = idle_uw / 1_000_000.0
 
         # Try sustainable_power from thermal zone
         if idle_power_w == 0.0:

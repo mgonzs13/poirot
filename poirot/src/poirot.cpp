@@ -75,23 +75,16 @@ void Poirot::detect_system_info() {
   // Configure power estimator with CPU info
   this->power_estimator_.set_cpu_cores(this->system_info_.cpu_info.cores);
 
-  // RAPL detection
-  this->system_info_.cpu_info.rapl_available =
-      this->power_estimator_.rapl_available();
-
   // TDP detection
   auto [tdp_watts, tdp_type] = this->power_estimator_.read_tdp_watts();
   this->system_info_.cpu_info.tdp_watts = tdp_watts;
 
-  if (tdp_type == utils::TdpType::INTEL_RAPL_TDP_TYPE) {
+  if (tdp_type == utils::TdpType::RAPL_TDP_TYPE) {
     this->system_info_.cpu_info.tdp_watts_type =
-        poirot_msgs::msg::CpuInfo::INTEL_RAPL_TDP_TYPE;
-  } else if (tdp_type == utils::TdpType::AMD_RAPL_TDP_TYPE) {
+        poirot_msgs::msg::CpuInfo::RAPL_TDP_TYPE;
+  } else if (tdp_type == utils::TdpType::HWMON_TDP_TYPE) {
     this->system_info_.cpu_info.tdp_watts_type =
-        poirot_msgs::msg::CpuInfo::AMD_RAPL_TDP_TYPE;
-  } else if (tdp_type == utils::TdpType::HWMON_RAPL_TDP_TYPE) {
-    this->system_info_.cpu_info.tdp_watts_type =
-        poirot_msgs::msg::CpuInfo::HWMON_RAPL_TDP_TYPE;
+        poirot_msgs::msg::CpuInfo::HWMON_TDP_TYPE;
   } else if (tdp_type == utils::TdpType::THERMAL_POWER_TDP_TYPE) {
     this->system_info_.cpu_info.tdp_watts_type =
         poirot_msgs::msg::CpuInfo::THERMAL_POWER_TDP_TYPE;
@@ -291,10 +284,8 @@ void Poirot::stop_profiling() {
   call.data.gpu_energy_uj = gpu_energy_delta_uj;
 
   // Total energy (CPU + GPU)
-  if (energy_type == poirot::utils::EnergyType::ENERGY_TYPE_RAPL_INTEL) {
-    call.data.cpu_energy_type = poirot_msgs::msg::Data::ENERGY_TYPE_RAPL_INTEL;
-  } else if (energy_type == poirot::utils::EnergyType::ENERGY_TYPE_RAPL_AMD) {
-    call.data.cpu_energy_type = poirot_msgs::msg::Data::ENERGY_TYPE_RAPL_AMD;
+  if (energy_type == poirot::utils::EnergyType::ENERGY_TYPE_RAPL) {
+    call.data.cpu_energy_type = poirot_msgs::msg::Data::ENERGY_TYPE_RAPL;
   } else if (energy_type == poirot::utils::EnergyType::ENERGY_TYPE_HWMON) {
     call.data.cpu_energy_type = poirot_msgs::msg::Data::ENERGY_TYPE_HWMON;
   } else if (energy_type ==
@@ -363,8 +354,6 @@ void Poirot::print_system_info() {
   fprintf(stderr, "Cores:    %d\n", instance.system_info_.cpu_info.cores);
   fprintf(stderr, "Memory:   %ld MB\n",
           instance.system_info_.mem_total_kb / 1024);
-  fprintf(stderr, "RAPL:     %s\n",
-          instance.system_info_.cpu_info.rapl_available ? "Yes" : "No");
   fprintf(stderr, "CPU TDP:  %.4f W\n",
           instance.system_info_.cpu_info.tdp_watts);
   fprintf(stderr, "TDP Type: %d\n",

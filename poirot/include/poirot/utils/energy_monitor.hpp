@@ -26,11 +26,10 @@ namespace utils {
 
 /// @brief Energy type constants
 enum class EnergyType {
-  ENERGY_TYPE_RAPL_INTEL = 1,
-  ENERGY_TYPE_RAPL_AMD = 2,
-  ENERGY_TYPE_HWMON = 3,
-  ENERGY_TYPE_HWMON_ESTIMATED = 4,
-  ENERGY_TYPE_ESTIMATED = 5
+  ENERGY_TYPE_RAPL = 1,
+  ENERGY_TYPE_HWMON = 2,
+  ENERGY_TYPE_HWMON_ESTIMATED = 3,
+  ENERGY_TYPE_ESTIMATED = 4
 };
 
 /**
