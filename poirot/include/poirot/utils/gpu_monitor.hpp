@@ -28,8 +28,6 @@ namespace utils {
 
 /// @brief Fallback GPU TDP in watts if detection fails
 constexpr double FALLBACK_GPU_TDP_WATTS = 150.0;
-/// @brief Fallback idle power factor for GPU
-constexpr double FALLBACK_GPU_IDLE_POWER_FACTOR = 0.10;
 
 /// @brief GPU TDP detection type constants
 enum class GpuTdpType {
@@ -97,12 +95,6 @@ public:
   ~GpuMonitor() = default;
 
   /**
-   * @brief Initialize GPU monitoring and detect available GPUs.
-   * @return True if GPU was detected and initialized.
-   */
-  bool initialize();
-
-  /**
    * @brief Check if GPU monitoring is available.
    * @return True if GPU is available for monitoring.
    */
@@ -146,13 +138,12 @@ public:
    */
   double read_process_energy_uj(pid_t pid = 0);
 
+protected:
   /**
-   * @brief Set idle power factor for estimation.
-   * @param factor Idle power factor (0.0 to 1.0).
+   * @brief Initialize GPU monitoring and detect available GPUs.
+   * @return True if GPU was detected and initialized.
    */
-  void set_idle_power_factor(double factor) {
-    this->idle_power_factor_ = factor;
-  }
+  bool initialize();
 
 private:
   /**
@@ -248,8 +239,6 @@ private:
   std::chrono::steady_clock::time_point last_energy_read_time_;
   /// @brief Last per-process energy read time point
   std::chrono::steady_clock::time_point last_process_energy_read_time_;
-  /// @brief Idle power factor for estimation
-  double idle_power_factor_ = FALLBACK_GPU_IDLE_POWER_FACTOR;
 
   /// @brief AMD GPU sysfs paths
   std::string amd_gpu_busy_path_;

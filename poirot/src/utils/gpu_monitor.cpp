@@ -419,9 +419,7 @@ GpuMetrics GpuMonitor::read_intel_metrics() {
 
   // Estimate power for Intel iGPU
   double estimated_power =
-      this->gpu_info_.tdp_watts *
-      (this->idle_power_factor_ + (1.0 - this->idle_power_factor_) *
-                                      (metrics.utilization_percent / 100.0));
+      this->gpu_info_.tdp_watts * (metrics.utilization_percent / 100.0);
   metrics.power_w = estimated_power;
 
   // Calculate energy
@@ -457,11 +455,8 @@ double GpuMonitor::estimate_energy_uj(double power_w, double utilization) {
     this->accumulated_energy_uj_ += energy_delta_uj;
   } else if (this->gpu_info_.tdp_watts > 0.0) {
     // Estimate based on TDP and utilization
-    double base_power = this->gpu_info_.tdp_watts * this->idle_power_factor_;
-    double dynamic_power = this->gpu_info_.tdp_watts *
-                           (1.0 - this->idle_power_factor_) *
-                           (utilization / 100.0);
-    double estimated_power_w = base_power + dynamic_power;
+    double estimated_power_w =
+        this->gpu_info_.tdp_watts * (utilization / 100.0);
     double energy_delta_uj = estimated_power_w * elapsed_us;
     this->accumulated_energy_uj_ += energy_delta_uj;
   }
@@ -747,11 +742,8 @@ double GpuMonitor::read_process_energy_uj(pid_t pid) {
   } else if (this->gpu_info_.tdp_watts > 0.0) {
     // Estimate based on TDP, utilization, and memory ratio
     double utilization_factor = sys_metrics.utilization_percent / 100.0;
-    double base_power = this->gpu_info_.tdp_watts * this->idle_power_factor_;
-    double dynamic_power = this->gpu_info_.tdp_watts *
-                           (1.0 - this->idle_power_factor_) *
-                           utilization_factor;
-    process_power_w = (base_power + dynamic_power) * memory_ratio;
+    double estimated_power = this->gpu_info_.tdp_watts * utilization_factor;
+    process_power_w = estimated_power * memory_ratio;
   }
 
   // Calculate energy delta: E = P * t (power in watts, time in microseconds)

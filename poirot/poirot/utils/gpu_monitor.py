@@ -24,8 +24,6 @@ from poirot.utils.sysfs_reader import SysfsReader
 
 # Fallback GPU TDP in watts if detection fails
 FALLBACK_GPU_TDP_WATTS = 150.0
-# Fallback idle power factor for GPU
-FALLBACK_GPU_IDLE_POWER_FACTOR = 0.10
 
 
 class GpuTdpType(IntEnum):
@@ -107,8 +105,6 @@ class GpuMonitor:
         self._last_energy_read_time = time.time()
         # Last per-process energy read time point
         self._last_process_energy_read_time = time.time()
-        # Idle power factor for estimation
-        self._idle_power_factor = FALLBACK_GPU_IDLE_POWER_FACTOR
 
         # AMD GPU sysfs paths
         self._amd_gpu_busy_path = ""
@@ -122,9 +118,9 @@ class GpuMonitor:
         self._intel_freq_path = ""
         self._intel_power_path = ""
 
-        self.initialize()
+        self._initialize()
 
-    def initialize(self) -> bool:
+    def _initialize(self) -> bool:
         """
         Initialize GPU monitoring and detect available GPUs.
 
@@ -234,9 +230,6 @@ class GpuMonitor:
         Returns:
             Accumulated energy attributed to the process in microjoules.
         """
-        if pid == 0:
-            pid = os.getpid()
-
         # Attribute energy based on memory usage ratio
         if pid == 0:
             pid = os.getpid()
@@ -278,28 +271,14 @@ class GpuMonitor:
                 process_power_w = sys_metrics.power_w * memory_ratio
             elif self._gpu_info.tdp_watts > 0.0:
                 utilization_factor = sys_metrics.utilization_percent / 100.0
-                base_power = self._gpu_info.tdp_watts * self._idle_power_factor
-                dynamic_power = (
-                    self._gpu_info.tdp_watts
-                    * (1.0 - self._idle_power_factor)
-                    * utilization_factor
-                )
-                process_power_w = (base_power + dynamic_power) * memory_ratio
+                estimated_power = self._gpu_info.tdp_watts * utilization_factor
+                process_power_w = estimated_power * memory_ratio
 
             if process_power_w > 0.0:
                 energy_delta_uj = process_power_w * (elapsed_s * 1_000_000.0)
                 self._accumulated_process_energy_uj += energy_delta_uj
 
             return self._accumulated_process_energy_uj
-
-    def set_idle_power_factor(self, factor: float) -> None:
-        """
-        Set idle power factor for estimation.
-
-        Args:
-            factor: Idle power factor (0.0 to 1.0).
-        """
-        self._idle_power_factor = factor
 
     def _detect_nvidia_gpu(self) -> bool:
         """
@@ -592,9 +571,7 @@ class GpuMonitor:
 
         # Estimate power for Intel iGPU
         if self._gpu_info.tdp_watts > 0:
-            idle_power = self._gpu_info.tdp_watts * self._idle_power_factor
-            active_power = self._gpu_info.tdp_watts - idle_power
-            estimated_power = idle_power + active_power * (
+            estimated_power = self._gpu_info.tdp_watts * (
                 metrics.utilization_percent / 100.0
             )
             metrics.power_w = estimated_power
@@ -815,13 +792,7 @@ class GpuMonitor:
                 self._accumulated_energy_uj += energy_delta_uj
             elif self._gpu_info.tdp_watts > 0.0:
                 # Estimate based on TDP and utilization
-                idle_power = self._gpu_info.tdp_watts * self._idle_power_factor
-                dynamic_power = (
-                    self._gpu_info.tdp_watts
-                    * (1.0 - self._idle_power_factor)
-                    * (utilization / 100.0)
-                )
-                estimated_power_w = idle_power + dynamic_power
+                estimated_power_w = self._gpu_info.tdp_watts * (utilization / 100.0)
                 energy_delta_uj = estimated_power_w * (elapsed_s * 1_000_000.0)
                 self._accumulated_energy_uj += energy_delta_uj
 
