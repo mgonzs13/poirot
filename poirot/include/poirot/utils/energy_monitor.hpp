@@ -24,6 +24,15 @@
 namespace poirot {
 namespace utils {
 
+/// @brief Energy type constants
+enum class EnergyType {
+  ENERGY_TYPE_RAPL_INTEL = 1,
+  ENERGY_TYPE_RAPL_AMD = 2,
+  ENERGY_TYPE_HWMON = 3,
+  ENERGY_TYPE_HWMON_ESTIMATED = 4,
+  ENERGY_TYPE_ESTIMATED = 5
+};
+
 /**
  * @class EnergyMonitor
  * @brief Class for monitoring CPU energy consumption.
@@ -51,23 +60,16 @@ public:
   void set_cpu_tdp_watts(double tdp) { this->cpu_tdp_watts_ = tdp; }
 
   /**
-   * @brief Set the idle power factor for estimation.
-   * @param factor Idle power factor (0.0 to 1.0).
-   */
-  void set_idle_power_factor(double factor) {
-    this->idle_power_factor_ = factor;
-  }
-
-  /**
    * @brief Initialize RAPL max energy range for wraparound detection.
    */
   void initialize_rapl_max_energy();
 
   /**
    * @brief Read accumulated CPU energy consumption in microjoules.
+   * @param elapsed_us Elapsed time in microseconds since last read (optional).
    * @return Accumulated energy consumption in microjoules.
    */
-  double read_energy_uj();
+  std::pair<double, EnergyType> read_energy_uj(float elapsed_us = 0.0);
 
   /**
    * @brief Calculate thread energy consumption using hierarchical attribution.
@@ -102,11 +104,8 @@ private:
   double last_hwmon_energy_uj_ = 0.0;
   /// @brief Maximum RAPL energy value before wrap-around
   double rapl_max_energy_uj_ = 0.0;
-
   /// @brief CPU TDP in watts for estimation
   double cpu_tdp_watts_ = 0.0;
-  /// @brief Idle power factor for estimation (typical: 0.10-0.20)
-  double idle_power_factor_ = 0.15;
 };
 
 } // namespace utils

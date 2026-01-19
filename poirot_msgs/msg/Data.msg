@@ -1,3 +1,10 @@
+uint8 ENERGY_TYPE_RAPL_INTEL = 1
+uint8 ENERGY_TYPE_RAPL_AMD = 2
+uint8 ENERGY_TYPE_HWMON = 3
+uint8 ENERGY_TYPE_HWMON_ESTIMATED = 4
+uint8 ENERGY_TYPE_ESTIMATED = 5
+
+
 int64 wall_time_us                    # Wall clock time in microseconds
 int64 cpu_time_us                     # CPU time in microseconds
 int64 process_cpu_time_us             # Process CPU time in microseconds
@@ -12,6 +19,7 @@ int64 io_write_bytes                  # Bytes written during call
 int64 ctx_switches                    # Context switches during call
 
 float64 cpu_energy_uj                 # CPU energy consumed in microjoules
+uint8 cpu_energy_type                 # CPU energy type
 float64 cpu_total_energy_uj           # Total CPU energy consumed in microjoules
 float64 gpu_energy_uj                 # GPU energy consumed in microjoules
 float64 total_energy_uj               # Total energy (CPU + GPU) in microjoules

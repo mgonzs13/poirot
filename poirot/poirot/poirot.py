@@ -32,10 +32,11 @@ from poirot_msgs.msg import (
     ProcessInfo,
     ProfilingData,
     SystemInfo,
+    Data,
 )
 
 from poirot.utils.co2_manager import Co2Manager
-from poirot.utils.energy_monitor import EnergyMonitor
+from poirot.utils.energy_monitor import EnergyMonitor, EnergyType
 from poirot.utils.gpu_monitor import GpuMonitor, GpuTdpType
 from poirot.utils.hwmon_scanner import HwmonScanner
 from poirot.utils.power_estimator import PowerEstimator, TdpType
@@ -178,9 +179,6 @@ class Poirot:
         # Update power estimator and energy monitor
         self._power_estimator.set_cpu_tdp_watts(self._system_info.cpu_info.tdp_watts)
         self._energy_monitor.set_cpu_tdp_watts(self._system_info.cpu_info.tdp_watts)
-        self._energy_monitor.set_idle_power_factor(
-            self._power_estimator.read_idle_power_factor()
-        )
 
         # GPU detection
         if self._gpu_monitor.is_available():
@@ -253,7 +251,7 @@ class Poirot:
         ctx.start_io_write_bytes = io_bytes.write_bytes
 
         ctx.start_context_switches = self._thread_metrics.read_context_switches()
-        ctx.start_cpu_energy_uj = self._energy_monitor.read_energy_uj()
+        ctx.start_cpu_energy_uj, _ = self._energy_monitor.read_energy_uj()
 
         if self._gpu_monitor.is_available():
             process_metrics = self._gpu_monitor.read_process_metrics()
@@ -283,7 +281,6 @@ class Poirot:
         end_io_write_bytes = end_io_bytes.write_bytes
 
         end_context_switches = self._thread_metrics.read_context_switches()
-        end_cpu_energy_uj = self._energy_monitor.read_energy_uj()
 
         # GPU metrics
         end_gpu_utilization_percent = 0.0
@@ -310,10 +307,14 @@ class Poirot:
         system_cpu_delta_us = wall_time_delta_us * float(
             self._process_metrics.get_num_cpus()
         )
-        cpu_total_energy_delta_uj = end_cpu_energy_uj - ctx.start_cpu_energy_uj
         gpu_energy_delta_uj = end_gpu_energy_uj - ctx.start_gpu_energy_uj
 
         # Calculate thread-level CPU energy
+        end_cpu_energy_uj, energy_type = self._energy_monitor.read_energy_uj(
+            wall_time_delta_us
+        )
+        cpu_total_energy_delta_uj = end_cpu_energy_uj - ctx.start_cpu_energy_uj
+
         thread_cpu_energy_uj = self._energy_monitor.calculate_thread_energy_uj(
             thread_cpu_delta_us,
             process_cpu_delta_us,
@@ -346,6 +347,18 @@ class Poirot:
         )
         call.data.gpu_mem_kb = end_gpu_mem_kb - ctx.start_gpu_mem_kb
         call.data.gpu_energy_uj = gpu_energy_delta_uj
+
+        # Energy
+        if energy_type == EnergyType.ENERGY_TYPE_RAPL_INTEL:
+            call.data.cpu_energy_type = Data.ENERGY_TYPE_RAPL_INTEL
+        elif energy_type == EnergyType.ENERGY_TYPE_RAPL_AMD:
+            call.data.cpu_energy_type = Data.ENERGY_TYPE_RAPL_AMD
+        elif energy_type == EnergyType.ENERGY_TYPE_HWMON:
+            call.data.cpu_energy_type = Data.ENERGY_TYPE_HWMON
+        elif energy_type == EnergyType.ENERGY_TYPE_HWMON_ESTIMATED:
+            call.data.cpu_energy_type = Data.ENERGY_TYPE_HWMON_ESTIMATED
+        elif energy_type == EnergyType.ENERGY_TYPE_ESTIMATED:
+            call.data.cpu_energy_type = Data.ENERGY_TYPE_ESTIMATED
 
         call.data.total_energy_uj = total_energy_uj
 

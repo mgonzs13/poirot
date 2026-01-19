@@ -13,11 +13,22 @@
 # limitations under the License.
 
 import os
-import time
 import threading
+from enum import IntEnum
+from typing import Union
 
 from poirot.utils.hwmon_scanner import HwmonScanner
 from poirot.utils.sysfs_reader import SysfsReader
+
+
+class EnergyType(IntEnum):
+    """Energy detection type constants."""
+
+    ENERGY_TYPE_RAPL_INTEL = 1
+    ENERGY_TYPE_RAPL_AMD = 2
+    ENERGY_TYPE_HWMON = 3
+    ENERGY_TYPE_HWMON_ESTIMATED = 4
+    ENERGY_TYPE_ESTIMATED = 5
 
 
 class EnergyMonitor:
@@ -41,8 +52,6 @@ class EnergyMonitor:
         self._energy_mutex = threading.Lock()
         # Accumulated energy in microjoules
         self._accumulated_energy_uj = 0.0
-        # Last energy read time point (0 means uninitialized)
-        self._last_energy_read_time = 0.0
         # Last RAPL energy value (for delta calculation)
         self._last_rapl_energy_uj = 0.0
         # Last hwmon energy value (for delta calculation)
@@ -52,8 +61,6 @@ class EnergyMonitor:
 
         # CPU TDP in watts for estimation
         self._cpu_tdp_watts = 0.0
-        # Idle power factor for estimation (typical: 0.10-0.20)
-        self._idle_power_factor = 0.15
 
         self.initialize_rapl_max_energy()
 
@@ -65,15 +72,6 @@ class EnergyMonitor:
             tdp: TDP value in watts.
         """
         self._cpu_tdp_watts = tdp
-
-    def set_idle_power_factor(self, factor: float) -> None:
-        """
-        Set the idle power factor for estimation.
-
-        Args:
-            factor: Idle power factor (0.0 to 1.0).
-        """
-        self._idle_power_factor = factor
 
     def initialize_rapl_max_energy(self) -> None:
         """Initialize RAPL max energy range for wraparound detection."""
@@ -97,7 +95,7 @@ class EnergyMonitor:
         # Fallback: if neither found, rapl_max_energy_uj_ remains 0
         self._rapl_max_energy_uj = 0.0
 
-    def read_energy_uj(self) -> float:
+    def read_energy_uj(self, elapsed_us: float = 0.0) -> Union[float, EnergyType]:
         """
         Read accumulated CPU energy consumption in microjoules.
 
@@ -135,12 +133,12 @@ class EnergyMonitor:
             # 1) Try Intel RAPL
             energy = _read_rapl_energy("/sys/class/powercap/intel-rapl:0/energy_uj")
             if energy >= 0.0:
-                return energy
+                return energy, EnergyType.ENERGY_TYPE_RAPL_INTEL
 
             # 2) Try AMD RAPL
             energy = _read_rapl_energy("/sys/class/powercap/amd-rapl:0/energy_uj")
             if energy >= 0.0:
-                return energy
+                return energy, EnergyType.ENERGY_TYPE_RAPL_AMD
 
             # 3) Try hwmon energy path
             energy_path = self._hwmon_scanner.get_energy_path()
@@ -156,44 +154,28 @@ class EnergyMonitor:
                         # else: wraparound detected; ignore this reading
 
                     self._last_hwmon_energy_uj = current_hwmon
-                    return self._accumulated_energy_uj
+                    return self._accumulated_energy_uj, EnergyType.ENERGY_TYPE_HWMON
 
             # 4) Fallback: estimate from power measurements using elapsed time
-            now = time.time()
-
-            # If last read time is uninitialized, set it and return current accumulated
-            if self._last_energy_read_time <= 0.0:
-                self._last_energy_read_time = now
-                return self._accumulated_energy_uj
-
-            elapsed_s = now - self._last_energy_read_time
-            # Update last read time now
-            self._last_energy_read_time = now
-
-            if elapsed_s <= 0.0:
-                return self._accumulated_energy_uj
-
-            elapsed_us = elapsed_s * 1_000_000.0
-
-            # Try to read direct power from hwmon scanner
             power_w = 0.0
+            energy_type = EnergyType.ENERGY_TYPE_HWMON_ESTIMATED
             try:
                 power_w = self._hwmon_scanner.read_power_w()
+                energy_type = EnergyType.ENERGY_TYPE_HWMON_ESTIMATED
             except Exception:
                 power_w = 0.0
 
             # If no direct power measurement, estimate from CPU TDP and usage
             if power_w <= 0.0 and self._cpu_tdp_watts > 0.0:
-                base_power = self._cpu_tdp_watts * self._idle_power_factor
-                dynamic_power = self._cpu_tdp_watts * (1.0 - self._idle_power_factor)
-                power_w = base_power + dynamic_power
+                energy_type = EnergyType.ENERGY_TYPE_ESTIMATED
+                power_w = self._cpu_tdp_watts
 
             if power_w > 0.0:
                 # W * us = uJ
                 energy_delta_uj = power_w * elapsed_us
                 self._accumulated_energy_uj += energy_delta_uj
 
-            return self._accumulated_energy_uj
+            return self._accumulated_energy_uj, energy_type
 
     def calculate_thread_energy_uj(
         self,

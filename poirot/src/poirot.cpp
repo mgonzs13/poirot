@@ -115,8 +115,6 @@ void Poirot::detect_system_info() {
   // Update energy monitor with TDP and idle factor
   this->energy_monitor_.set_cpu_tdp_watts(
       this->system_info_.cpu_info.tdp_watts);
-  this->energy_monitor_.set_idle_power_factor(
-      this->power_estimator_.read_idle_power_factor());
 
   // GPU detection and configuration
   if (this->gpu_monitor_.is_available()) {
@@ -188,7 +186,8 @@ void Poirot::start_profiling(const std::string &function_name,
   ctx.start_io_write_bytes = io_bytes.write_bytes;
 
   ctx.start_context_switches = this->thread_metrics_.read_context_switches();
-  ctx.start_cpu_energy_uj = this->energy_monitor_.read_energy_uj();
+  std::tie(ctx.start_cpu_energy_uj, std::ignore) =
+      this->energy_monitor_.read_energy_uj();
 
   // Capture GPU energy start if GPU is available
   if (this->gpu_monitor_.is_available()) {
@@ -221,7 +220,6 @@ void Poirot::stop_profiling() {
   int64_t end_io_write_bytes = end_io_bytes.write_bytes;
 
   int64_t end_context_switches = this->thread_metrics_.read_context_switches();
-  double end_cpu_energy_uj = this->energy_monitor_.read_energy_uj();
 
   // Read GPU metrics if available
   double end_gpu_utilization_percent = 0.0;
@@ -253,11 +251,17 @@ void Poirot::stop_profiling() {
   double system_cpu_delta_us =
       wall_time_delta_us *
       static_cast<double>(this->process_metrics_.get_num_cpus());
-  double cpu_total_energy_delta_uj =
-      end_cpu_energy_uj - ctx.start_cpu_energy_uj;
+
   double gpu_energy_delta_uj = end_gpu_energy_uj - ctx.start_gpu_energy_uj;
 
   // Calculate thread-level CPU energy using hierarchical CPU time attribution
+  double end_cpu_energy_uj = 0.0;
+  poirot::utils::EnergyType energy_type;
+  std::tie(end_cpu_energy_uj, energy_type) =
+      this->energy_monitor_.read_energy_uj(wall_time_delta_us);
+  double cpu_total_energy_delta_uj =
+      end_cpu_energy_uj - ctx.start_cpu_energy_uj;
+
   double thread_cpu_energy_uj =
       this->energy_monitor_.calculate_thread_energy_uj(
           thread_cpu_delta_us, process_cpu_delta_us, system_cpu_delta_us,
@@ -287,6 +291,20 @@ void Poirot::stop_profiling() {
   call.data.gpu_energy_uj = gpu_energy_delta_uj;
 
   // Total energy (CPU + GPU)
+  if (energy_type == poirot::utils::EnergyType::ENERGY_TYPE_RAPL_INTEL) {
+    call.data.cpu_energy_type = poirot_msgs::msg::Data::ENERGY_TYPE_RAPL_INTEL;
+  } else if (energy_type == poirot::utils::EnergyType::ENERGY_TYPE_RAPL_AMD) {
+    call.data.cpu_energy_type = poirot_msgs::msg::Data::ENERGY_TYPE_RAPL_AMD;
+  } else if (energy_type == poirot::utils::EnergyType::ENERGY_TYPE_HWMON) {
+    call.data.cpu_energy_type = poirot_msgs::msg::Data::ENERGY_TYPE_HWMON;
+  } else if (energy_type ==
+             poirot::utils::EnergyType::ENERGY_TYPE_HWMON_ESTIMATED) {
+    call.data.cpu_energy_type =
+        poirot_msgs::msg::Data::ENERGY_TYPE_HWMON_ESTIMATED;
+  } else if (energy_type == poirot::utils::EnergyType::ENERGY_TYPE_ESTIMATED) {
+    call.data.cpu_energy_type = poirot_msgs::msg::Data::ENERGY_TYPE_ESTIMATED;
+  }
+
   call.data.total_energy_uj = total_energy_uj;
 
   // Calculate CO2 in micrograms based on total energy

@@ -61,7 +61,7 @@ void EnergyMonitor::initialize_rapl_max_energy() {
   this->rapl_max_energy_uj_ = 0.0;
 }
 
-double EnergyMonitor::read_energy_uj() {
+std::pair<double, EnergyType> EnergyMonitor::read_energy_uj(float elapsed_us) {
   std::lock_guard<std::mutex> lock(this->energy_mutex_);
 
   // Helper lambda to read RAPL energy with wraparound detection
@@ -99,13 +99,13 @@ double EnergyMonitor::read_energy_uj() {
   double energy =
       read_rapl_energy("/sys/class/powercap/intel-rapl:0/energy_uj");
   if (energy >= 0) {
-    return energy;
+    return {energy, EnergyType::ENERGY_TYPE_RAPL_INTEL};
   }
 
   // 2. Try AMD RAPL
   energy = read_rapl_energy("/sys/class/powercap/amd-rapl:0/energy_uj");
   if (energy >= 0) {
-    return energy;
+    return {energy, EnergyType::ENERGY_TYPE_RAPL_AMD};
   }
 
   // 3. Try hwmon energy path
@@ -124,38 +124,18 @@ double EnergyMonitor::read_energy_uj() {
       }
 
       this->last_hwmon_energy_uj_ = current_hwmon_energy;
-      return this->accumulated_energy_uj_;
+      return {this->accumulated_energy_uj_, EnergyType::ENERGY_TYPE_HWMON};
     }
   }
 
   // 4. Estimate energy based on power measurements and elapsed time
-  auto now = std::chrono::steady_clock::now();
-
-  if (this->last_energy_read_time_.time_since_epoch().count() == 0) {
-    this->last_energy_read_time_ = now;
-    return this->accumulated_energy_uj_;
-  }
-
-  double elapsed_us =
-      static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(
-                              now - this->last_energy_read_time_)
-                              .count());
-  this->last_energy_read_time_ = now;
-
-  if (elapsed_us <= 0) {
-    return this->accumulated_energy_uj_;
-  }
-
-  // Try to get actual power measurement
-  double power_w = this->hwmon_scanner_.read_power_w();
+  float power_w = this->hwmon_scanner_.read_power_w();
+  EnergyType energy_type = EnergyType::ENERGY_TYPE_HWMON_ESTIMATED;
 
   // Estimate power if no direct reading available
   if (power_w <= 0.0 && this->cpu_tdp_watts_ > 0.0) {
-    // Estimate based on CPU utilization
-    double base_power = this->cpu_tdp_watts_ * this->idle_power_factor_;
-    double dynamic_power =
-        this->cpu_tdp_watts_ * (1.0 - this->idle_power_factor_);
-    power_w = base_power + dynamic_power;
+    power_w = this->cpu_tdp_watts_;
+    energy_type = EnergyType::ENERGY_TYPE_ESTIMATED;
   }
 
   if (power_w > 0.0) {
@@ -165,7 +145,7 @@ double EnergyMonitor::read_energy_uj() {
     this->accumulated_energy_uj_ += energy_delta_uj;
   }
 
-  return this->accumulated_energy_uj_;
+  return {this->accumulated_energy_uj_, energy_type};
 }
 
 double EnergyMonitor::calculate_thread_energy_uj(double thread_cpu_delta_us,
