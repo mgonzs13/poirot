@@ -18,6 +18,8 @@
 #include <iomanip>
 #include <vector>
 
+#include "ament_index_cpp/get_package_share_directory.hpp"
+
 #include "poirot_msgs/msg/cpu_info.hpp"
 #include "poirot_msgs/msg/function_call.hpp"
 #include "poirot_msgs/msg/function_stats.hpp"
@@ -29,7 +31,9 @@
 using namespace poirot;
 
 Poirot::Poirot()
-    : co2_manager_(), hwmon_scanner_(), power_estimator_(hwmon_scanner_),
+    : co2_manager_(ament_index_cpp::get_package_share_directory("poirot") +
+                   "/iso_country_codes.csv"),
+      hwmon_scanner_(), power_estimator_(hwmon_scanner_),
       energy_monitor_(hwmon_scanner_), gpu_monitor_(), process_metrics_(),
       thread_metrics_() {
 

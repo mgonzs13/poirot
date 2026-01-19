@@ -52,7 +52,7 @@ public:
   /**
    * @brief Constructor.
    */
-  Co2Manager();
+  Co2Manager(std::string iso_country_codes_file_path);
 
   /**
    * @brief Get CO2 factor for the current system timezone.
@@ -110,7 +110,7 @@ private:
   /**
    * @brief Load ISO mapping from installed file.
    */
-  void load_iso_mapping();
+  void load_iso_mapping(std::string iso_country_codes_file_path);
 
   /**
    * @brief Parse CSV data to extract ISO mappings.

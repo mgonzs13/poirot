@@ -43,7 +43,7 @@ class Co2Manager:
     and looking up factors by country.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, iso_country_codes_file_path: str) -> None:
         """Constructor."""
         # Mutex for thread-safe access to CO2 factors
         self._co2_factors_mutex = threading.Lock()
@@ -56,7 +56,7 @@ class Co2Manager:
         # Flag indicating if ISO mapping has been loaded
         self._iso_map_loaded = False
 
-        self._load_iso_mapping()
+        self._load_iso_mapping(iso_country_codes_file_path)
 
     def get_co2_info(self) -> Co2Info:
         """
@@ -207,16 +207,12 @@ class Co2Manager:
 
         return "UTC"
 
-    def _load_iso_mapping(self) -> None:
+    def _load_iso_mapping(self, iso_country_codes_file_path: str) -> None:
         """
         Load ISO2 to ISO3 mapping from installed CSV file.
         """
         try:
-            import ament_index_python
-
-            package_path = ament_index_python.get_package_share_directory("poirot")
-            csv_path = os.path.join(package_path, "iso_country_codes.csv")
-            with open(csv_path, "r", encoding="utf-8") as f:
+            with open(iso_country_codes_file_path, "r", encoding="utf-8") as f:
                 csv_data = f.read()
             self._parse_iso_csv(csv_data)
             self._iso_map_loaded = True

@@ -23,6 +23,7 @@ from typing import Any, Callable, Dict, Optional, TypeVar
 
 from rclpy.node import Node
 from rclpy.qos import QoSProfile
+import ament_index_python
 
 from poirot_msgs.msg import (
     CpuInfo,
@@ -99,7 +100,9 @@ class Poirot:
         self._contexts_lock = threading.Lock()
 
         # Utility instances
-        self._co2_manager = Co2Manager()
+        package_path = ament_index_python.get_package_share_directory("poirot")
+        iso_country_codes_file_path = os.path.join(package_path, "iso_country_codes.csv")
+        self._co2_manager = Co2Manager(iso_country_codes_file_path)
         self._hwmon_scanner = HwmonScanner()
         self._power_estimator = PowerEstimator(self._hwmon_scanner)
         self._energy_monitor = EnergyMonitor(self._hwmon_scanner)
@@ -145,9 +148,6 @@ class Poirot:
         self._system_info.os_name = os_info.name
         self._system_info.os_version = os_info.version
         self._system_info.hostname = os_info.hostname
-
-        # Configure power estimator
-        self._power_estimator.set_cpu_cores(self._system_info.cpu_info.cores)
 
         # TDP detection
         tdp_watts, tdp_type = self._power_estimator.read_tdp_watts()

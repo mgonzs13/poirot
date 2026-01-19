@@ -23,14 +23,14 @@
 #include <sstream>
 #include <vector>
 
-#include "ament_index_cpp/get_package_share_directory.hpp"
-
 #include "poirot/utils/co2_manager.hpp"
 
 namespace poirot {
 namespace utils {
 
-Co2Manager::Co2Manager() { this->load_iso_mapping(); }
+Co2Manager::Co2Manager(std::string iso_country_codes_file_path) {
+  this->load_iso_mapping(iso_country_codes_file_path);
+}
 
 size_t Co2Manager::curl_write_callback(void *contents, size_t size,
                                        size_t nmemb, void *userp) {
@@ -210,14 +210,9 @@ void Co2Manager::load_timezone_mapping() {
   this->timezone_map_loaded_ = true;
 }
 
-void Co2Manager::load_iso_mapping() {
+void Co2Manager::load_iso_mapping(std::string iso_country_codes_file_path) {
   try {
-    // Get the package share directory
-    std::string package_path =
-        ament_index_cpp::get_package_share_directory("poirot");
-    std::string csv_path = package_path + "/iso_country_codes.csv";
-
-    std::ifstream file(csv_path);
+    std::ifstream file(iso_country_codes_file_path);
     if (!file.is_open()) {
       this->iso_map_loaded_ = false;
       return;
