@@ -199,17 +199,30 @@ class EnergyMonitor:
         Returns:
             Thread energy consumption in microjoules.
         """
-        if system_cpu_delta_us <= 0 or total_energy_delta_uj <= 0:
+        # If no energy delta or no thread CPU time, return 0
+        if total_energy_delta_uj <= 0.0 or thread_cpu_delta_us <= 0.0:
             return 0.0
 
-        # Calculate thread's share of process energy
-        if process_cpu_delta_us > 0:
-            thread_share_of_process = thread_cpu_delta_us / process_cpu_delta_us
+        # Calculate thread's share of system energy using hierarchical attribution
+        thread_share = 0.0
+
+        if system_cpu_delta_us > 0.0 and process_cpu_delta_us > 0.0:
+            # Hierarchical attribution:
+            # thread_share = (thread_cpu / process_cpu) * (process_cpu / system_cpu)
+            #              = thread_cpu / system_cpu
+            # But we use the hierarchical form to be more accurate when there are
+            # multiple processes and threads
+            thread_process_share = thread_cpu_delta_us / process_cpu_delta_us
+            process_system_share = process_cpu_delta_us / system_cpu_delta_us
+            thread_share = thread_process_share * process_system_share
+        elif process_cpu_delta_us > 0.0:
+            # Fallback: attribute based on thread's share of process time
+            thread_share = thread_cpu_delta_us / process_cpu_delta_us
         else:
-            thread_share_of_process = 1.0
+            # Last resort: assume thread gets all the energy
+            thread_share = 1.0
 
-        # Calculate process's share of system energy
-        process_share_of_system = process_cpu_delta_us / system_cpu_delta_us
+        # Clamp share to valid range [0, 1]
+        thread_share = max(0.0, min(1.0, thread_share))
 
-        # Thread energy = total * process_share * thread_share
-        return total_energy_delta_uj * process_share_of_system * thread_share_of_process
+        return total_energy_delta_uj * thread_share
