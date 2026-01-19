@@ -66,18 +66,6 @@ public:
   explicit PowerEstimator(HwmonScanner &hwmon_scanner);
 
   /**
-   * @brief Set the number of CPU cores.
-   * @param cores Number of CPU cores.
-   */
-  void set_cpu_cores(int cores) { this->cpu_cores_ = cores; }
-
-  /**
-   * @brief Set the CPU TDP in watts.
-   * @param tdp TDP value in watts.
-   */
-  void set_cpu_tdp_watts(double tdp) { this->cpu_tdp_watts_ = tdp; }
-
-  /**
    * @brief Read CPU TDP in watts.
    * @return TDP in watts or 0.0 if not available.
    */
@@ -88,66 +76,6 @@ public:
    * @return Power limit in watts or 0.0 if not available.
    */
   double read_rapl_power_limit_w();
-
-  /**
-   * @brief Read AMD RAPL power limit in watts.
-   * @return Power limit in watts or 0.0 if not available.
-   */
-  double read_amd_rapl_power_limit_w();
-
-  /**
-   * @brief Read battery power in watts.
-   * @return Battery power in watts or -1.0 if not available.
-   */
-  double read_battery_power_w();
-
-  /**
-   * @brief Read minimum TDP in watts.
-   * @return Minimum TDP in watts.
-   */
-  double read_min_tdp_watts();
-
-  /**
-   * @brief Read maximum TDP in watts.
-   * @return Maximum TDP in watts.
-   */
-  double read_max_tdp_watts();
-
-  /**
-   * @brief Read idle power factor.
-   * @return Idle power factor (0.0 to 1.0).
-   */
-  double read_idle_power_factor();
-
-  /**
-   * @brief Read watts per GHz per core.
-   * @return Watts per GHz per core.
-   */
-  double read_watts_per_ghz();
-
-  /**
-   * @brief Read minimum watts per GHz.
-   * @return Minimum watts per GHz.
-   */
-  double read_min_watts_per_ghz();
-
-  /**
-   * @brief Read maximum watts per GHz.
-   * @return Maximum watts per GHz.
-   */
-  double read_max_watts_per_ghz();
-
-  /**
-   * @brief Estimate power per core per GHz.
-   * @return Estimated power per core per GHz.
-   */
-  double estimate_power_per_core_per_ghz();
-
-  /**
-   * @brief Estimate watts per core.
-   * @return Estimated watts per core.
-   */
-  double estimate_watts_per_core();
 
   /**
    * @brief Read hwmon TDP from power limit files.
@@ -161,25 +89,9 @@ public:
    */
   double read_thermal_tdp_watts();
 
-  /**
-   * @brief Estimate TDP from CPU frequency and core count.
-   * @return TDP in watts or 0.0 if not available.
-   */
-  double estimate_frequency_tdp_watts();
-
-  /**
-   * @brief Estimate TDP from core count alone.
-   * @return Estimated TDP in watts.
-   */
-  double estimate_cores_tdp_watts();
-
 private:
   /// @brief Reference to HwmonScanner
   HwmonScanner &hwmon_scanner_;
-  /// @brief Number of CPU cores
-  int cpu_cores_ = 0;
-  /// @brief CPU TDP in watts
-  double cpu_tdp_watts_ = 0.0;
 };
 
 } // namespace utils

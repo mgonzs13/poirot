@@ -72,9 +72,6 @@ void Poirot::detect_system_info() {
   this->system_info_.os_version = os_info.version;
   this->system_info_.hostname = os_info.hostname;
 
-  // Configure power estimator with CPU info
-  this->power_estimator_.set_cpu_cores(this->system_info_.cpu_info.cores);
-
   // TDP detection
   auto [tdp_watts, tdp_type] = this->power_estimator_.read_tdp_watts();
   this->system_info_.cpu_info.tdp_watts = tdp_watts;
@@ -88,17 +85,8 @@ void Poirot::detect_system_info() {
   } else if (tdp_type == utils::TdpType::THERMAL_POWER_TDP_TYPE) {
     this->system_info_.cpu_info.tdp_watts_type =
         poirot_msgs::msg::CpuInfo::THERMAL_POWER_TDP_TYPE;
-  } else if (tdp_type == utils::TdpType::CPU_CORES_FREQUENCY_TYPE) {
-    this->system_info_.cpu_info.tdp_watts_type =
-        poirot_msgs::msg::CpuInfo::CPU_CORES_FREQUENCY_TYPE;
-  } else if (tdp_type == utils::TdpType::CPU_CORES_TYPE) {
-    this->system_info_.cpu_info.tdp_watts_type =
-        poirot_msgs::msg::CpuInfo::CPU_CORES_TYPE;
   }
 
-  // Update power estimator with TDP
-  this->power_estimator_.set_cpu_tdp_watts(
-      this->system_info_.cpu_info.tdp_watts);
   // Update energy monitor with TDP and idle factor
   this->energy_monitor_.set_cpu_tdp_watts(
       this->system_info_.cpu_info.tdp_watts);

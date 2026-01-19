@@ -157,15 +157,10 @@ class Poirot:
             TdpType.RAPL_TDP_TYPE: CpuInfo.RAPL_TDP_TYPE,
             TdpType.HWMON_TDP_TYPE: CpuInfo.HWMON_TDP_TYPE,
             TdpType.THERMAL_POWER_TDP_TYPE: CpuInfo.THERMAL_POWER_TDP_TYPE,
-            TdpType.CPU_CORES_FREQUENCY_TYPE: CpuInfo.CPU_CORES_FREQUENCY_TYPE,
-            TdpType.CPU_CORES_TYPE: CpuInfo.CPU_CORES_TYPE,
         }
-        self._system_info.cpu_info.tdp_watts_type = tdp_type_map.get(
-            tdp_type, CpuInfo.CPU_CORES_TYPE
-        )
+        self._system_info.cpu_info.tdp_watts_type = tdp_type_map.get(tdp_type)
 
-        # Update power estimator and energy monitor
-        self._power_estimator.set_cpu_tdp_watts(self._system_info.cpu_info.tdp_watts)
+        # Update energy monitor
         self._energy_monitor.set_cpu_tdp_watts(self._system_info.cpu_info.tdp_watts)
 
         # GPU detection
