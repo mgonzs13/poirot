@@ -329,8 +329,8 @@ void Poirot::stop_profiling() {
     fprintf(
         stderr,
         "[PROFILE] %s | Wall: %ldus | CPU: %ldus | Mem: %ldKB | IO R/W: "
-        "%ld/%ldB | CtxSw: %ld | CPU Energy: %.2fuJ | GPU Energy: %.2fuJ | "
-        "Total Energy: %.2fuJ | CO2: %.2fug\n",
+        "%ld/%ldB | CtxSw: %ld | CPU Energy: %.4fuJ | GPU Energy: %.4fuJ | "
+        "Total Energy: %.4fuJ | CO2: %.4fug\n",
         ctx.function_name.c_str(), static_cast<long>(call.data.wall_time_us),
         static_cast<long>(call.data.cpu_time_us),
         static_cast<long>(call.data.mem_kb),
@@ -365,7 +365,8 @@ void Poirot::print_system_info() {
           instance.system_info_.mem_total_kb / 1024);
   fprintf(stderr, "RAPL:     %s\n",
           instance.system_info_.cpu_info.rapl_available ? "Yes" : "No");
-  fprintf(stderr, "CPU TDP:  %f W\n", instance.system_info_.cpu_info.tdp_watts);
+  fprintf(stderr, "CPU TDP:  %.4f W\n",
+          instance.system_info_.cpu_info.tdp_watts);
   fprintf(stderr, "TDP Type: %d\n",
           static_cast<int>(instance.system_info_.cpu_info.tdp_watts_type));
   fprintf(stderr,
@@ -380,7 +381,7 @@ void Poirot::print_system_info() {
             instance.system_info_.gpu_info.vendor.c_str());
     fprintf(stderr, "GPU Memory: %ld MB\n",
             instance.system_info_.gpu_info.mem_total_kb / 1024);
-    fprintf(stderr, "GPU TDP:  %f W\n",
+    fprintf(stderr, "GPU TDP:  %.4f W\n",
             instance.system_info_.gpu_info.tdp_watts);
     fprintf(stderr, "GPU Power Mon: %s\n",
             instance.system_info_.gpu_info.power_monitoring ? "Yes" : "No");
@@ -392,7 +393,7 @@ void Poirot::print_system_info() {
           instance.system_info_.co2_info.country_code.c_str());
   fprintf(stderr, "CO2 Factor Loaded: %s\n",
           instance.system_info_.co2_info.co2_factor_loaded ? "Yes" : "No");
-  fprintf(stderr, "CO2:      %f kg/kWh\n",
+  fprintf(stderr, "CO2: %.4f kg/kWh\n",
           instance.system_info_.co2_info.co2_factor_kg_per_kwh);
   fprintf(stderr,
           "================================================================\n");
