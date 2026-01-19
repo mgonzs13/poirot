@@ -207,7 +207,7 @@ class Poirot:
 
         # CO2 factor
         co2_info = self._co2_manager.get_co2_info()
-        self._system_info.co2_info.country_code = co2_info.country
+        self._system_info.co2_info.country_code = co2_info.country_code
         self._system_info.co2_info.co2_factor_loaded = co2_info.co2_factor_loaded
         self._system_info.co2_info.co2_factor_kg_per_kwh = co2_info.co2_factor_kg_per_kwh
 

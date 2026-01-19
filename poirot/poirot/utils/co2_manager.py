@@ -30,7 +30,7 @@ EMBER_API_BASE_URL = "https://api.ember-energy.org/v1"
 class Co2Info:
     """Structure to hold CO2 information."""
 
-    country: str = ""
+    country_code: str = ""
     co2_factor_loaded: bool = False
     co2_factor_kg_per_kwh: float = 0.0
 
@@ -79,7 +79,7 @@ class Co2Manager:
         """
 
         co2_info = Co2Info()
-        co2_info.country = country
+        co2_info.country_code = country
 
         # Get API key from environment
         api_key = os.getenv("EMBER_KEY")
