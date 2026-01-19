@@ -74,6 +74,11 @@ std::pair<double, TdpType> PowerEstimator::read_tdp_watts() {
     tdp_type = TdpType::CPU_CORES_TYPE;
   }
 
+  // Final sanity check: clamp TDP to system-derived bounds
+  double min_tdp = this->read_min_tdp_watts();
+  double max_tdp = this->read_max_tdp_watts();
+  tdp_watts = std::min(std::max(tdp_watts, min_tdp), max_tdp);
+
   return {tdp_watts, tdp_type};
 }
 
@@ -257,9 +262,9 @@ double PowerEstimator::read_idle_power_factor() {
 }
 
 double PowerEstimator::read_watts_per_ghz() {
-  double current_power_w = this->hwmon_scanner_.read_power_w();
+  double current_power_w = this->read_rapl_power_limit_w();
   if (current_power_w == 0.0) {
-    current_power_w = this->read_rapl_power_limit_w();
+    current_power_w = this->hwmon_scanner_.read_power_w();
   }
 
   long freq_khz = SysfsReader::read_long(

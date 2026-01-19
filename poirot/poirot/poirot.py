@@ -164,14 +164,6 @@ class Poirot:
             tdp_type, CpuInfo.CPU_CORES_TYPE
         )
 
-        # Clamp TDP to bounds: min(max(tdp, min_tdp), max_tdp)
-        # This ensures tdp is at least min_tdp, but not more than max_tdp
-        min_tdp = self._power_estimator.read_min_tdp_watts()
-        max_tdp = self._power_estimator.read_max_tdp_watts()
-        self._system_info.cpu_info.tdp_watts = min(
-            max(self._system_info.cpu_info.tdp_watts, min_tdp), max_tdp
-        )
-
         # Update power estimator and energy monitor
         self._power_estimator.set_cpu_tdp_watts(self._system_info.cpu_info.tdp_watts)
         self._energy_monitor.set_cpu_tdp_watts(self._system_info.cpu_info.tdp_watts)

@@ -93,29 +93,40 @@ class PowerEstimator:
         Returns:
             Tuple of (TDP in watts, TdpType).
         """
+        tdp_watts = 0.0
+        tdp_type = TdpType.RAPL_TDP_TYPE
+
         # Try RAPL
-        tdp = self.read_rapl_power_limit_w()
-        if tdp > 0:
-            return tdp, TdpType.RAPL_TDP_TYPE
+        if tdp_watts == 0:
+            tdp_watts = self.read_rapl_power_limit_w()
+            tdp_type = TdpType.RAPL_TDP_TYPE
 
         # Try hwmon TDP
-        tdp = self.read_hwmon_tdp_watts()
-        if tdp > 0:
-            return tdp, TdpType.HWMON_TDP_TYPE
+        if tdp_watts == 0:
+            tdp_watts = self.read_hwmon_tdp_watts()
+            tdp_type = TdpType.HWMON_TDP_TYPE
 
         # Try thermal power
-        tdp = self.read_thermal_tdp_watts()
-        if tdp > 0:
-            return tdp, TdpType.THERMAL_POWER_TDP_TYPE
+        if tdp_watts == 0:
+            tdp_watts = self.read_thermal_tdp_watts()
+            tdp_type = TdpType.THERMAL_POWER_TDP_TYPE
 
         # Estimate from CPU frequency
-        tdp = self.estimate_frequency_tdp_watts()
-        if tdp > 0:
-            return tdp, TdpType.CPU_CORES_FREQUENCY_TYPE
+        if tdp_watts == 0:
+            tdp_watts = self.estimate_frequency_tdp_watts()
+            tdp_type = TdpType.CPU_CORES_FREQUENCY_TYPE
 
         # Estimate from cores
-        tdp = self.estimate_cores_tdp_watts()
-        return tdp, TdpType.CPU_CORES_TYPE
+        if tdp_watts == 0:
+            tdp_watts = self.estimate_cores_tdp_watts()
+            tdp_type = TdpType.CPU_CORES_TYPE
+
+        # Sanity check: clamp TDP to system-derived bounds
+        min_tdp = self.read_min_tdp_watts()
+        max_tdp = self.read_max_tdp_watts()
+        tdp_watts = min(max(tdp_watts, min_tdp), max_tdp)
+
+        return tdp_watts, tdp_type
 
     def read_rapl_power_limit_w(self) -> float:
         """
@@ -315,11 +326,10 @@ class PowerEstimator:
         Returns:
             Watts per GHz per core.
         """
-        # Prefer current hwmon power reading
-        current_power_w = self._hwmon_scanner.read_power_w()
+        # Prefer reading RAPL power if available
+        current_power_w = self.read_rapl_power_limit_w()
         if current_power_w == 0.0:
-            # fallback to rapl power limit if hwmon doesn't provide current power
-            current_power_w = self.read_rapl_power_limit_w()
+            current_power_w = self._hwmon_scanner.read_power_w()
 
         # Current frequency
         freq_khz = SysfsReader.read_long(

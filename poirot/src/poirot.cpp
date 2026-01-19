@@ -96,12 +96,6 @@ void Poirot::detect_system_info() {
         poirot_msgs::msg::CpuInfo::CPU_CORES_TYPE;
   }
 
-  // Final sanity check: clamp TDP to system-derived bounds
-  double min_tdp = this->power_estimator_.read_min_tdp_watts();
-  double max_tdp = this->power_estimator_.read_max_tdp_watts();
-  this->system_info_.cpu_info.tdp_watts = std::min(
-      std::max(this->system_info_.cpu_info.tdp_watts, min_tdp), max_tdp);
-
   // Update power estimator with TDP
   this->power_estimator_.set_cpu_tdp_watts(
       this->system_info_.cpu_info.tdp_watts);
