@@ -321,7 +321,7 @@ class PowerEstimator:
             # fallback to rapl power limit if hwmon doesn't provide current power
             current_power_w = self.read_rapl_power_limit_w()
 
-        # current frequency
+        # Current frequency
         freq_khz = SysfsReader.read_long(
             "/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq"
         )
@@ -482,16 +482,19 @@ class PowerEstimator:
         thermal_base = "/sys/class/thermal"
         try:
             for entry in os.listdir(thermal_base):
+
                 if not entry.startswith("cooling_device"):
                     continue
+
                 base = os.path.join(thermal_base, entry)
                 type_str = SysfsReader.read_string(os.path.join(base, "type"))
+
                 if ("Processor" in type_str) or ("processor" in type_str):
                     max_pstate = SysfsReader.read_long(os.path.join(base, "max_state"))
                     if max_pstate > 0:
                         # Try sustainable power from thermal zone
                         power_mw = SysfsReader.read_long(
-                            "/sys/class/thermal/thermal_zone0/sustainable_power"
+                            f"{thermal_base}/thermal_zone0/sustainable_power"
                         )
                         if power_mw > 0:
                             tdp_watts = power_mw / 1000.0
@@ -502,26 +505,6 @@ class PowerEstimator:
                             if power > 0:
                                 tdp_watts = power / 1000.0
 
-                        # Try ACPI max power
-                        if tdp_watts == 0.0:
-                            power_uw = SysfsReader.read_long(
-                                f"{self.INTEL_RAPL_PATH}/constraint_0_max_power_uw"
-                            )
-                            if power_uw > 0:
-                                tdp_watts = power_uw / 1_000_000.0
-
-                        # Derive from CPU frequency
-                        if tdp_watts == 0.0 and self._cpu_cores > 0:
-                            max_freq_khz = SysfsReader.read_long(
-                                "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq"
-                            )
-                            if max_freq_khz > 0:
-                                max_freq_ghz = max_freq_khz / 1_000_000.0
-                                watts_per_ghz = self.read_watts_per_ghz()
-                                watts_per_core_at_max = max_freq_ghz * watts_per_ghz
-                                tdp_watts = self._cpu_cores * watts_per_core_at_max
-
-                        break
         except OSError:
             pass
 

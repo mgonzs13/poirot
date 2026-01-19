@@ -436,30 +436,6 @@ double PowerEstimator::read_thermal_tdp_watts() {
               tdp_watts = static_cast<double>(power_mw) / 1000.0;
             }
           }
-
-          // Try ACPI max power
-          if (tdp_watts == 0.0) {
-            long power_uw = SysfsReader::read_long(
-                "/sys/class/powercap/intel-rapl/intel-rapl:0/"
-                "constraint_0_max_power_uw");
-            if (power_uw > 0) {
-              tdp_watts = static_cast<double>(power_uw) / 1e6;
-            }
-          }
-
-          // Derive from CPU frequency
-          if (tdp_watts == 0.0 && this->cpu_cores_ > 0) {
-            long max_freq_khz = SysfsReader::read_long(
-                "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
-            if (max_freq_khz > 0) {
-              double max_freq_ghz = static_cast<double>(max_freq_khz) / 1e6;
-              double watts_per_ghz = this->read_watts_per_ghz();
-              double watts_per_core_at_max = max_freq_ghz * watts_per_ghz;
-              tdp_watts = this->cpu_cores_ * watts_per_core_at_max;
-            }
-          }
-
-          break;
         }
       }
     }

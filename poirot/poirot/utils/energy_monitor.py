@@ -114,9 +114,7 @@ class EnergyMonitor:
                             )
                             self._accumulated_energy_uj += delta
                     else:
-                        self._accumulated_energy_uj += (
-                            current - self._last_rapl_energy_uj
-                        )
+                        self._accumulated_energy_uj += current - self._last_rapl_energy_uj
 
                 # Update last reading
                 self._last_rapl_energy_uj = current

@@ -205,9 +205,7 @@ class Poirot:
         co2_info = self._co2_manager.get_co2_info()
         self._system_info.co2_info.country_code = co2_info.country_code
         self._system_info.co2_info.co2_factor_loaded = co2_info.co2_factor_loaded
-        self._system_info.co2_info.co2_factor_kg_per_kwh = (
-            co2_info.co2_factor_kg_per_kwh
-        )
+        self._system_info.co2_info.co2_factor_kg_per_kwh = co2_info.co2_factor_kg_per_kwh
 
     def _get_thread_context(self) -> ThreadProfilingContext:
         """Get the thread-local profiling context."""
@@ -458,9 +456,7 @@ class Poirot:
 
         if info.gpu_info.available:
             print(f"GPU Vendor: {info.gpu_info.vendor}", file=sys.stderr)
-            print(
-                f"GPU Memory: {info.gpu_info.mem_total_kb // 1024} MB", file=sys.stderr
-            )
+            print(f"GPU Memory: {info.gpu_info.mem_total_kb // 1024} MB", file=sys.stderr)
             print(f"GPU TDP:  {info.gpu_info.tdp_watts:.4f} W", file=sys.stderr)
             print(
                 f"GPU Power Mon: {'Yes' if info.gpu_info.power_monitoring else 'No'}",
