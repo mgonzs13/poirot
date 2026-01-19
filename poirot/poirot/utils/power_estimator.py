@@ -19,23 +19,6 @@ from typing import Tuple
 from poirot.utils.hwmon_scanner import HwmonScanner
 from poirot.utils.sysfs_reader import SysfsReader
 
-# Fallback minimum TDP in watts if system detection fails
-FALLBACK_MIN_TDP_WATTS = 15.0
-# Fallback maximum TDP in watts if system detection fails
-FALLBACK_MAX_TDP_WATTS = 400.0
-# Fallback idle power factor if measurement fails
-FALLBACK_IDLE_POWER_FACTOR = 0.15
-# Fallback watts per core per GHz if calculation fails
-FALLBACK_WATTS_PER_GHZ = 4.0
-# Fallback minimum watts per GHz for validation
-FALLBACK_MIN_WATTS_PER_GHZ = 2.0
-# Fallback maximum watts per GHz for validation
-FALLBACK_MAX_WATTS_PER_GHZ = 20.0
-# Fallback power per core per GHz if all measurements fail
-FALLBACK_POWER_PER_CORE_PER_GHZ = 10.0
-# Fallback watts per core if all measurements fail
-FALLBACK_WATTS_PER_CORE = 12.0
-
 
 class TdpType(IntEnum):
     """CPU TDP detection type constants."""

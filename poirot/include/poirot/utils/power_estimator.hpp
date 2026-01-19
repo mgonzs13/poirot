@@ -23,23 +23,6 @@
 namespace poirot {
 namespace utils {
 
-/// @brief Fallback minimum TDP in watts if system detection fails
-constexpr double FALLBACK_MIN_TDP_WATTS = 15.0;
-/// @brief Fallback maximum TDP in watts if system detection fails
-constexpr double FALLBACK_MAX_TDP_WATTS = 400.0;
-/// @brief Fallback idle power factor if measurement fails
-constexpr double FALLBACK_IDLE_POWER_FACTOR = 0.15;
-/// @brief Fallback watts per core per GHz if calculation fails
-constexpr double FALLBACK_WATTS_PER_GHZ = 4.0;
-/// @brief Fallback minimum watts per GHz for validation
-constexpr double FALLBACK_MIN_WATTS_PER_GHZ = 2.0;
-/// @brief Fallback maximum watts per GHz for validation
-constexpr double FALLBACK_MAX_WATTS_PER_GHZ = 20.0;
-/// @brief Fallback power per core per GHz if all measurements fail
-constexpr double FALLBACK_POWER_PER_CORE_PER_GHZ = 10.0;
-/// @brief Fallback watts per core if all measurements fail
-constexpr double FALLBACK_WATTS_PER_CORE = 12.0;
-
 /// @brief CPU TDP detection type constants
 enum class TdpType {
   RAPL_TDP_TYPE = 1,
