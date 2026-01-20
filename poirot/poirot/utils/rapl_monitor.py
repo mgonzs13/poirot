@@ -40,10 +40,10 @@ class RaplMonitor:
         # Maximum RAPL energy value before wrap-around
         self._rapl_max_energy_uj = 0.0
 
-        self.load_rapl_package_path()
-        self.initialize_rapl_max_energy()
+        self._load_rapl_package_path()
+        self._initialize_rapl_max_energy()
 
-    def load_rapl_package_path(self) -> None:
+    def _load_rapl_package_path(self) -> None:
         """Load RAPL package path."""
         with self._rapl_mutex:
             if not os.path.exists(RAPL_PATH):
@@ -60,7 +60,7 @@ class RaplMonitor:
                         self._rapl_package_path = domain_path
                         break
 
-    def initialize_rapl_max_energy(self) -> None:
+    def _initialize_rapl_max_energy(self) -> None:
         """Initialize RAPL max energy range for wraparound detection."""
         with self._rapl_mutex:
             max_range_path = f"{self._rapl_package_path}/max_energy_range_uj"

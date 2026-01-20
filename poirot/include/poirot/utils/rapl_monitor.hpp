@@ -65,7 +65,7 @@ public:
                                     double system_cpu_delta_us,
                                     double total_energy_delta_uj);
 
-private:
+protected:
   /**
    * @brief Load RAPL package path.
    */
@@ -76,6 +76,7 @@ private:
    */
   void initialize_rapl_max_energy();
 
+private:
   /// @brief Mutex for thread-safe RAPL readings
   mutable std::mutex rapl_mutex_;
   /// @brief RAPL package path
