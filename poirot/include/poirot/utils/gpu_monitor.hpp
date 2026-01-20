@@ -31,10 +31,10 @@ constexpr double FALLBACK_GPU_TDP_WATTS = 150.0;
 
 /// @brief GPU TDP detection type constants
 enum class GpuTdpType {
+  NO_TDP_TYPE = 0,
   NVIDIA_SMI_TDP_TYPE = 1,
   AMD_ROCM_TDP_TYPE = 2,
-  SYSFS_TDP_TYPE = 3,
-  ESTIMATED_TDP_TYPE = 4
+  SYSFS_TDP_TYPE = 3
 };
 
 /**
@@ -69,7 +69,7 @@ struct GpuInfo {
   int index = 0;
   int64_t mem_total_kb = 0;
   double tdp_watts = 0.0;
-  GpuTdpType tdp_type = GpuTdpType::ESTIMATED_TDP_TYPE;
+  GpuTdpType tdp_type = GpuTdpType::NO_TDP_TYPE;
   bool available = false;
   bool power_monitoring = false;
 };
@@ -78,9 +78,9 @@ struct GpuInfo {
  * @class GpuMonitor
  * @brief Class for monitoring GPU metrics and energy consumption.
  *
- * Supports NVIDIA GPUs via nvidia-smi, AMD GPUs via ROCm/sysfs,
- * and Intel GPUs via sysfs. Provides methods for reading GPU
- * utilization, memory usage, power, and energy.
+ * Supports NVIDIA GPUs via nvidia-smi and AMD GPUs via ROCm/sysfs.
+ * Provides methods for reading GPU utilization, memory usage, power, and
+ * energy.
  */
 class GpuMonitor {
 public:
@@ -159,12 +159,6 @@ private:
   bool detect_amd_gpu();
 
   /**
-   * @brief Detect Intel GPU using sysfs.
-   * @return True if Intel GPU was detected.
-   */
-  bool detect_intel_gpu();
-
-  /**
    * @brief Read NVIDIA GPU metrics via nvidia-smi.
    * @return GpuMetrics structure with current values.
    */
@@ -175,12 +169,6 @@ private:
    * @return GpuMetrics structure with current values.
    */
   GpuMetrics read_amd_metrics();
-
-  /**
-   * @brief Read Intel GPU metrics via sysfs.
-   * @return GpuMetrics structure with current values.
-   */
-  GpuMetrics read_intel_metrics();
 
   /**
    * @brief Read NVIDIA per-process GPU metrics via nvidia-smi.
@@ -195,13 +183,6 @@ private:
    * @return ProcessGpuMetrics structure with current values.
    */
   ProcessGpuMetrics read_amd_process_metrics(pid_t pid);
-
-  /**
-   * @brief Read Intel per-process GPU metrics via sysfs/fdinfo.
-   * @param pid Process ID to query.
-   * @return ProcessGpuMetrics structure with current values.
-   */
-  ProcessGpuMetrics read_intel_process_metrics(pid_t pid);
 
   /**
    * @brief Execute a command and return its output.
@@ -226,7 +207,6 @@ private:
     NONE,
     NVIDIA,
     AMD,
-    INTEL
   } gpu_vendor_ = GpuVendor::NONE;
 
   /// @brief Mutex for thread-safe energy readings
@@ -247,10 +227,6 @@ private:
   std::string amd_temp_path_;
   std::string amd_vram_used_path_;
   std::string amd_vram_total_path_;
-
-  /// @brief Intel GPU sysfs paths
-  std::string intel_freq_path_;
-  std::string intel_power_path_;
 };
 
 } // namespace utils

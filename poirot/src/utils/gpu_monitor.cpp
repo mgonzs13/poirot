@@ -49,11 +49,6 @@ bool GpuMonitor::initialize() {
     return true;
   }
 
-  if (this->detect_intel_gpu()) {
-    this->gpu_vendor_ = GpuVendor::INTEL;
-    return true;
-  }
-
   return false;
 }
 
@@ -118,12 +113,12 @@ bool GpuMonitor::detect_nvidia_gpu() {
       this->gpu_info_.tdp_type = GpuTdpType::NVIDIA_SMI_TDP_TYPE;
       this->gpu_info_.power_monitoring = true;
     } catch (...) {
-      this->gpu_info_.tdp_watts = FALLBACK_GPU_TDP_WATTS;
-      this->gpu_info_.tdp_type = GpuTdpType::ESTIMATED_TDP_TYPE;
+      this->gpu_info_.tdp_watts = 0.0;
+      this->gpu_info_.tdp_type = GpuTdpType::NO_TDP_TYPE;
     }
   } else {
-    this->gpu_info_.tdp_watts = FALLBACK_GPU_TDP_WATTS;
-    this->gpu_info_.tdp_type = GpuTdpType::ESTIMATED_TDP_TYPE;
+    this->gpu_info_.tdp_watts = 0.0;
+    this->gpu_info_.tdp_type = GpuTdpType::NO_TDP_TYPE;
   }
 
   // Check if power monitoring works
@@ -247,61 +242,8 @@ bool GpuMonitor::detect_amd_gpu() {
     }
 
     if (this->gpu_info_.tdp_watts <= 0) {
-      this->gpu_info_.tdp_watts = FALLBACK_GPU_TDP_WATTS;
-      this->gpu_info_.tdp_type = GpuTdpType::ESTIMATED_TDP_TYPE;
-    }
-
-    return true;
-  }
-
-  return false;
-}
-
-bool GpuMonitor::detect_intel_gpu() {
-  // Look for Intel GPU in DRM subsystem
-  const std::string drm_base = "/sys/class/drm";
-
-  if (!fs::exists(drm_base)) {
-    return false;
-  }
-
-  for (const auto &entry : fs::directory_iterator(drm_base)) {
-    std::string card_path = entry.path().string();
-    std::string card_name = entry.path().filename().string();
-
-    if (card_name.find("card") != 0 ||
-        card_name.find("-") != std::string::npos) {
-      continue;
-    }
-
-    std::string device_path = card_path + "/device";
-    std::string vendor_path = device_path + "/vendor";
-
-    if (!fs::exists(vendor_path)) {
-      continue;
-    }
-
-    std::string vendor_id = SysfsReader::read_string(vendor_path);
-    // Intel vendor ID is 0x8086
-    if (vendor_id.find("0x8086") == std::string::npos) {
-      continue;
-    }
-
-    this->gpu_info_.vendor = "Intel";
-    this->gpu_info_.model = "Intel Integrated GPU";
-    this->gpu_info_.available = true;
-    this->gpu_info_.index = 0;
-
-    // Intel GPUs typically don't have reliable power monitoring via sysfs
-    // Use estimated TDP based on typical integrated GPU values
-    this->gpu_info_.tdp_watts = 15.0; // Typical Intel iGPU TDP
-    this->gpu_info_.tdp_type = GpuTdpType::ESTIMATED_TDP_TYPE;
-    this->gpu_info_.power_monitoring = false;
-
-    // Check for i915 frequency info
-    std::string freq_path = "/sys/class/drm/" + card_name + "/gt_cur_freq_mhz";
-    if (fs::exists(freq_path)) {
-      this->intel_freq_path_ = freq_path;
+      this->gpu_info_.tdp_watts = 0.0;
+      this->gpu_info_.tdp_type = GpuTdpType::NO_TDP_TYPE;
     }
 
     return true;
@@ -316,8 +258,6 @@ GpuMetrics GpuMonitor::read_metrics() {
     return this->read_nvidia_metrics();
   case GpuVendor::AMD:
     return this->read_amd_metrics();
-  case GpuVendor::INTEL:
-    return this->read_intel_metrics();
   default:
     return GpuMetrics{};
   }
@@ -401,34 +341,6 @@ GpuMetrics GpuMonitor::read_amd_metrics() {
   return metrics;
 }
 
-GpuMetrics GpuMonitor::read_intel_metrics() {
-  GpuMetrics metrics;
-
-  // Intel iGPU has limited sysfs exposure
-  // Read frequency if available
-  if (!this->intel_freq_path_.empty()) {
-    long freq_mhz = SysfsReader::read_long(this->intel_freq_path_);
-    if (freq_mhz > 0) {
-      // Estimate utilization based on frequency vs max
-      // This is a rough approximation
-      const double max_freq_mhz = 1500.0; // Typical max for Intel iGPU
-      metrics.utilization_percent = std::min(
-          100.0, (static_cast<double>(freq_mhz) / max_freq_mhz) * 100.0);
-    }
-  }
-
-  // Estimate power for Intel iGPU
-  double estimated_power =
-      this->gpu_info_.tdp_watts * (metrics.utilization_percent / 100.0);
-  metrics.power_w = estimated_power;
-
-  // Calculate energy
-  metrics.energy_uj =
-      this->estimate_energy_uj(metrics.power_w, metrics.utilization_percent);
-
-  return metrics;
-}
-
 double GpuMonitor::estimate_energy_uj(double power_w, double utilization) {
   std::lock_guard<std::recursive_mutex> lock(this->energy_mutex_);
 
@@ -474,8 +386,6 @@ ProcessGpuMetrics GpuMonitor::read_process_metrics(pid_t pid) {
     return this->read_nvidia_process_metrics(pid);
   case GpuVendor::AMD:
     return this->read_amd_process_metrics(pid);
-  case GpuVendor::INTEL:
-    return this->read_intel_process_metrics(pid);
   default:
     return ProcessGpuMetrics{};
   }
@@ -605,71 +515,6 @@ ProcessGpuMetrics GpuMonitor::read_amd_process_metrics(pid_t pid) {
   return metrics;
 }
 
-ProcessGpuMetrics GpuMonitor::read_intel_process_metrics(pid_t pid) {
-  ProcessGpuMetrics metrics;
-
-  // Intel GPUs also expose per-process info via /proc/[pid]/fdinfo for i915/xe
-  // DRM
-  std::string fd_path = "/proc/" + std::to_string(pid) + "/fd";
-
-  if (!fs::exists(fd_path)) {
-    return metrics;
-  }
-
-  try {
-    for (const auto &entry : fs::directory_iterator(fd_path)) {
-      std::string target;
-
-      try {
-        target = fs::read_symlink(entry.path()).string();
-      } catch (...) {
-        continue;
-      }
-
-      // Check if this is a DRM card or render node
-      if (target.find("/dev/dri/") == std::string::npos) {
-        continue;
-      }
-
-      // Read fdinfo for this file descriptor
-      std::string fdinfo_path = "/proc/" + std::to_string(pid) + "/fdinfo/" +
-                                entry.path().filename().string();
-
-      if (!fs::exists(fdinfo_path)) {
-        continue;
-      }
-
-      std::ifstream fdinfo(fdinfo_path);
-      if (!fdinfo.is_open()) {
-        continue;
-      }
-
-      std::string fdinfo_line;
-      while (std::getline(fdinfo, fdinfo_line)) {
-        // Look for drm-memory-* or i915 specific fields
-        if (fdinfo_line.find("drm-memory-") != std::string::npos) {
-          metrics.is_using_gpu = true;
-          // Extract memory value
-          std::istringstream value_iss(fdinfo_line);
-          std::string key;
-          long value = 0;
-          if (value_iss >> key >> value) {
-            metrics.mem_used_kb += value;
-          }
-        }
-        // Also check for drm-engine-render to detect GPU compute usage
-        if (fdinfo_line.find("drm-engine-render:") != std::string::npos) {
-          metrics.is_using_gpu = true;
-        }
-      }
-    }
-  } catch (...) {
-    // Permission or access error
-  }
-
-  return metrics;
-}
-
 double GpuMonitor::read_process_energy_uj(pid_t pid) {
   if (pid == 0) {
     pid = getpid();
@@ -705,9 +550,6 @@ double GpuMonitor::read_process_energy_uj(pid_t pid) {
     break;
   case GpuVendor::AMD:
     proc_metrics = this->read_amd_process_metrics(pid);
-    break;
-  case GpuVendor::INTEL:
-    proc_metrics = this->read_intel_process_metrics(pid);
     break;
   default:
     return this->accumulated_process_energy_uj_;

@@ -29,10 +29,10 @@ FALLBACK_GPU_TDP_WATTS = 150.0
 class GpuTdpType(IntEnum):
     """GPU TDP detection type constants."""
 
+    NO_TDP_TYPE = 0
     NVIDIA_SMI_TDP_TYPE = 1
     AMD_ROCM_TDP_TYPE = 2
     SYSFS_TDP_TYPE = 3
-    ESTIMATED_TDP_TYPE = 4
 
 
 class GpuVendor(IntEnum):
@@ -41,7 +41,6 @@ class GpuVendor(IntEnum):
     NONE = 0
     NVIDIA = 1
     AMD = 2
-    INTEL = 3
 
 
 @dataclass
@@ -73,7 +72,7 @@ class GpuInfo:
     index: int = 0
     mem_total_kb: int = 0
     tdp_watts: float = 0.0
-    tdp_type: GpuTdpType = GpuTdpType.ESTIMATED_TDP_TYPE
+    tdp_type: GpuTdpType = GpuTdpType.NO_TDP_TYPE
     available: bool = False
     power_monitoring: bool = False
 
@@ -82,8 +81,8 @@ class GpuMonitor:
     """
     Class for monitoring GPU metrics and energy consumption.
 
-    Supports NVIDIA GPUs via nvidia-smi, AMD GPUs via ROCm/sysfs,
-    and Intel GPUs via sysfs. Provides methods for reading GPU
+    Supports NVIDIA GPUs via nvidia-smi and AMD GPUs via ROCm/sysfs.
+    Provides methods for reading GPU
     utilization, memory usage, power, and energy.
     """
 
@@ -114,10 +113,6 @@ class GpuMonitor:
         self._amd_vram_used_path = ""
         self._amd_vram_total_path = ""
 
-        # Intel GPU sysfs paths
-        self._intel_freq_path = ""
-        self._intel_power_path = ""
-
         self._initialize()
 
     def _initialize(self) -> bool:
@@ -133,10 +128,6 @@ class GpuMonitor:
 
         # Try AMD
         if self._detect_amd_gpu():
-            return True
-
-        # Try Intel
-        if self._detect_intel_gpu():
             return True
 
         return False
@@ -173,8 +164,6 @@ class GpuMonitor:
             return self._read_nvidia_metrics()
         elif self._gpu_vendor == GpuVendor.AMD:
             return self._read_amd_metrics()
-        elif self._gpu_vendor == GpuVendor.INTEL:
-            return self._read_intel_metrics()
 
         return GpuMetrics()
 
@@ -198,8 +187,6 @@ class GpuMonitor:
             return self._read_nvidia_process_metrics(pid)
         elif self._gpu_vendor == GpuVendor.AMD:
             return self._read_amd_process_metrics(pid)
-        elif self._gpu_vendor == GpuVendor.INTEL:
-            return self._read_intel_process_metrics(pid)
 
         return ProcessGpuMetrics()
 
@@ -351,14 +338,14 @@ class GpuMonitor:
                         self._gpu_info.tdp_type = GpuTdpType.NVIDIA_SMI_TDP_TYPE
                         self._gpu_info.power_monitoring = True
                     except ValueError:
-                        self._gpu_info.tdp_watts = FALLBACK_GPU_TDP_WATTS
-                        self._gpu_info.tdp_type = GpuTdpType.ESTIMATED_TDP_TYPE
+                        self._gpu_info.tdp_watts = 0.0
+                        self._gpu_info.tdp_type = GpuTdpType.NO_TDP_TYPE
                 else:
-                    self._gpu_info.tdp_watts = FALLBACK_GPU_TDP_WATTS
-                    self._gpu_info.tdp_type = GpuTdpType.ESTIMATED_TDP_TYPE
+                    self._gpu_info.tdp_watts = 0.0
+                    self._gpu_info.tdp_type = GpuTdpType.NO_TDP_TYPE
             else:
-                self._gpu_info.tdp_watts = FALLBACK_GPU_TDP_WATTS
-                self._gpu_info.tdp_type = GpuTdpType.ESTIMATED_TDP_TYPE
+                self._gpu_info.tdp_watts = 0.0
+                self._gpu_info.tdp_type = GpuTdpType.NO_TDP_TYPE
 
             # Check if power monitoring works
             result = subprocess.run(
@@ -447,44 +434,6 @@ class GpuMonitor:
 
         return False
 
-    def _detect_intel_gpu(self) -> bool:
-        """
-        Detect Intel GPU using sysfs.
-
-        Returns:
-            True if Intel GPU was detected.
-        """
-        drm_path = "/sys/class/drm"
-        if not os.path.isdir(drm_path):
-            return False
-
-        try:
-            for entry in os.listdir(drm_path):
-                if not entry.startswith("card"):
-                    continue
-
-                card_path = os.path.join(drm_path, entry)
-                vendor_path = os.path.join(card_path, "device/vendor")
-                vendor = SysfsReader.read_string(vendor_path)
-
-                # Intel vendor ID
-                if vendor == "0x8086":
-                    self._gpu_info.vendor = "Intel"
-                    self._gpu_info.model = "Intel Integrated Graphics"
-                    self._gpu_info.tdp_watts = 25.0  # Typical iGPU TDP
-                    self._gpu_info.tdp_type = GpuTdpType.ESTIMATED_TDP_TYPE
-                    self._gpu_info.available = True
-                    self._gpu_info.power_monitoring = False
-                    self._gpu_vendor = GpuVendor.INTEL
-
-                    # Cache Intel sysfs paths
-                    self._intel_freq_path = os.path.join(card_path, "gt_cur_freq_mhz")
-                    return True
-        except OSError:
-            pass
-
-        return False
-
     def _read_nvidia_metrics(self) -> GpuMetrics:
         """
         Read NVIDIA GPU metrics via nvidia-smi.
@@ -545,36 +494,6 @@ class GpuMonitor:
             power_uw = SysfsReader.read_long(self._amd_power_path)
             if power_uw > 0:
                 metrics.power_w = power_uw / 1_000_000.0
-
-        # Calculate energy (time-integrated)
-        metrics.energy_uj = self._estimate_energy_uj(
-            metrics.power_w, metrics.utilization_percent
-        )
-
-        return metrics
-
-    def _read_intel_metrics(self) -> GpuMetrics:
-        """
-        Read Intel GPU metrics via sysfs.
-
-        Returns:
-            GpuMetrics structure with current values.
-        """
-        metrics = GpuMetrics()
-
-        if self._intel_freq_path:
-            freq_mhz = SysfsReader.read_long(self._intel_freq_path)
-            if freq_mhz > 0:
-                # Estimate utilization from frequency (rough approximation)
-                max_freq = 1500  # Typical max for Intel iGPU
-                metrics.utilization_percent = min(100.0, (freq_mhz / max_freq) * 100.0)
-
-        # Estimate power for Intel iGPU
-        if self._gpu_info.tdp_watts > 0:
-            estimated_power = self._gpu_info.tdp_watts * (
-                metrics.utilization_percent / 100.0
-            )
-            metrics.power_w = estimated_power
 
         # Calculate energy (time-integrated)
         metrics.energy_uj = self._estimate_energy_uj(
@@ -682,60 +601,6 @@ class GpuMonitor:
                                         break
                                     except ValueError:
                                         continue
-                except OSError:
-                    continue
-        except OSError:
-            pass
-
-        return metrics
-
-    def _read_intel_process_metrics(self, pid: int) -> ProcessGpuMetrics:
-        """
-        Read Intel per-process GPU metrics via sysfs/fdinfo.
-
-        Args:
-            pid: Process ID to query.
-
-        Returns:
-            ProcessGpuMetrics structure with current values.
-        """
-        metrics = ProcessGpuMetrics()
-
-        # Check /proc/<pid>/fd symlinks for DRM nodes
-        fd_dir = f"/proc/{pid}/fd"
-        if not os.path.isdir(fd_dir):
-            return metrics
-
-        try:
-            for entry in os.listdir(fd_dir):
-                fd_path = os.path.join(fd_dir, entry)
-                try:
-                    target = os.readlink(fd_path)
-                except OSError:
-                    continue
-
-                if "/dev/dri/" not in target:
-                    continue
-
-                fdinfo_path = f"/proc/{pid}/fdinfo/{entry}"
-                if not os.path.exists(fdinfo_path):
-                    continue
-
-                try:
-                    with open(fdinfo_path, "r", encoding="utf-8", errors="ignore") as f:
-                        for line in f:
-                            if "drm-memory-" in line:
-                                metrics.is_using_gpu = True
-                                parts = line.split()
-                                for tok in parts:
-                                    try:
-                                        val = int(tok)
-                                        metrics.mem_used_kb += val
-                                        break
-                                    except ValueError:
-                                        continue
-                            if "drm-engine-render:" in line:
-                                metrics.is_using_gpu = True
                 except OSError:
                     continue
         except OSError:

@@ -92,9 +92,9 @@ void Poirot::detect_system_info() {
     } else if (gpu_info.tdp_type == utils::GpuTdpType::SYSFS_TDP_TYPE) {
       this->system_info_.gpu_info.tdp_watts_type =
           poirot_msgs::msg::GpuInfo::SYSFS_TDP_TYPE;
-    } else if (gpu_info.tdp_type == utils::GpuTdpType::ESTIMATED_TDP_TYPE) {
+    } else {
       this->system_info_.gpu_info.tdp_watts_type =
-          poirot_msgs::msg::GpuInfo::ESTIMATED_TDP_TYPE;
+          poirot_msgs::msg::GpuInfo::NO_TDP_TYPE;
     }
 
     this->system_info_.gpu_info.available = true;
