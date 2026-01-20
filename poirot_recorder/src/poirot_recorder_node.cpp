@@ -69,7 +69,6 @@ void PoirotRecorderNode::write_csv_header() {
   this->csv_file_
       << "timestamp_sec,timestamp_nanosec,"
       << "os_name,os_version,hostname,cpu_model,cpu_cores,mem_total_kb,"
-      << "cpu_tdp_watts,cpu_tdp_watts_type,"
       << "gpu_available,gpu_model,gpu_vendor,gpu_mem_total_kb,"
       << "gpu_tdp_watts,gpu_tdp_watts_type,gpu_power_monitoring,"
       << "country_code,co2_factor_loaded,co2_factor_kg_per_kwh,"
@@ -101,9 +100,7 @@ void PoirotRecorderNode::data_callback(
                   << this->escape_csv(msg->system_info.hostname) << ","
                   << this->escape_csv(msg->system_info.cpu_info.model) << ","
                   << msg->system_info.cpu_info.cores << ","
-                  << msg->system_info.mem_total_kb << ","
-                  << msg->system_info.cpu_info.tdp_watts << ","
-                  << static_cast<int>(msg->system_info.cpu_info.tdp_watts_type)
+                  << msg->system_info.cpu_info.mem_total_kb
                   << ","
 
                   // GPU Info
