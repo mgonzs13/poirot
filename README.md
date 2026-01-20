@@ -74,6 +74,40 @@ export EMBER_KEY="your_api_key_here"
 
 Without this key, POIROT will use a global average CO2 factor as fallback.
 
+### RAPL Permissions Setup
+
+POIROT uses RAPL (Running Average Power Limit) to monitor CPU energy consumption by reading from `/sys/class/powercap/intel-rapl/*/energy_uj` files. These files typically require special permissions to access. To resolve permission issues, create a `rapl` group and configure the appropriate permissions:
+
+```shell
+# Create rapl group
+sudo groupadd rapl
+
+# Add your user to the rapl group
+sudo usermod -a -G rapl $USER
+
+# Install sysfsutils
+sudo apt install sysfsutils
+
+# Run the following script to add the required lines to /etc/sysfs.conf
+for rapl_dir in /sys/class/powercap/intel-rapl*; do
+    if [ -f "$rapl_dir/energy_uj" ]; then
+        domain=$(basename "$rapl_dir")
+        sudo echo "mode class/powercap/$domain/energy_uj = 0440" | sudo tee -a /etc/sysfs.conf
+        sudo echo "owner class/powercap/$domain/energy_uj = root:rapl" | sudo tee -a /etc/sysfs.conf
+    fi
+done
+
+
+# Restart the sysfsutils service.
+sudo systemctl restart sysfsutils
+
+# Reboot or log out and back in for group changes to take effect
+# You can also run the following command to activate the changes to groups:
+newgrp rapl
+```
+
+After following these steps, POIROT should be able to read energy consumption data without permission errors.
+
 ## Usage
 
 1. **Add dependency in `package.xml`**:
