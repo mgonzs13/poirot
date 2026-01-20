@@ -26,9 +26,6 @@
 namespace poirot {
 namespace utils {
 
-/// @brief Fallback GPU TDP in watts if detection fails
-constexpr double FALLBACK_GPU_TDP_WATTS = 150.0;
-
 /// @brief GPU TDP detection type constants
 enum class GpuTdpType {
   NO_TDP_TYPE = 0,
@@ -78,7 +75,7 @@ struct GpuInfo {
  * @class GpuMonitor
  * @brief Class for monitoring GPU metrics and energy consumption.
  *
- * Supports NVIDIA GPUs via nvidia-smi and AMD GPUs via ROCm/sysfs.
+ * Supports NVIDIA GPUs via nvidia-smi and AMD GPUs via rocm-smi.
  * Provides methods for reading GPU utilization, memory usage, power, and
  * energy.
  */
@@ -153,7 +150,7 @@ private:
   bool detect_nvidia_gpu();
 
   /**
-   * @brief Detect AMD GPU using ROCm or sysfs.
+   * @brief Detect AMD GPU using rocm-smi.
    * @return True if AMD GPU was detected.
    */
   bool detect_amd_gpu();
@@ -165,7 +162,7 @@ private:
   GpuMetrics read_nvidia_metrics();
 
   /**
-   * @brief Read AMD GPU metrics via sysfs.
+   * @brief Read AMD GPU metrics via rocm-smi.
    * @return GpuMetrics structure with current values.
    */
   GpuMetrics read_amd_metrics();
@@ -178,7 +175,7 @@ private:
   ProcessGpuMetrics read_nvidia_process_metrics(pid_t pid);
 
   /**
-   * @brief Read AMD per-process GPU metrics via sysfs/fdinfo.
+   * @brief Read AMD per-process GPU metrics via rocm-smi.
    * @param pid Process ID to query.
    * @return ProcessGpuMetrics structure with current values.
    */
@@ -219,14 +216,6 @@ private:
   std::chrono::steady_clock::time_point last_energy_read_time_;
   /// @brief Last per-process energy read time point
   std::chrono::steady_clock::time_point last_process_energy_read_time_;
-
-  /// @brief AMD GPU sysfs paths
-  std::string amd_gpu_busy_path_;
-  std::string amd_mem_busy_path_;
-  std::string amd_power_path_;
-  std::string amd_temp_path_;
-  std::string amd_vram_used_path_;
-  std::string amd_vram_total_path_;
 };
 
 } // namespace utils

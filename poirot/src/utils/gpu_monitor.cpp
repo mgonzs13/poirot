@@ -21,7 +21,9 @@
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#include <regex>
 #include <sstream>
+#include <vector>
 
 #include "poirot/utils/gpu_monitor.hpp"
 #include "poirot/utils/sysfs_reader.hpp"
@@ -133,123 +135,144 @@ bool GpuMonitor::detect_nvidia_gpu() {
 }
 
 bool GpuMonitor::detect_amd_gpu() {
-  // Look for AMD GPU in DRM subsystem
-  const std::string drm_base = "/sys/class/drm";
-
-  if (!fs::exists(drm_base)) {
+  // Check if rocm-smi is available
+  std::string output = this->exec_command("which rocm-smi 2>/dev/null");
+  if (output.empty()) {
     return false;
   }
 
-  for (const auto &entry : fs::directory_iterator(drm_base)) {
-    std::string card_path = entry.path().string();
-    std::string card_name = entry.path().filename().string();
-
-    // Look for card0, card1, etc.
-    if (card_name.find("card") != 0 ||
-        card_name.find("-") != std::string::npos) {
-      continue;
-    }
-
-    // Check if it's an AMD GPU
-    std::string device_path = card_path + "/device";
-    std::string vendor_path = device_path + "/vendor";
-
-    if (!fs::exists(vendor_path)) {
-      continue;
-    }
-
-    std::string vendor_id = SysfsReader::read_string(vendor_path);
-    // AMD vendor ID is 0x1002
-    if (vendor_id.find("0x1002") == std::string::npos) {
-      continue;
-    }
-
-    this->gpu_info_.vendor = "AMD";
-    this->gpu_info_.available = true;
-
-    // Try to get GPU name
-    std::string product_path = device_path + "/product_name";
-    if (fs::exists(product_path)) {
-      this->gpu_info_.model = SysfsReader::read_string(product_path);
-    } else {
-      this->gpu_info_.model = "AMD GPU";
-    }
-
-    // Look for hwmon path for power/temp readings
-    std::string hwmon_path = device_path + "/hwmon";
-    if (fs::exists(hwmon_path)) {
-      for (const auto &hwmon_entry : fs::directory_iterator(hwmon_path)) {
-        std::string hwmon_base = hwmon_entry.path().string();
-
-        // Power input (in microwatts)
-        std::string power_path = hwmon_base + "/power1_average";
-        if (fs::exists(power_path)) {
-          this->amd_power_path_ = power_path;
-          this->gpu_info_.power_monitoring = true;
-        }
-
-        // Temperature
-        std::string temp_path = hwmon_base + "/temp1_input";
-        if (fs::exists(temp_path)) {
-          this->amd_temp_path_ = temp_path;
-        }
-
-        break; // Use first hwmon device
-      }
-    }
-
-    // GPU busy percentage
-    std::string gpu_busy = device_path + "/gpu_busy_percent";
-    if (fs::exists(gpu_busy)) {
-      this->amd_gpu_busy_path_ = gpu_busy;
-    }
-
-    // Memory busy percentage
-    std::string mem_busy = device_path + "/mem_busy_percent";
-    if (fs::exists(mem_busy)) {
-      this->amd_mem_busy_path_ = mem_busy;
-    }
-
-    // VRAM usage
-    std::string vram_used = device_path + "/mem_info_vram_used";
-    if (fs::exists(vram_used)) {
-      this->amd_vram_used_path_ = vram_used;
-    }
-
-    std::string vram_total = device_path + "/mem_info_vram_total";
-    if (fs::exists(vram_total)) {
-      this->amd_vram_total_path_ = vram_total;
-      long total = SysfsReader::read_long(vram_total);
-      if (total > 0) {
-        this->gpu_info_.mem_total_kb = total / 1024;
-      }
-    }
-
-    // Try to get TDP from power cap
-    std::string power_cap = device_path + "/hwmon/hwmon*/power1_cap";
-    if (this->gpu_info_.power_monitoring && !this->amd_power_path_.empty()) {
-      // Derive power cap path from power average path
-      std::string hwmon_base =
-          this->amd_power_path_.substr(0, this->amd_power_path_.rfind('/'));
-      std::string cap_path = hwmon_base + "/power1_cap";
-      if (fs::exists(cap_path)) {
-        long cap_uw = SysfsReader::read_long(cap_path);
-        if (cap_uw > 0) {
-          this->gpu_info_.tdp_watts = static_cast<double>(cap_uw) / 1e6;
-          this->gpu_info_.tdp_type = GpuTdpType::AMD_TDP_TYPE;
-        }
-      }
-    }
-
-    if (this->gpu_info_.tdp_watts <= 0) {
-      this->gpu_info_.tdp_watts = 0.0;
-      this->gpu_info_.tdp_type = GpuTdpType::NO_TDP_TYPE;
-    }
-
-    return true;
+  // Get GPU model
+  output = this->exec_command("rocm-smi --showproductname");
+  if (output.empty()) {
+    return false;
   }
 
-  return false;
+  // Parse output
+  std::istringstream iss(output);
+  std::string line;
+  while (std::getline(iss, line)) {
+    if (line.find("Card series") != std::string::npos &&
+        line.find(":") != std::string::npos) {
+      size_t colon_pos = line.find(":");
+      if (colon_pos != std::string::npos) {
+        this->gpu_info_.model = line.substr(colon_pos + 1);
+        // Trim leading/trailing whitespace
+        this->gpu_info_.model.erase(
+            this->gpu_info_.model.begin(),
+            std::find_if(this->gpu_info_.model.begin(),
+                         this->gpu_info_.model.end(),
+                         [](unsigned char ch) { return !std::isspace(ch); }));
+        this->gpu_info_.model.erase(
+            std::find_if(this->gpu_info_.model.rbegin(),
+                         this->gpu_info_.model.rend(),
+                         [](unsigned char ch) { return !std::isspace(ch); })
+                .base(),
+            this->gpu_info_.model.end());
+        break;
+      }
+    }
+  }
+
+  if (this->gpu_info_.model.empty()) {
+    this->gpu_info_.model = "AMD GPU";
+  }
+
+  this->gpu_info_.vendor = "AMD";
+  this->gpu_info_.index = 0;
+  this->gpu_info_.available = true;
+
+  // Get total memory
+  output = this->exec_command("rocm-smi --showmeminfo vram");
+  if (!output.empty()) {
+
+    std::istringstream mem_iss(output);
+    std::string mem_line;
+    while (std::getline(mem_iss, mem_line)) {
+      if (mem_line.find("VRAM Total Memory") != std::string::npos &&
+          mem_line.find(":") != std::string::npos) {
+
+        std::vector<std::string> parts;
+        std::string token;
+        std::istringstream line_iss(mem_line);
+        while (std::getline(line_iss, token, ':')) {
+          parts.push_back(token);
+        }
+
+        if (parts.size() > 2) {
+          std::string mem_str = parts[2];
+
+          // Trim whitespace
+          mem_str.erase(
+              mem_str.begin(),
+              std::find_if(mem_str.begin(), mem_str.end(),
+                           [](unsigned char ch) { return !std::isspace(ch); }));
+          mem_str.erase(
+              std::find_if(mem_str.rbegin(), mem_str.rend(),
+                           [](unsigned char ch) { return !std::isspace(ch); })
+                  .base(),
+              mem_str.end());
+
+          try {
+            long mem_mb = std::stol(mem_str);
+            this->gpu_info_.mem_total_kb = mem_mb * 1024;
+          } catch (...) {
+            // ignore
+          }
+        }
+        break;
+      }
+    }
+  }
+
+  // Get TDP
+  output = this->exec_command("rocm-smi --showmaxpower");
+  if (!output.empty()) {
+
+    std::istringstream tdp_iss(output);
+    std::string tdp_line;
+    while (std::getline(tdp_iss, tdp_line)) {
+      if (tdp_line.find("Package Power") != std::string::npos &&
+          tdp_line.find(":") != std::string::npos) {
+
+        std::vector<std::string> parts;
+        std::string token;
+        std::istringstream line_iss(tdp_line);
+        while (std::getline(line_iss, token, ':')) {
+          parts.push_back(token);
+        }
+
+        if (parts.size() > 2) {
+          std::string tdp_str = parts[2];
+          // Trim whitespace
+          tdp_str.erase(
+              tdp_str.begin(),
+              std::find_if(tdp_str.begin(), tdp_str.end(),
+                           [](unsigned char ch) { return !std::isspace(ch); }));
+          tdp_str.erase(
+              std::find_if(tdp_str.rbegin(), tdp_str.rend(),
+                           [](unsigned char ch) { return !std::isspace(ch); })
+                  .base(),
+              tdp_str.end());
+          try {
+            this->gpu_info_.tdp_watts = std::stod(tdp_str);
+            this->gpu_info_.tdp_type = GpuTdpType::AMD_TDP_TYPE;
+          } catch (...) {
+            // ignore
+          }
+        }
+        break;
+      }
+    }
+  }
+
+  // Check power monitoring
+  output = this->exec_command("rocm-smi --showpower");
+  if (!output.empty() && output.find("N/A") == std::string::npos) {
+    this->gpu_info_.power_monitoring = true;
+  }
+
+  this->gpu_vendor_ = GpuVendor::AMD;
+  return true;
 }
 
 GpuMetrics GpuMonitor::read_metrics() {
@@ -310,31 +333,134 @@ GpuMetrics GpuMonitor::read_nvidia_metrics() {
 GpuMetrics GpuMonitor::read_amd_metrics() {
   GpuMetrics metrics;
 
-  // Read GPU utilization
-  if (!this->amd_gpu_busy_path_.empty()) {
-    long busy = SysfsReader::read_long(this->amd_gpu_busy_path_);
-    if (busy >= 0) {
-      metrics.utilization_percent = static_cast<double>(busy);
+  try {
+    // Read utilization
+    std::string output = this->exec_command("rocm-smi --showuse");
+    if (!output.empty()) {
+      std::istringstream iss(output);
+      std::string line;
+      while (std::getline(iss, line)) {
+        if (line.find("GPU use") != std::string::npos &&
+            line.find(":") != std::string::npos) {
+
+          std::vector<std::string> parts;
+          std::string token;
+          std::istringstream line_iss(line);
+          while (std::getline(line_iss, token, ':')) {
+            parts.push_back(token);
+          }
+
+          if (parts.size() > 2) {
+            std::string use_str = parts[2];
+            // Trim whitespace
+            use_str.erase(use_str.begin(),
+                          std::find_if(use_str.begin(), use_str.end(),
+                                       [](unsigned char ch) {
+                                         return !std::isspace(ch);
+                                       }));
+            use_str.erase(
+                std::find_if(use_str.rbegin(), use_str.rend(),
+                             [](unsigned char ch) { return !std::isspace(ch); })
+                    .base(),
+                use_str.end());
+            try {
+              metrics.utilization_percent = std::stod(use_str);
+            } catch (...) {
+              // ignore
+            }
+          }
+          break;
+        }
+      }
     }
+
+    // Read memory used
+    output = this->exec_command("rocm-smi --showmemuse");
+    if (!output.empty()) {
+      std::istringstream iss(output);
+      std::string line;
+      while (std::getline(iss, line)) {
+        if (line.find("VRAM") != std::string::npos &&
+            line.find("used") != std::string::npos &&
+            line.find(":") != std::string::npos) {
+
+          std::vector<std::string> parts;
+          std::string token;
+          std::istringstream line_iss(line);
+          while (std::getline(line_iss, token, ':')) {
+            parts.push_back(token);
+          }
+
+          if (parts.size() > 2) {
+            std::string mem_str = parts[2];
+            // Trim whitespace
+            mem_str.erase(mem_str.begin(),
+                          std::find_if(mem_str.begin(), mem_str.end(),
+                                       [](unsigned char ch) {
+                                         return !std::isspace(ch);
+                                       }));
+            mem_str.erase(
+                std::find_if(mem_str.rbegin(), mem_str.rend(),
+                             [](unsigned char ch) { return !std::isspace(ch); })
+                    .base(),
+                mem_str.end());
+            try {
+              long mem_mb = std::stol(mem_str);
+              metrics.mem_used_kb = mem_mb * 1024;
+            } catch (...) {
+              // ignore
+            }
+          }
+          break;
+        }
+      }
+    }
+
+    // Read power
+    output = this->exec_command("rocm-smi --showpower");
+    if (!output.empty()) {
+      std::istringstream iss(output);
+      std::string line;
+      while (std::getline(iss, line)) {
+        if ((line.find("Power") != std::string::npos ||
+             line.find("power") != std::string::npos) &&
+            line.find(":") != std::string::npos) {
+
+          std::vector<std::string> parts;
+          std::string token;
+          std::istringstream line_iss(line);
+          while (std::getline(line_iss, token, ':')) {
+            parts.push_back(token);
+          }
+
+          if (parts.size() > 2) {
+            std::string power_str = parts[2];
+            // Trim whitespace
+            power_str.erase(power_str.begin(),
+                            std::find_if(power_str.begin(), power_str.end(),
+                                         [](unsigned char ch) {
+                                           return !std::isspace(ch);
+                                         }));
+            power_str.erase(
+                std::find_if(power_str.rbegin(), power_str.rend(),
+                             [](unsigned char ch) { return !std::isspace(ch); })
+                    .base(),
+                power_str.end());
+            try {
+              metrics.power_w = std::stod(power_str);
+            } catch (...) {
+              // ignore
+            }
+          }
+          break;
+        }
+      }
+    }
+  } catch (...) {
+    // ignore
   }
 
-  // Read VRAM usage
-  if (!this->amd_vram_used_path_.empty()) {
-    long vram_used = SysfsReader::read_long(this->amd_vram_used_path_);
-    if (vram_used > 0) {
-      metrics.mem_used_kb = vram_used / 1024;
-    }
-  }
-
-  // Read power (microwatts to watts)
-  if (!this->amd_power_path_.empty()) {
-    long power_uw = SysfsReader::read_long(this->amd_power_path_);
-    if (power_uw > 0) {
-      metrics.power_w = static_cast<double>(power_uw) / 1e6;
-    }
-  }
-
-  // Calculate energy
+  // Calculate energy (time-integrated)
   metrics.energy_uj =
       this->estimate_energy_uj(metrics.power_w, metrics.utilization_percent);
 
@@ -454,62 +580,42 @@ ProcessGpuMetrics GpuMonitor::read_nvidia_process_metrics(pid_t pid) {
 ProcessGpuMetrics GpuMonitor::read_amd_process_metrics(pid_t pid) {
   ProcessGpuMetrics metrics;
 
-  // AMD GPUs expose per-process info via /proc/[pid]/fdinfo for DRM file
-  // descriptors Look for DRM render node usage in /proc/[pid]/fd and check
-  // fdinfo
-  std::string fd_path = "/proc/" + std::to_string(pid) + "/fd";
-
-  if (!fs::exists(fd_path)) {
-    return metrics;
-  }
-
   try {
-    for (const auto &entry : fs::directory_iterator(fd_path)) {
-      std::string link_path = entry.path().string();
-      std::string target;
+    std::string output = this->exec_command("rocm-smi --showpids");
+    if (!output.empty()) {
+      std::istringstream iss(output);
+      std::string line;
+      while (std::getline(iss, line)) {
+        if (line.empty()) {
+          continue;
+        }
 
-      try {
-        target = fs::read_symlink(entry.path()).string();
-      } catch (...) {
-        continue;
-      }
+        std::vector<std::string> parts;
+        std::string token;
+        std::istringstream line_iss(line);
+        while (std::getline(line_iss, token, ' ')) {
+          if (!token.empty()) {
+            parts.push_back(token);
+          }
+        }
 
-      // Check if this is a DRM render node (e.g., /dev/dri/renderD128)
-      if (target.find("/dev/dri/render") == std::string::npos) {
-        continue;
-      }
-
-      // Read fdinfo for this file descriptor
-      std::string fdinfo_path = "/proc/" + std::to_string(pid) + "/fdinfo/" +
-                                entry.path().filename().string();
-
-      if (!fs::exists(fdinfo_path)) {
-        continue;
-      }
-
-      std::ifstream fdinfo(fdinfo_path);
-      if (!fdinfo.is_open()) {
-        continue;
-      }
-
-      std::string fdinfo_line;
-      while (std::getline(fdinfo, fdinfo_line)) {
-        // Look for drm-memory-vram or amdgpu-vram fields
-        if (fdinfo_line.find("drm-memory-vram:") != std::string::npos ||
-            fdinfo_line.find("amdgpu-vram:") != std::string::npos) {
-          metrics.is_using_gpu = true;
-          // Extract memory value (in KiB)
-          std::istringstream value_iss(fdinfo_line);
-          std::string key;
-          long value = 0;
-          if (value_iss >> key >> value) {
-            metrics.mem_used_kb += value;
+        if (parts.size() >= 4) {
+          try {
+            pid_t proc_pid = static_cast<pid_t>(std::stol(parts[0]));
+            if (proc_pid == pid) {
+              metrics.is_using_gpu = true;
+              long mem_mb = std::stol(parts[3]);
+              metrics.mem_used_kb = mem_mb * 1024;
+              break;
+            }
+          } catch (...) {
+            continue;
           }
         }
       }
     }
   } catch (...) {
-    // Permission or access error
+    // ignore
   }
 
   return metrics;
@@ -570,22 +676,17 @@ double GpuMonitor::read_process_energy_uj(pid_t pid) {
                    static_cast<double>(sys_metrics.mem_used_kb);
     // Clamp to [0, 1]
     memory_ratio = std::min(1.0, std::max(0.0, memory_ratio));
-  } else if (proc_metrics.is_using_gpu) {
-    // If we know process is using GPU but can't measure memory,
-    // assume it's using some portion (this is a fallback)
-    memory_ratio = 0.1; // Conservative estimate
   }
 
   // Calculate process's estimated power usage
   double process_power_w = 0.0;
-  if (sys_metrics.power_w > 0.0) {
+  if (sys_metrics.power_w > 0.0 && memory_ratio > 0.0) {
     // Use actual power reading multiplied by memory ratio
     process_power_w = sys_metrics.power_w * memory_ratio;
   } else if (this->gpu_info_.tdp_watts > 0.0) {
     // Estimate based on TDP, utilization, and memory ratio
     double utilization_factor = sys_metrics.utilization_percent / 100.0;
-    double estimated_power = this->gpu_info_.tdp_watts * utilization_factor;
-    process_power_w = estimated_power * memory_ratio;
+    process_power_w = this->gpu_info_.tdp_watts * utilization_factor;
   }
 
   // Calculate energy delta: E = P * t (power in watts, time in microseconds)

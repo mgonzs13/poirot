@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import re
 import shutil
 import time
 import threading
@@ -20,11 +21,6 @@ import subprocess
 from dataclasses import dataclass
 from enum import IntEnum
 from typing import List
-
-from poirot.utils.sysfs_reader import SysfsReader
-
-# Fallback GPU TDP in watts if detection fails
-FALLBACK_GPU_TDP_WATTS = 150.0
 
 
 class GpuTdpType(IntEnum):
@@ -81,7 +77,7 @@ class GpuMonitor:
     """
     Class for monitoring GPU metrics and energy consumption.
 
-    Supports NVIDIA GPUs via nvidia-smi and AMD GPUs via ROCm/sysfs.
+    Supports NVIDIA GPUs via nvidia-smi and AMD GPUs via rocm-smi.
     Provides methods for reading GPU
     utilization, memory usage, power, and energy.
     """
@@ -104,14 +100,6 @@ class GpuMonitor:
         self._last_energy_read_time = time.time()
         # Last per-process energy read time point
         self._last_process_energy_read_time = time.time()
-
-        # AMD GPU sysfs paths
-        self._amd_gpu_busy_path = ""
-        self._amd_mem_busy_path = ""
-        self._amd_power_path = ""
-        self._amd_temp_path = ""
-        self._amd_vram_used_path = ""
-        self._amd_vram_total_path = ""
 
         self._initialize()
 
@@ -248,18 +236,14 @@ class GpuMonitor:
                     memory_ratio = max(0.0, min(1.0, memory_ratio))
                 except Exception:
                     memory_ratio = 0.0
-            elif proc_metrics.is_using_gpu:
-                # Conservative fallback when memory info is missing
-                memory_ratio = 0.1
 
             # Estimate process power
             process_power_w = 0.0
-            if sys_metrics.power_w > 0.0:
+            if sys_metrics.power_w > 0.0 and memory_ratio > 0.0:
                 process_power_w = sys_metrics.power_w * memory_ratio
             elif self._gpu_info.tdp_watts > 0.0:
                 utilization_factor = sys_metrics.utilization_percent / 100.0
-                estimated_power = self._gpu_info.tdp_watts * utilization_factor
-                process_power_w = estimated_power * memory_ratio
+                process_power_w = self._gpu_info.tdp_watts * utilization_factor
 
             if process_power_w > 0.0:
                 energy_delta_uj = process_power_w * (elapsed_s * 1_000_000.0)
@@ -361,63 +345,73 @@ class GpuMonitor:
 
     def _detect_amd_gpu(self) -> bool:
         """
-        Detect AMD GPU using ROCm or sysfs.
+        Detect AMD GPU using rocm-smi.
 
         Returns:
             True if AMD GPU was detected.
         """
-        drm_path = "/sys/class/drm"
-        if not os.path.isdir(drm_path):
+        # Check if rocm-smi is available
+        if not shutil.which("rocm-smi"):
             return False
 
         try:
-            for entry in os.listdir(drm_path):
-                if not entry.startswith("card"):
-                    continue
+            # Get GPU model
+            result = self._exec_command(["rocm-smi", "--showproductname"])
+            if not result:
+                return False
 
-                card_path = os.path.join(drm_path, entry)
-                vendor_path = os.path.join(card_path, "device/vendor")
-                vendor = SysfsReader.read_string(vendor_path)
+            # Parse output
+            lines = result.split("\n")
+            for line in lines:
+                if "Card series" in line and ":" in line:
+                    parts = line.split(":")
+                    if len(parts) > 1:
+                        self._gpu_info.model = parts[1].strip()
+                        break
 
-                # AMD vendor ID
-                if vendor == "0x1002":
-                    self._gpu_info.vendor = "AMD"
-                    self._gpu_vendor = GpuVendor.AMD
+            if not self._gpu_info.model:
+                self._gpu_info.model = "AMD GPU"
 
-                    # Get model name
-                    product_path = os.path.join(card_path, "device/product_name")
-                    self._gpu_info.model = SysfsReader.read_string(product_path)
-                    if not self._gpu_info.model:
-                        self._gpu_info.model = "AMD GPU"
+            self._gpu_info.vendor = "AMD"
+            self._gpu_info.index = 0
+            self._gpu_info.available = True
 
-                    # Get memory
-                    mem_path = os.path.join(card_path, "device/mem_info_vram_total")
-                    mem_bytes = SysfsReader.read_long(mem_path)
-                    if mem_bytes > 0:
-                        self._gpu_info.mem_total_kb = mem_bytes // 1024
+            # Get total memory
+            result = self._exec_command(["rocm-smi", "--showmeminfo", "vram"])
 
-                    # Cache AMD sysfs paths
-                    device_path = os.path.join(card_path, "device")
-                    self._amd_gpu_busy_path = os.path.join(
-                        device_path, "gpu_busy_percent"
-                    )
-                    self._amd_mem_busy_path = os.path.join(
-                        device_path, "mem_busy_percent"
-                    )
-                    self._amd_power_path = os.path.join(
-                        device_path, "hwmon/hwmon0/power1_average"
-                    )
-                    self._amd_vram_used_path = os.path.join(
-                        device_path, "mem_info_vram_used"
-                    )
-                    self._amd_vram_total_path = mem_path
+            if result:
+                lines = result.split("\n")
+                for line in lines:
+                    if "VRAM Total Memory" in line and ":" in line:
+                        parts = line.split(":")
+                        if len(parts) > 2:
+                            mem_str = parts[2].strip()
+                            mem_mb = int(mem_str)
+                            self._gpu_info.mem_total_kb = mem_mb * 1024
+                            break
 
-                    self._gpu_info.tdp_watts = FALLBACK_GPU_TDP_WATTS
-                    self._gpu_info.tdp_type = GpuTdpType.AMD_TDP_TYPE
-                    self._gpu_info.available = True
-                    self._gpu_info.power_monitoring = False
-                    return True
-        except OSError:
+            # Get TDP
+            result = self._exec_command(["rocm-smi", "--showmaxpower"])
+            if result:
+                lines = result.split("\n")
+                for line in lines:
+                    if "Package Power" in line and ":" in line:
+                        parts = line.split(":")
+                        if len(parts) > 2:
+                            tdp_str = parts[2].strip()
+                            self._gpu_info.tdp_watts = float(tdp_str)
+                            self._gpu_info.tdp_type = GpuTdpType.AMD_TDP_TYPE
+                            break
+
+            # Check power monitoring
+            result = self._exec_command(["rocm-smi", "--showpower"])
+            if result and "N/A" not in result:
+                self._gpu_info.power_monitoring = True
+
+            self._gpu_vendor = GpuVendor.AMD
+            return True
+
+        except Exception:
             pass
 
         return False
@@ -458,27 +452,53 @@ class GpuMonitor:
 
     def _read_amd_metrics(self) -> GpuMetrics:
         """
-        Read AMD GPU metrics via sysfs.
+        Read AMD GPU metrics via rocm-smi.
 
         Returns:
             GpuMetrics structure with current values.
         """
         metrics = GpuMetrics()
 
-        if self._amd_gpu_busy_path:
-            metrics.utilization_percent = float(
-                SysfsReader.read_long(self._amd_gpu_busy_path)
-            )
+        try:
+            # Read utilization
+            result = self._exec_command(["rocm-smi", "--showuse"])
+            if result:
+                lines = result.split("\n")
+                for line in lines:
+                    if "GPU use" in line and ":" in line:
+                        parts = line.split(":")
+                        if len(parts) > 2:
+                            use_str = parts[2].strip()
+                            metrics.utilization_percent = float(use_str)
+                            break
 
-        if self._amd_vram_used_path:
-            vram_bytes = SysfsReader.read_long(self._amd_vram_used_path)
-            if vram_bytes > 0:
-                metrics.mem_used_kb = vram_bytes // 1024
+            # Read memory used
+            result = self._exec_command(["rocm-smi", "--showmemuse"])
+            if result:
+                lines = result.split("\n")
+                for line in lines:
+                    if "VRAM" in line and "used" in line.lower() and ":" in line:
+                        parts = line.split(":")
+                        if len(parts) > 2:
+                            mem_str = parts[2].strip()
+                            mem_mb = int(mem_str)
+                            metrics.mem_used_kb = mem_mb * 1024
+                            break
 
-        if self._amd_power_path:
-            power_uw = SysfsReader.read_long(self._amd_power_path)
-            if power_uw > 0:
-                metrics.power_w = power_uw / 1_000_000.0
+            # Read power
+            result = self._exec_command(["rocm-smi", "--showpower"])
+            if result:
+                lines = result.split("\n")
+                for line in lines:
+                    if ("Power" in line or "power" in line) and ":" in line:
+                        parts = line.split(":")
+                        if len(parts) > 2:
+                            power_str = parts[2].strip()
+                            metrics.power_w = float(power_str)
+                            break
+
+        except Exception:
+            pass
 
         # Calculate energy (time-integrated)
         metrics.energy_uj = self._estimate_energy_uj(
@@ -519,7 +539,6 @@ class GpuMonitor:
                         if proc_pid == pid:
                             metrics.is_using_gpu = True
                             metrics.mem_used_kb = int(float(parts[1].strip()) * 1024)
-                            # Estimate utilization based on memory usage
 
                             if self._gpu_info.mem_total_kb > 0:
                                 metrics.estimated_utilization_percent = (
@@ -536,7 +555,7 @@ class GpuMonitor:
 
     def _read_amd_process_metrics(self, pid: int) -> ProcessGpuMetrics:
         """
-        Read AMD per-process GPU metrics via sysfs/fdinfo.
+        Read AMD per-process GPU metrics via rocm-smi.
 
         Args:
             pid: Process ID to query.
@@ -546,46 +565,31 @@ class GpuMonitor:
         """
         metrics = ProcessGpuMetrics()
 
-        # Check /proc/<pid>/fd symlinks for DRM render nodes
-        fd_dir = f"/proc/{pid}/fd"
-        if not os.path.isdir(fd_dir):
-            return metrics
-
         try:
-            for entry in os.listdir(fd_dir):
-                fd_path = os.path.join(fd_dir, entry)
-                try:
-                    target = os.readlink(fd_path)
-                except OSError:
-                    continue
-
-                # Look for DRM render nodes (e.g. /dev/dri/renderD128)
-                if "/dev/dri/render" not in target:
-                    continue
-
-                # Read fdinfo for this fd and look for VRAM usage lines
-                fdinfo_path = f"/proc/{pid}/fdinfo/{entry}"
-                if not os.path.exists(fdinfo_path):
-                    continue
-
-                try:
-                    with open(fdinfo_path, "r", encoding="utf-8", errors="ignore") as f:
-                        for line in f:
-                            if "drm-memory-vram" in line or "amdgpu-vram" in line:
+            result = self._exec_command(["rocm-smi", "--showpids"])
+            if result:
+                lines = result.split("\n")
+                for line in lines:
+                    parts = line.split()
+                    if len(parts) >= 4:
+                        try:
+                            proc_pid = int(parts[0])
+                            if proc_pid == pid:
                                 metrics.is_using_gpu = True
-                                parts = line.split()
-                                # Expect formats like: key: <value>
-                                for tok in parts:
-                                    try:
-                                        val = int(tok)
-                                        # Values are in KiB
-                                        metrics.mem_used_kb += val
-                                        break
-                                    except ValueError:
-                                        continue
-                except OSError:
-                    continue
-        except OSError:
+                                mem_str = parts[3]
+                                metrics.mem_used_kb = int(mem_str) * 1024
+
+                                if self._gpu_info.mem_total_kb > 0:
+                                    metrics.estimated_utilization_percent = (
+                                        metrics.mem_used_kb
+                                        / self._gpu_info.mem_total_kb
+                                        * 100.0
+                                    )
+
+                                break
+                        except (ValueError, IndexError):
+                            continue
+        except Exception:
             pass
 
         return metrics
