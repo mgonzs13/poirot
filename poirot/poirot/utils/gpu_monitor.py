@@ -365,8 +365,8 @@ class GpuMonitor:
             for line in lines:
                 if "Card series" in line and ":" in line:
                     parts = line.split(":")
-                    if len(parts) > 1:
-                        self._gpu_info.model = parts[1].strip()
+                    if len(parts) > 2:
+                        self._gpu_info.model = parts[2].strip()
                         break
 
             if not self._gpu_info.model:

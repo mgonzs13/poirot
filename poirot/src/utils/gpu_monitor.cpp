@@ -153,9 +153,16 @@ bool GpuMonitor::detect_amd_gpu() {
   while (std::getline(iss, line)) {
     if (line.find("Card series") != std::string::npos &&
         line.find(":") != std::string::npos) {
-      size_t colon_pos = line.find(":");
-      if (colon_pos != std::string::npos) {
-        this->gpu_info_.model = line.substr(colon_pos + 1);
+
+      std::vector<std::string> parts;
+      std::string token;
+      std::istringstream line_iss(line);
+      while (std::getline(line_iss, token, ':')) {
+        parts.push_back(token);
+      }
+
+      if (parts.size() > 2) {
+        this->gpu_info_.model = parts[2];
         // Trim leading/trailing whitespace
         this->gpu_info_.model.erase(
             this->gpu_info_.model.begin(),
@@ -214,7 +221,7 @@ bool GpuMonitor::detect_amd_gpu() {
 
           try {
             long mem_mb = std::stol(mem_str);
-            this->gpu_info_.mem_total_kb = mem_mb * 1024;
+            this->gpu_info_.mem_total_kb = mem_mb / 1024;
           } catch (...) {
             // ignore
           }
@@ -363,6 +370,7 @@ GpuMetrics GpuMonitor::read_amd_metrics() {
                              [](unsigned char ch) { return !std::isspace(ch); })
                     .base(),
                 use_str.end());
+
             try {
               metrics.utilization_percent = std::stod(use_str);
             } catch (...) {
@@ -404,9 +412,10 @@ GpuMetrics GpuMonitor::read_amd_metrics() {
                              [](unsigned char ch) { return !std::isspace(ch); })
                     .base(),
                 mem_str.end());
+
             try {
               long mem_mb = std::stol(mem_str);
-              metrics.mem_used_kb = mem_mb * 1024;
+              metrics.mem_used_kb = mem_mb / 1024;
             } catch (...) {
               // ignore
             }
@@ -567,6 +576,13 @@ ProcessGpuMetrics GpuMonitor::read_nvidia_process_metrics(pid_t pid) {
       if (process_pid == pid) {
         metrics.is_using_gpu = true;
         metrics.mem_used_kb = std::stoll(mem_str) * 1024; // MiB to KB
+
+        if (this->gpu_info_.mem_total_kb > 0) {
+          metrics.estimated_utilization_percent =
+              static_cast<double>(metrics.mem_used_kb) /
+              static_cast<double>(this->gpu_info_.mem_total_kb) * 100.0;
+        }
+
         break;
       }
     } catch (...) {
@@ -605,7 +621,14 @@ ProcessGpuMetrics GpuMonitor::read_amd_process_metrics(pid_t pid) {
             if (proc_pid == pid) {
               metrics.is_using_gpu = true;
               long mem_mb = std::stol(parts[3]);
-              metrics.mem_used_kb = mem_mb * 1024;
+              metrics.mem_used_kb = mem_mb / 1024;
+
+              if (this->gpu_info_.mem_total_kb > 0) {
+                metrics.estimated_utilization_percent =
+                    static_cast<double>(metrics.mem_used_kb) /
+                    static_cast<double>(this->gpu_info_.mem_total_kb) * 100.0;
+              }
+
               break;
             }
           } catch (...) {
