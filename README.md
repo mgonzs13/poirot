@@ -107,6 +107,10 @@ newgrp rapl
 
 After following these steps, POIROT should be able to read energy consumption data without permission errors.
 
+### GPU Setup
+
+POIROT's GPU monitor uses `nvidia-smi` for NVIDIA GPUs and `rocm-smi` for AMD GPUs to collect GPU metrics such as power consumption and utilization. Ensure these tools are installed on your system. Without these tools, GPU monitoring will not be available.
+
 ## Usage
 
 1. **Add dependency in `package.xml`**:
