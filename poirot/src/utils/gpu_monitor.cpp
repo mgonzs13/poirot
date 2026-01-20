@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "poirot/utils/gpu_monitor.hpp"
+#include "poirot/utils/string_utils.hpp"
 #include "poirot/utils/sysfs_reader.hpp"
 
 namespace poirot {
@@ -162,19 +163,7 @@ bool GpuMonitor::detect_amd_gpu() {
       }
 
       if (parts.size() > 2) {
-        this->gpu_info_.model = parts[2];
-        // Trim leading/trailing whitespace
-        this->gpu_info_.model.erase(
-            this->gpu_info_.model.begin(),
-            std::find_if(this->gpu_info_.model.begin(),
-                         this->gpu_info_.model.end(),
-                         [](unsigned char ch) { return !std::isspace(ch); }));
-        this->gpu_info_.model.erase(
-            std::find_if(this->gpu_info_.model.rbegin(),
-                         this->gpu_info_.model.rend(),
-                         [](unsigned char ch) { return !std::isspace(ch); })
-                .base(),
-            this->gpu_info_.model.end());
+        this->gpu_info_.model = StringUtils::trim(parts[2]);
         break;
       }
     }
@@ -206,18 +195,7 @@ bool GpuMonitor::detect_amd_gpu() {
         }
 
         if (parts.size() > 2) {
-          std::string mem_str = parts[2];
-
-          // Trim whitespace
-          mem_str.erase(
-              mem_str.begin(),
-              std::find_if(mem_str.begin(), mem_str.end(),
-                           [](unsigned char ch) { return !std::isspace(ch); }));
-          mem_str.erase(
-              std::find_if(mem_str.rbegin(), mem_str.rend(),
-                           [](unsigned char ch) { return !std::isspace(ch); })
-                  .base(),
-              mem_str.end());
+          std::string mem_str = StringUtils::trim(parts[2]);
 
           try {
             long mem_mb = std::stol(mem_str);
@@ -249,17 +227,8 @@ bool GpuMonitor::detect_amd_gpu() {
         }
 
         if (parts.size() > 2) {
-          std::string tdp_str = parts[2];
-          // Trim whitespace
-          tdp_str.erase(
-              tdp_str.begin(),
-              std::find_if(tdp_str.begin(), tdp_str.end(),
-                           [](unsigned char ch) { return !std::isspace(ch); }));
-          tdp_str.erase(
-              std::find_if(tdp_str.rbegin(), tdp_str.rend(),
-                           [](unsigned char ch) { return !std::isspace(ch); })
-                  .base(),
-              tdp_str.end());
+          std::string tdp_str = StringUtils::trim(parts[2]);
+
           try {
             this->gpu_info_.tdp_watts = std::stod(tdp_str);
             this->gpu_info_.tdp_type = GpuTdpType::AMD_TDP_TYPE;
@@ -312,10 +281,7 @@ GpuMetrics GpuMonitor::read_nvidia_metrics() {
   std::vector<std::string> values;
 
   while (std::getline(iss, token, ',')) {
-    // Trim whitespace
-    token.erase(0, token.find_first_not_of(" \t\n\r"));
-    token.erase(token.find_last_not_of(" \t\n\r") + 1);
-    values.push_back(token);
+    values.push_back(StringUtils::trim(token));
   }
 
   if (values.size() >= 3) {
@@ -358,18 +324,7 @@ GpuMetrics GpuMonitor::read_amd_metrics() {
           }
 
           if (parts.size() > 2) {
-            std::string use_str = parts[2];
-            // Trim whitespace
-            use_str.erase(use_str.begin(),
-                          std::find_if(use_str.begin(), use_str.end(),
-                                       [](unsigned char ch) {
-                                         return !std::isspace(ch);
-                                       }));
-            use_str.erase(
-                std::find_if(use_str.rbegin(), use_str.rend(),
-                             [](unsigned char ch) { return !std::isspace(ch); })
-                    .base(),
-                use_str.end());
+            std::string use_str = StringUtils::trim(parts[2]);
 
             try {
               metrics.utilization_percent = std::stod(use_str);
@@ -388,8 +343,8 @@ GpuMetrics GpuMonitor::read_amd_metrics() {
       std::istringstream iss(output);
       std::string line;
       while (std::getline(iss, line)) {
-        if (line.find("VRAM") != std::string::npos &&
-            line.find("used") != std::string::npos &&
+        if (line.find("memory") != std::string::npos &&
+            line.find("use") != std::string::npos &&
             line.find(":") != std::string::npos) {
 
           std::vector<std::string> parts;
@@ -400,22 +355,12 @@ GpuMetrics GpuMonitor::read_amd_metrics() {
           }
 
           if (parts.size() > 2) {
-            std::string mem_str = parts[2];
-            // Trim whitespace
-            mem_str.erase(mem_str.begin(),
-                          std::find_if(mem_str.begin(), mem_str.end(),
-                                       [](unsigned char ch) {
-                                         return !std::isspace(ch);
-                                       }));
-            mem_str.erase(
-                std::find_if(mem_str.rbegin(), mem_str.rend(),
-                             [](unsigned char ch) { return !std::isspace(ch); })
-                    .base(),
-                mem_str.end());
+            std::string mem_str = StringUtils::trim(parts[2]);
 
             try {
-              long mem_mb = std::stol(mem_str);
-              metrics.mem_used_kb = mem_mb / 1024;
+              double mem_percent = std::stod(mem_str);
+              metrics.mem_used_kb = static_cast<long>(
+                  mem_percent / 100.0 * this->gpu_info_.mem_total_kb);
             } catch (...) {
               // ignore
             }
@@ -443,18 +388,8 @@ GpuMetrics GpuMonitor::read_amd_metrics() {
           }
 
           if (parts.size() > 2) {
-            std::string power_str = parts[2];
-            // Trim whitespace
-            power_str.erase(power_str.begin(),
-                            std::find_if(power_str.begin(), power_str.end(),
-                                         [](unsigned char ch) {
-                                           return !std::isspace(ch);
-                                         }));
-            power_str.erase(
-                std::find_if(power_str.rbegin(), power_str.rend(),
-                             [](unsigned char ch) { return !std::isspace(ch); })
-                    .base(),
-                power_str.end());
+            std::string power_str = StringUtils::trim(parts[2]);
+
             try {
               metrics.power_w = std::stod(power_str);
             } catch (...) {
@@ -566,10 +501,8 @@ ProcessGpuMetrics GpuMonitor::read_nvidia_process_metrics(pid_t pid) {
     }
 
     // Trim whitespace
-    pid_str.erase(0, pid_str.find_first_not_of(" \t"));
-    pid_str.erase(pid_str.find_last_not_of(" \t") + 1);
-    mem_str.erase(0, mem_str.find_first_not_of(" \t"));
-    mem_str.erase(mem_str.find_last_not_of(" \t") + 1);
+    pid_str = StringUtils::trim(pid_str);
+    mem_str = StringUtils::trim(mem_str);
 
     try {
       pid_t process_pid = static_cast<pid_t>(std::stoll(pid_str));
@@ -617,10 +550,13 @@ ProcessGpuMetrics GpuMonitor::read_amd_process_metrics(pid_t pid) {
 
         if (parts.size() >= 4) {
           try {
-            pid_t proc_pid = static_cast<pid_t>(std::stol(parts[0]));
+            std::string pid_str = StringUtils::trim(parts[0]);
+            pid_t proc_pid = static_cast<pid_t>(std::stol(pid_str));
+
             if (proc_pid == pid) {
               metrics.is_using_gpu = true;
-              long mem_mb = std::stol(parts[3]);
+              std::string mem_str = StringUtils::trim(parts[3]);
+              long mem_mb = std::stol(mem_str);
               metrics.mem_used_kb = mem_mb / 1024;
 
               if (this->gpu_info_.mem_total_kb > 0) {

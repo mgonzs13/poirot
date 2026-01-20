@@ -387,7 +387,7 @@ class GpuMonitor:
                         if len(parts) > 2:
                             mem_str = parts[2].strip()
                             mem_mb = int(mem_str)
-                            self._gpu_info.mem_total_kb = mem_mb * 1024
+                            self._gpu_info.mem_total_kb = mem_mb / 1024
                             break
 
             # Get TDP
@@ -477,12 +477,14 @@ class GpuMonitor:
             if result:
                 lines = result.split("\n")
                 for line in lines:
-                    if "VRAM" in line and "used" in line.lower() and ":" in line:
+                    if "memory" in line and "use" in line.lower() and ":" in line:
                         parts = line.split(":")
                         if len(parts) > 2:
                             mem_str = parts[2].strip()
-                            mem_mb = int(mem_str)
-                            metrics.mem_used_kb = mem_mb * 1024
+                            mem_percent = float(mem_str)
+                            metrics.mem_used_kb = (
+                                mem_percent / 100.0 * self._gpu_info.mem_total_kb
+                            )
                             break
 
             # Read power
@@ -573,11 +575,11 @@ class GpuMonitor:
                     parts = line.split()
                     if len(parts) >= 4:
                         try:
-                            proc_pid = int(parts[0])
+                            proc_pid = int(parts[0].strip())
                             if proc_pid == pid:
                                 metrics.is_using_gpu = True
-                                mem_str = parts[3]
-                                metrics.mem_used_kb = int(mem_str) * 1024
+                                mem_str = parts[3].strip()
+                                metrics.mem_used_kb = int(mem_str) / 1024
 
                                 if self._gpu_info.mem_total_kb > 0:
                                     metrics.estimated_utilization_percent = (
