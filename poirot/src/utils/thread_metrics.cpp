@@ -34,6 +34,16 @@ int64_t ThreadMetrics::read_cpu_time_us() const {
   return 0;
 }
 
+int64_t ThreadMetrics::read_process_cpu_time_us() const {
+  struct timespec ts;
+  if (clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts) == 0) {
+    return static_cast<int64_t>(
+        std::round(static_cast<double>(ts.tv_sec) * 1e6 +
+                   static_cast<double>(ts.tv_nsec) / 1e3));
+  }
+  return 0;
+}
+
 int64_t ThreadMetrics::read_memory_kb() const {
   std::string status_path = SysfsReader::get_thread_status_path("status");
   std::ifstream file(status_path);
@@ -97,6 +107,27 @@ int64_t ThreadMetrics::read_context_switches() const {
   }
 
   return voluntary + nonvoluntary;
+}
+
+int ThreadMetrics::get_pid() const { return static_cast<int>(getpid()); }
+
+int ThreadMetrics::read_num_threads() const {
+  std::ifstream status("/proc/self/status");
+  if (!status.is_open()) {
+    return 1;
+  }
+
+  std::string line;
+  while (std::getline(status, line)) {
+    if (line.compare(0, 8, "Threads:") == 0) {
+      std::istringstream iss(line.substr(8));
+      int threads = 1;
+      iss >> threads;
+      return threads;
+    }
+  }
+
+  return 1;
 }
 
 } // namespace utils

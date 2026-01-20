@@ -33,11 +33,8 @@
 #include "rclcpp/rclcpp.hpp"
 
 #include "poirot/utils/co2_manager.hpp"
-#include "poirot/utils/energy_monitor.hpp"
 #include "poirot/utils/gpu_monitor.hpp"
-#include "poirot/utils/hwmon_scanner.hpp"
-#include "poirot/utils/power_estimator.hpp"
-#include "poirot/utils/process_metrics.hpp"
+#include "poirot/utils/rapl_monitor.hpp"
 #include "poirot/utils/string_utils.hpp"
 #include "poirot/utils/sysfs_reader.hpp"
 #include "poirot/utils/thread_metrics.hpp"
@@ -182,16 +179,10 @@ private:
   // ============================================================================
   /// @brief CO2 factor manager
   utils::Co2Manager co2_manager_;
-  /// @brief Hardware monitoring scanner
-  utils::HwmonScanner hwmon_scanner_;
-  /// @brief Power estimator (depends on hwmon_scanner_)
-  utils::PowerEstimator power_estimator_;
-  /// @brief Energy monitor (depends on hwmon_scanner_)
-  utils::EnergyMonitor energy_monitor_;
+  /// @brief Energy monitor for CPU energy via RAPL
+  utils::RaplMonitor rapl_monitor_;
   /// @brief GPU monitor for GPU metrics and energy
   utils::GpuMonitor gpu_monitor_;
-  /// @brief Process metrics tracker
-  utils::ProcessMetrics process_metrics_;
   /// @brief Thread metrics tracker
   utils::ThreadMetrics thread_metrics_;
 

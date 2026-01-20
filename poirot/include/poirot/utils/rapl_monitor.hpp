@@ -12,25 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef POIROT__UTILS__ENERGY_MONITOR_HPP_
-#define POIROT__UTILS__ENERGY_MONITOR_HPP_
+#ifndef POIROT__UTILS__RAPL_MONITOR_HPP_
+#define POIROT__UTILS__RAPL_MONITOR_HPP_
 
-#include <chrono>
 #include <mutex>
 #include <string>
-
-#include "poirot/utils/hwmon_scanner.hpp"
 
 namespace poirot {
 namespace utils {
 
-/// @brief Energy type constants
-enum class EnergyType {
-  ENERGY_TYPE_RAPL = 1,
-  ENERGY_TYPE_HWMON = 2,
-  ENERGY_TYPE_HWMON_ESTIMATED = 3,
-  ENERGY_TYPE_ESTIMATED = 4
-};
+constexpr char RAPL_PATH[] = "/sys/class/powercap/intel-rapl";
 
 /**
  * @class EnergyMonitor
@@ -39,36 +30,23 @@ enum class EnergyType {
  * Provides methods for reading energy from RAPL, hwmon, or estimating
  * from power measurements. Maintains state for tracking accumulated energy.
  */
-class EnergyMonitor {
+class RaplMonitor {
 public:
   /**
    * @brief Constructor.
-   * @param hwmon_scanner Reference to HwmonScanner for energy readings.
    */
-  explicit EnergyMonitor(HwmonScanner &hwmon_scanner);
+  RaplMonitor();
 
   /**
    * @brief Default destructor.
    */
-  ~EnergyMonitor() = default;
-
-  /**
-   * @brief Set the CPU TDP in watts for estimation.
-   * @param tdp TDP value in watts.
-   */
-  void set_cpu_tdp_watts(double tdp) { this->cpu_tdp_watts_ = tdp; }
-
-  /**
-   * @brief Initialize RAPL max energy range for wraparound detection.
-   */
-  void initialize_rapl_max_energy();
+  ~RaplMonitor() = default;
 
   /**
    * @brief Read accumulated CPU energy consumption in microjoules.
-   * @param elapsed_us Elapsed time in microseconds since last read (optional).
    * @return Accumulated energy consumption in microjoules.
    */
-  std::pair<double, EnergyType> read_energy_uj(float elapsed_us = 0.0);
+  double read_energy_uj();
 
   /**
    * @brief Calculate thread energy consumption using hierarchical attribution.
@@ -88,26 +66,29 @@ public:
                                     double total_energy_delta_uj);
 
 private:
-  /// @brief Reference to HwmonScanner
-  HwmonScanner &hwmon_scanner_;
+  /**
+   * @brief Load RAPL package path.
+   */
+  void load_rapl_package_path();
 
-  /// @brief Mutex for thread-safe energy readings
-  mutable std::mutex energy_mutex_;
+  /**
+   * @brief Initialize maximum RAPL energy value.
+   */
+  void initialize_rapl_max_energy();
+
+  /// @brief Mutex for thread-safe RAPL readings
+  mutable std::mutex rapl_mutex_;
+  /// @brief RAPL package path
+  std::string rapl_package_path_;
   /// @brief Accumulated energy in microjoules
   double accumulated_energy_uj_ = 0.0;
-  /// @brief Last energy read time point
-  std::chrono::steady_clock::time_point last_energy_read_time_;
   /// @brief Last RAPL energy value (for delta calculation)
   double last_rapl_energy_uj_ = 0.0;
-  /// @brief Last hwmon energy value (for delta calculation)
-  double last_hwmon_energy_uj_ = 0.0;
   /// @brief Maximum RAPL energy value before wrap-around
   double rapl_max_energy_uj_ = 0.0;
-  /// @brief CPU TDP in watts for estimation
-  double cpu_tdp_watts_ = 0.0;
 };
 
 } // namespace utils
 } // namespace poirot
 
-#endif // POIROT__UTILS__ENERGY_MONITOR_HPP_
+#endif // POIROT__UTILS__RAPL_MONITOR_HPP_

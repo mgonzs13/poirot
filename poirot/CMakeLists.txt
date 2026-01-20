@@ -22,10 +22,7 @@ add_library(${PROJECT_NAME} SHARED
   src/poirot.cpp
   src/utils/sysfs_reader.cpp
   src/utils/thread_metrics.cpp
-  src/utils/process_metrics.cpp
-  src/utils/energy_monitor.cpp
-  src/utils/hwmon_scanner.cpp
-  src/utils/power_estimator.cpp
+  src/utils/rapl_monitor.cpp
   src/utils/gpu_monitor.cpp
   src/utils/co2_manager.cpp
   src/utils/system_info_reader.cpp

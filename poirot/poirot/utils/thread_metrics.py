@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import time
 import resource
 from dataclasses import dataclass
@@ -20,7 +21,7 @@ from .sysfs_reader import SysfsReader
 
 
 @dataclass
-class ThreadIoBytes:
+class IoBytes:
     """Structure to hold thread I/O byte counts."""
 
     read_bytes: int = 0
@@ -45,6 +46,20 @@ class ThreadMetrics:
         """
         try:
             return int(time.clock_gettime(time.CLOCK_THREAD_CPUTIME_ID) * 1_000_000)
+        except (OSError, AttributeError):
+            return 0
+
+    def read_process_cpu_time_us(self) -> int:
+        """
+        Read process CPU time in microseconds.
+
+        Returns:
+            CPU time in microseconds.
+        """
+        try:
+            return int(
+                round(time.clock_gettime(time.CLOCK_PROCESS_CPUTIME_ID) * 1_000_000)
+            )
         except (OSError, AttributeError):
             return 0
 
@@ -73,14 +88,14 @@ class ThreadMetrics:
         except (ValueError, AttributeError):
             return 0
 
-    def read_io_bytes(self) -> ThreadIoBytes:
+    def read_io_bytes(self) -> IoBytes:
         """
         Read thread I/O bytes.
 
         Returns:
-            ThreadIoBytes structure with read and write byte counts.
+            IoBytes structure with read and write byte counts.
         """
-        io_bytes = ThreadIoBytes()
+        io_bytes = IoBytes()
 
         try:
             io_path = SysfsReader.get_thread_status_path("io")
@@ -126,3 +141,33 @@ class ThreadMetrics:
             return usage.ru_nvcsw + usage.ru_nivcsw
         except (ValueError, AttributeError):
             return 0
+
+    def get_pid(self) -> int:
+        """
+        Get the current thread's PID.
+
+        Returns:
+            Thread PID.
+        """
+        return os.getpid()
+
+    def read_num_threads(self) -> int:
+        """
+        Read process thread count.
+
+        Returns:
+            Number of threads.
+        """
+        try:
+            # Reads /proc/self/status and
+            # returns 1 as default when the file cannot be parsed.
+            with open("/proc/self/status", "r") as f:
+                for line in f:
+                    if line.startswith("Threads:"):
+                        return int(line.split(":")[1].strip())
+        except (OSError, ValueError):
+            # Fall through to return default
+            pass
+
+        # Returns 1 as default if it can't find the Threads: line
+        return 1

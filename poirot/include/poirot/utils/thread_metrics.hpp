@@ -56,6 +56,12 @@ public:
   int64_t read_cpu_time_us() const;
 
   /**
+   * @brief Read process CPU time in microseconds.
+   * @return CPU time in microseconds.
+   */
+  int64_t read_process_cpu_time_us() const;
+
+  /**
    * @brief Read thread memory usage in KB.
    * @return Memory usage in KB (VmRSS).
    */
@@ -72,6 +78,18 @@ public:
    * @return Total number of context switches.
    */
   int64_t read_context_switches() const;
+
+  /**
+   * @brief Read the PID of the current process.
+   * @return Process ID (PID).
+   */
+  int get_pid() const;
+
+  /**
+   * @brief Read number of threads in the current process.
+   * @return Number of threads.
+   */
+  int read_num_threads() const;
 };
 
 } // namespace utils

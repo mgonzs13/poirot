@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from poirot.utils.co2_manager import Co2Manager
-from poirot.utils.energy_monitor import EnergyMonitor
 from poirot.utils.gpu_monitor import (
     GpuMonitor,
     GpuMetrics,
@@ -22,9 +21,7 @@ from poirot.utils.gpu_monitor import (
     GpuVendor,
     ProcessGpuMetrics,
 )
-from poirot.utils.hwmon_scanner import HwmonScanner
-from poirot.utils.power_estimator import PowerEstimator, TdpType
-from poirot.utils.process_metrics import ProcessMetrics, ProcessIoBytes
+from poirot.utils.rapl_monitor import RaplMonitor
 from poirot.utils.string_utils import StringUtils
 from poirot.utils.sysfs_reader import SysfsReader
 from poirot.utils.system_info_reader import (
@@ -33,16 +30,13 @@ from poirot.utils.system_info_reader import (
     MemoryInfo,
     OsInfo,
 )
-from poirot.utils.thread_metrics import ThreadMetrics, ThreadIoBytes
+from poirot.utils.thread_metrics import ThreadMetrics, IoBytes
 
 __all__ = [
     # Classes
     "Co2Manager",
-    "EnergyMonitor",
+    "RaplMonitor",
     "GpuMonitor",
-    "HwmonScanner",
-    "PowerEstimator",
-    "ProcessMetrics",
     "StringUtils",
     "SysfsReader",
     "SystemInfoReader",
@@ -54,10 +48,8 @@ __all__ = [
     "MemoryInfo",
     "OsInfo",
     "ProcessGpuMetrics",
-    "ProcessIoBytes",
-    "ThreadIoBytes",
+    "IoBytes",
     # Enums
     "GpuTdpType",
     "GpuVendor",
-    "TdpType",
 ]

@@ -26,22 +26,17 @@ from rclpy.qos import QoSProfile
 import ament_index_python
 
 from poirot_msgs.msg import (
-    CpuInfo,
     FunctionCall,
     FunctionStats,
     GpuInfo,
     ProcessInfo,
     ProfilingData,
     SystemInfo,
-    Data,
 )
 
 from poirot.utils.co2_manager import Co2Manager
-from poirot.utils.energy_monitor import EnergyMonitor, EnergyType
+from poirot.utils.rapl_monitor import RaplMonitor
 from poirot.utils.gpu_monitor import GpuMonitor, GpuTdpType
-from poirot.utils.hwmon_scanner import HwmonScanner
-from poirot.utils.power_estimator import PowerEstimator, TdpType
-from poirot.utils.process_metrics import ProcessMetrics
 from poirot.utils.string_utils import StringUtils
 from poirot.utils.system_info_reader import SystemInfoReader
 from poirot.utils.thread_metrics import ThreadMetrics
@@ -103,11 +98,8 @@ class Poirot:
         package_path = ament_index_python.get_package_share_directory("poirot")
         iso_country_codes_file_path = os.path.join(package_path, "iso_country_codes.csv")
         self._co2_manager = Co2Manager(iso_country_codes_file_path)
-        self._hwmon_scanner = HwmonScanner()
-        self._power_estimator = PowerEstimator(self._hwmon_scanner)
-        self._energy_monitor = EnergyMonitor(self._hwmon_scanner)
+        self._rapl_monitor = RaplMonitor()
         self._gpu_monitor = GpuMonitor()
-        self._process_metrics = ProcessMetrics()
         self._thread_metrics = ThreadMetrics()
 
         # ROS 2 integration
@@ -141,27 +133,13 @@ class Poirot:
 
         # Memory info
         mem_info = system_reader.read_memory_info()
-        self._system_info.mem_total_kb = mem_info.total_kb
+        self._system_info.cpu_info.mem_total_kb = mem_info.total_kb
 
         # OS info
         os_info = system_reader.read_os_info()
         self._system_info.os_name = os_info.name
         self._system_info.os_version = os_info.version
         self._system_info.hostname = os_info.hostname
-
-        # TDP detection
-        tdp_watts, tdp_type = self._power_estimator.read_tdp_watts()
-        self._system_info.cpu_info.tdp_watts = tdp_watts
-
-        tdp_type_map = {
-            TdpType.RAPL_TDP_TYPE: CpuInfo.RAPL_TDP_TYPE,
-            TdpType.HWMON_TDP_TYPE: CpuInfo.HWMON_TDP_TYPE,
-            TdpType.THERMAL_POWER_TDP_TYPE: CpuInfo.THERMAL_POWER_TDP_TYPE,
-        }
-        self._system_info.cpu_info.tdp_watts_type = tdp_type_map.get(tdp_type)
-
-        # Update energy monitor
-        self._energy_monitor.set_cpu_tdp_watts(self._system_info.cpu_info.tdp_watts)
 
         # GPU detection
         if self._gpu_monitor.is_available():
@@ -206,8 +184,8 @@ class Poirot:
 
     def _read_process_data(self) -> None:
         """Read process-level data."""
-        self._process_info.pid = os.getpid()
-        self._process_info.threads = self._process_metrics.read_thread_count()
+        self._process_info.pid = self._thread_metrics.get_pid()
+        self._process_info.threads = self._thread_metrics.read_num_threads()
 
     def start_profiling(self, function_name: str, file: str, line: int) -> None:
         """
@@ -226,7 +204,7 @@ class Poirot:
         ctx.line = line
         ctx.start_time = time.perf_counter()
         ctx.start_cpu_time_us = self._thread_metrics.read_cpu_time_us()
-        ctx.start_process_cpu_time_us = self._process_metrics.read_cpu_time_us()
+        ctx.start_process_cpu_time_us = self._thread_metrics.read_process_cpu_time_us()
         ctx.start_mem_kb = self._thread_metrics.read_memory_kb()
 
         io_bytes = self._thread_metrics.read_io_bytes()
@@ -234,7 +212,7 @@ class Poirot:
         ctx.start_io_write_bytes = io_bytes.write_bytes
 
         ctx.start_context_switches = self._thread_metrics.read_context_switches()
-        ctx.start_cpu_energy_uj, _ = self._energy_monitor.read_energy_uj()
+        ctx.start_cpu_energy_uj = self._rapl_monitor.read_energy_uj()
 
         if self._gpu_monitor.is_available():
             process_metrics = self._gpu_monitor.read_process_metrics()
@@ -256,7 +234,7 @@ class Poirot:
 
         end_time = time.perf_counter()
         end_cpu_time_us = self._thread_metrics.read_cpu_time_us()
-        end_process_cpu_time_us = self._process_metrics.read_cpu_time_us()
+        end_process_cpu_time_us = self._thread_metrics.read_process_cpu_time_us()
         end_mem_kb = self._thread_metrics.read_memory_kb()
 
         end_io_bytes = self._thread_metrics.read_io_bytes()
@@ -264,6 +242,7 @@ class Poirot:
         end_io_write_bytes = end_io_bytes.write_bytes
 
         end_context_switches = self._thread_metrics.read_context_switches()
+        end_cpu_energy_uj = self._rapl_monitor.read_energy_uj()
 
         # GPU metrics
         end_gpu_utilization_percent = 0.0
@@ -287,18 +266,12 @@ class Poirot:
         process_cpu_delta_us = float(
             end_process_cpu_time_us - ctx.start_process_cpu_time_us
         )
-        system_cpu_delta_us = wall_time_delta_us * float(
-            self._process_metrics.get_num_cpus()
-        )
+        system_cpu_delta_us = wall_time_delta_us * float(self._system_info.cpu_info.cores)
+
+        cpu_total_energy_delta_uj = end_cpu_energy_uj - ctx.start_cpu_energy_uj
         gpu_energy_delta_uj = end_gpu_energy_uj - ctx.start_gpu_energy_uj
 
-        # Calculate thread-level CPU energy
-        end_cpu_energy_uj, energy_type = self._energy_monitor.read_energy_uj(
-            wall_time_delta_us
-        )
-        cpu_total_energy_delta_uj = end_cpu_energy_uj - ctx.start_cpu_energy_uj
-
-        thread_cpu_energy_uj = self._energy_monitor.calculate_thread_energy_uj(
+        thread_cpu_energy_uj = self._rapl_monitor.calculate_thread_energy_uj(
             thread_cpu_delta_us,
             process_cpu_delta_us,
             system_cpu_delta_us,
@@ -330,16 +303,6 @@ class Poirot:
         )
         call.data.gpu_mem_kb = end_gpu_mem_kb - ctx.start_gpu_mem_kb
         call.data.gpu_energy_uj = gpu_energy_delta_uj
-
-        # Energy
-        if energy_type == EnergyType.ENERGY_TYPE_RAPL:
-            call.data.cpu_energy_type = Data.ENERGY_TYPE_RAPL
-        elif energy_type == EnergyType.ENERGY_TYPE_HWMON:
-            call.data.cpu_energy_type = Data.ENERGY_TYPE_HWMON
-        elif energy_type == EnergyType.ENERGY_TYPE_HWMON_ESTIMATED:
-            call.data.cpu_energy_type = Data.ENERGY_TYPE_HWMON_ESTIMATED
-        elif energy_type == EnergyType.ENERGY_TYPE_ESTIMATED:
-            call.data.cpu_energy_type = Data.ENERGY_TYPE_ESTIMATED
 
         call.data.total_energy_uj = total_energy_uj
 
@@ -432,9 +395,7 @@ class Poirot:
         print(f"Hostname: {info.hostname}", file=sys.stderr)
         print(f"CPU:      {info.cpu_info.model}", file=sys.stderr)
         print(f"Cores:    {info.cpu_info.cores}", file=sys.stderr)
-        print(f"Memory:   {info.mem_total_kb // 1024} MB", file=sys.stderr)
-        print(f"CPU TDP:  {info.cpu_info.tdp_watts:.4f} W", file=sys.stderr)
-        print(f"TDP Type: {info.cpu_info.tdp_watts_type}", file=sys.stderr)
+        print(f"Memory:   {info.cpu_info.mem_total_kb // 1024} MB", file=sys.stderr)
         print("-" * 64, file=sys.stderr)
         print(
             f"GPU:      {info.gpu_info.model if info.gpu_info.available else 'Not available'}",
