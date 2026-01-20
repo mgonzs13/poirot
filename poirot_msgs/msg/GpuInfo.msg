@@ -1,7 +1,6 @@
 uint8 NO_TDP_TYPE=0
-uint8 NVIDIA_SMI_TDP_TYPE=1
-uint8 AMD_ROCM_TDP_TYPE=2
-uint8 SYSFS_TDP_TYPE=3
+uint8 NVIDIA_TDP_TYPE=1
+uint8 AMD_TDP_TYPE=2
 
 string model                    # GPU model name
 string vendor                   # GPU vendor (NVIDIA, AMD, Intel)

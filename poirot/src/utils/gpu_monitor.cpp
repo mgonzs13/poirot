@@ -110,7 +110,7 @@ bool GpuMonitor::detect_nvidia_gpu() {
   if (!output.empty()) {
     try {
       this->gpu_info_.tdp_watts = std::stod(output);
-      this->gpu_info_.tdp_type = GpuTdpType::NVIDIA_SMI_TDP_TYPE;
+      this->gpu_info_.tdp_type = GpuTdpType::NVIDIA_TDP_TYPE;
       this->gpu_info_.power_monitoring = true;
     } catch (...) {
       this->gpu_info_.tdp_watts = 0.0;
@@ -236,7 +236,7 @@ bool GpuMonitor::detect_amd_gpu() {
         long cap_uw = SysfsReader::read_long(cap_path);
         if (cap_uw > 0) {
           this->gpu_info_.tdp_watts = static_cast<double>(cap_uw) / 1e6;
-          this->gpu_info_.tdp_type = GpuTdpType::SYSFS_TDP_TYPE;
+          this->gpu_info_.tdp_type = GpuTdpType::AMD_TDP_TYPE;
         }
       }
     }

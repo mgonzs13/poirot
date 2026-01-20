@@ -19,6 +19,7 @@ import threading
 import subprocess
 from dataclasses import dataclass
 from enum import IntEnum
+from typing import List
 
 from poirot.utils.sysfs_reader import SysfsReader
 
@@ -30,9 +31,8 @@ class GpuTdpType(IntEnum):
     """GPU TDP detection type constants."""
 
     NO_TDP_TYPE = 0
-    NVIDIA_SMI_TDP_TYPE = 1
-    AMD_ROCM_TDP_TYPE = 2
-    SYSFS_TDP_TYPE = 3
+    NVIDIA_TDP_TYPE = 1
+    AMD_TDP_TYPE = 2
 
 
 class GpuVendor(IntEnum):
@@ -280,62 +280,53 @@ class GpuMonitor:
 
         try:
             # Get GPU name
-            result = subprocess.run(
+            result = self._exec_command(
                 [
                     "nvidia-smi",
                     "--query-gpu=name",
                     "--format=csv,noheader,nounits",
-                ],
-                capture_output=True,
-                text=True,
-                timeout=5,
+                ]
             )
 
-            if result.returncode != 0 or not result.stdout.strip():
+            if not result:
                 return False
 
-            self._gpu_info.model = result.stdout.strip()
+            self._gpu_info.model = result
             self._gpu_info.vendor = "NVIDIA"
             self._gpu_info.index = 0
             self._gpu_info.available = True
 
             # Get total memory
-            result = subprocess.run(
+            result = self._exec_command(
                 [
                     "nvidia-smi",
                     "--query-gpu=memory.total",
                     "--format=csv,noheader,nounits",
-                ],
-                capture_output=True,
-                text=True,
-                timeout=5,
+                ]
             )
 
-            if result.returncode == 0 and result.stdout.strip():
+            if result:
                 try:
                     # nvidia-smi reports memory in MiB
-                    self._gpu_info.mem_total_kb = int(float(result.stdout.strip()) * 1024)
+                    self._gpu_info.mem_total_kb = int(float(result) * 1024)
                 except ValueError:
                     self._gpu_info.mem_total_kb = 0
 
             # Get power limit (TDP)
-            result = subprocess.run(
+            result = self._exec_command(
                 [
                     "nvidia-smi",
                     "--query-gpu=power.limit",
                     "--format=csv,noheader,nounits",
-                ],
-                capture_output=True,
-                text=True,
-                timeout=5,
+                ]
             )
 
-            if result.returncode == 0 and result.stdout.strip():
-                power_str = result.stdout.strip()
+            if result:
+                power_str = result
                 if "[N/A]" not in power_str:
                     try:
                         self._gpu_info.tdp_watts = float(power_str)
-                        self._gpu_info.tdp_type = GpuTdpType.NVIDIA_SMI_TDP_TYPE
+                        self._gpu_info.tdp_type = GpuTdpType.NVIDIA_TDP_TYPE
                         self._gpu_info.power_monitoring = True
                     except ValueError:
                         self._gpu_info.tdp_watts = 0.0
@@ -348,25 +339,22 @@ class GpuMonitor:
                 self._gpu_info.tdp_type = GpuTdpType.NO_TDP_TYPE
 
             # Check if power monitoring works
-            result = subprocess.run(
+            result = self._exec_command(
                 [
                     "nvidia-smi",
                     "--query-gpu=power.draw",
                     "--format=csv,noheader,nounits",
-                ],
-                capture_output=True,
-                text=True,
-                timeout=5,
+                ]
             )
 
-            if result.returncode == 0 and result.stdout.strip():
-                if "[N/A]" not in result.stdout:
+            if result:
+                if "[N/A]" not in result:
                     self._gpu_info.power_monitoring = True
 
             self._gpu_vendor = GpuVendor.NVIDIA
             return True
 
-        except (subprocess.SubprocessError, ValueError, FileNotFoundError):
+        except (ValueError, FileNotFoundError):
             pass
 
         return False
@@ -425,7 +413,7 @@ class GpuMonitor:
                     self._amd_vram_total_path = mem_path
 
                     self._gpu_info.tdp_watts = FALLBACK_GPU_TDP_WATTS
-                    self._gpu_info.tdp_type = GpuTdpType.SYSFS_TDP_TYPE
+                    self._gpu_info.tdp_type = GpuTdpType.AMD_TDP_TYPE
                     self._gpu_info.available = True
                     self._gpu_info.power_monitoring = False
                     return True
@@ -444,24 +432,21 @@ class GpuMonitor:
         metrics = GpuMetrics()
 
         try:
-            result = subprocess.run(
+            result = self._exec_command(
                 [
                     "nvidia-smi",
                     "--query-gpu=utilization.gpu,memory.used,power.draw",
                     "--format=csv,noheader,nounits",
-                ],
-                capture_output=True,
-                text=True,
-                timeout=5,
+                ]
             )
 
-            if result.returncode == 0 and result.stdout.strip():
-                parts = result.stdout.strip().split(",")
+            if result:
+                parts = result.split(",")
                 if len(parts) >= 3:
                     metrics.utilization_percent = float(parts[0].strip())
                     metrics.mem_used_kb = int(float(parts[1].strip()) * 1024)
                     metrics.power_w = float(parts[2].strip())
-        except (subprocess.SubprocessError, ValueError):
+        except ValueError:
             pass
 
         # Calculate energy (time-integrated)
@@ -515,20 +500,17 @@ class GpuMonitor:
         metrics = ProcessGpuMetrics()
 
         try:
-            result = subprocess.run(
+            result = self._exec_command(
                 [
                     "nvidia-smi",
                     "--query-compute-apps=pid,used_memory",
                     "--format=csv,noheader,nounits",
                 ],
-                capture_output=True,
-                text=True,
-                timeout=5,
             )
 
-            if result.returncode == 0 and result.stdout.strip():
+            if result:
 
-                for line in result.stdout.strip().split("\n"):
+                for line in result.split("\n"):
 
                     parts = line.split(",")
                     if len(parts) >= 2:
@@ -547,7 +529,7 @@ class GpuMonitor:
                                 )
 
                             break
-        except (subprocess.SubprocessError, ValueError):
+        except ValueError:
             pass
 
         return metrics
@@ -608,7 +590,7 @@ class GpuMonitor:
 
         return metrics
 
-    def _exec_command(self, cmd: str) -> str:
+    def _exec_command(self, cmd: List[str]) -> str:
         """
         Execute a command and return its output.
 
@@ -621,7 +603,6 @@ class GpuMonitor:
         try:
             result = subprocess.run(
                 cmd,
-                shell=True,
                 capture_output=True,
                 text=True,
                 timeout=5,

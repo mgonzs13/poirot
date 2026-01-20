@@ -86,7 +86,7 @@ sudo groupadd rapl
 sudo usermod -a -G rapl $USER
 
 # Install sysfsutils
-sudo apt install sysfsutils
+sudo apt install sysfsutils -y
 
 # Run the following script to add the required lines to /etc/sysfs.conf
 for rapl_dir in /sys/class/powercap/intel-rapl*; do
@@ -96,7 +96,6 @@ for rapl_dir in /sys/class/powercap/intel-rapl*; do
         sudo echo "owner class/powercap/$domain/energy_uj = root:rapl" | sudo tee -a /etc/sysfs.conf
     fi
 done
-
 
 # Restart the sysfsutils service.
 sudo systemctl restart sysfsutils

@@ -152,9 +152,8 @@ class Poirot:
 
             gpu_tdp_type_map = {
                 GpuTdpType.NO_TDP_TYPE: GpuInfo.NO_TDP_TYPE,
-                GpuTdpType.NVIDIA_SMI_TDP_TYPE: GpuInfo.NVIDIA_SMI_TDP_TYPE,
-                GpuTdpType.AMD_ROCM_TDP_TYPE: GpuInfo.AMD_ROCM_TDP_TYPE,
-                GpuTdpType.SYSFS_TDP_TYPE: GpuInfo.SYSFS_TDP_TYPE,
+                GpuTdpType.NVIDIA_TDP_TYPE: GpuInfo.NVIDIA_TDP_TYPE,
+                GpuTdpType.AMD_TDP_TYPE: GpuInfo.AMD_TDP_TYPE,
             }
             self._system_info.gpu_info.tdp_watts_type = gpu_tdp_type_map.get(
                 gpu_info.tdp_type, GpuInfo.NO_TDP_TYPE

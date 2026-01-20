@@ -32,9 +32,9 @@ constexpr double FALLBACK_GPU_TDP_WATTS = 150.0;
 /// @brief GPU TDP detection type constants
 enum class GpuTdpType {
   NO_TDP_TYPE = 0,
-  NVIDIA_SMI_TDP_TYPE = 1,
-  AMD_ROCM_TDP_TYPE = 2,
-  SYSFS_TDP_TYPE = 3
+  NVIDIA_TDP_TYPE = 1,
+  AMD_TDP_TYPE = 2,
+
 };
 
 /**

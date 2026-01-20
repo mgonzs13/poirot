@@ -83,15 +83,12 @@ void Poirot::detect_system_info() {
     this->system_info_.gpu_info.mem_total_kb = gpu_info.mem_total_kb;
     this->system_info_.gpu_info.tdp_watts = gpu_info.tdp_watts;
 
-    if (gpu_info.tdp_type == utils::GpuTdpType::NVIDIA_SMI_TDP_TYPE) {
+    if (gpu_info.tdp_type == utils::GpuTdpType::NVIDIA_TDP_TYPE) {
       this->system_info_.gpu_info.tdp_watts_type =
-          poirot_msgs::msg::GpuInfo::NVIDIA_SMI_TDP_TYPE;
-    } else if (gpu_info.tdp_type == utils::GpuTdpType::AMD_ROCM_TDP_TYPE) {
+          poirot_msgs::msg::GpuInfo::NVIDIA_TDP_TYPE;
+    } else if (gpu_info.tdp_type == utils::GpuTdpType::AMD_TDP_TYPE) {
       this->system_info_.gpu_info.tdp_watts_type =
-          poirot_msgs::msg::GpuInfo::AMD_ROCM_TDP_TYPE;
-    } else if (gpu_info.tdp_type == utils::GpuTdpType::SYSFS_TDP_TYPE) {
-      this->system_info_.gpu_info.tdp_watts_type =
-          poirot_msgs::msg::GpuInfo::SYSFS_TDP_TYPE;
+          poirot_msgs::msg::GpuInfo::AMD_TDP_TYPE;
     } else {
       this->system_info_.gpu_info.tdp_watts_type =
           poirot_msgs::msg::GpuInfo::NO_TDP_TYPE;
