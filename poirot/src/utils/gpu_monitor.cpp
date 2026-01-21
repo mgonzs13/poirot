@@ -152,7 +152,7 @@ bool GpuMonitor::detect_amd_gpu() {
   std::istringstream iss(output);
   std::string line;
   while (std::getline(iss, line)) {
-    if (line.find("Card series") != std::string::npos &&
+    if (line.find("Card Series") != std::string::npos &&
         line.find(":") != std::string::npos) {
 
       std::vector<std::string> parts;
@@ -343,8 +343,7 @@ GpuMetrics GpuMonitor::read_amd_metrics() {
       std::istringstream iss(output);
       std::string line;
       while (std::getline(iss, line)) {
-        if (line.find("memory") != std::string::npos &&
-            line.find("use") != std::string::npos &&
+        if (line.find("Memory Allocated") != std::string::npos &&
             line.find(":") != std::string::npos) {
 
           std::vector<std::string> parts;
@@ -376,8 +375,7 @@ GpuMetrics GpuMonitor::read_amd_metrics() {
       std::istringstream iss(output);
       std::string line;
       while (std::getline(iss, line)) {
-        if ((line.find("Power") != std::string::npos ||
-             line.find("power") != std::string::npos) &&
+        if (line.find("Package Power") != std::string::npos &&
             line.find(":") != std::string::npos) {
 
           std::vector<std::string> parts;

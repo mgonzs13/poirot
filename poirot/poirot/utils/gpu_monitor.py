@@ -363,7 +363,7 @@ class GpuMonitor:
             # Parse output
             lines = result.split("\n")
             for line in lines:
-                if "Card series" in line and ":" in line:
+                if "Card Series" in line and ":" in line:
                     parts = line.split(":")
                     if len(parts) > 2:
                         self._gpu_info.model = parts[2].strip()
@@ -387,7 +387,7 @@ class GpuMonitor:
                         if len(parts) > 2:
                             mem_str = parts[2].strip()
                             mem_mb = int(mem_str)
-                            self._gpu_info.mem_total_kb = mem_mb / 1024
+                            self._gpu_info.mem_total_kb = int(mem_mb / 1024)
                             break
 
             # Get TDP
@@ -405,7 +405,7 @@ class GpuMonitor:
 
             # Check power monitoring
             result = self._exec_command(["rocm-smi", "--showpower"])
-            if result and "N/A" not in result:
+            if result and "Package Power" in result:
                 self._gpu_info.power_monitoring = True
 
             self._gpu_vendor = GpuVendor.AMD
@@ -477,7 +477,7 @@ class GpuMonitor:
             if result:
                 lines = result.split("\n")
                 for line in lines:
-                    if "memory" in line and "use" in line.lower() and ":" in line:
+                    if "Memory Allocated" in line and ":" in line:
                         parts = line.split(":")
                         if len(parts) > 2:
                             mem_str = parts[2].strip()
@@ -579,7 +579,7 @@ class GpuMonitor:
                             if proc_pid == pid:
                                 metrics.is_using_gpu = True
                                 mem_str = parts[3].strip()
-                                metrics.mem_used_kb = int(mem_str) / 1024
+                                metrics.mem_used_kb = int(int(mem_str) / 1024)
 
                                 if self._gpu_info.mem_total_kb > 0:
                                     metrics.estimated_utilization_percent = (
