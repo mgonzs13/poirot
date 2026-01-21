@@ -1,0 +1,24 @@
+<map id="poirot/src/utils/rapl_monitor.cpp" name="poirot/src/utils/rapl_monitor.cpp">
+<area shape="rect" id="Node000001" title=" " alt="" coords="245,5,373,46"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,102,80,127"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="245,48,93,97,87,98,86,93,91,91,244,43"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="104,102,165,127"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="271,49,174,97,171,92,268,44"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="188,102,246,127"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="290,48,243,93,239,89,286,45"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="270,102,349,127"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="312,47,312,86,306,86,306,47"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="372,102,438,127"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="333,45,383,89,379,93,329,49"/>
+<area shape="rect" id="Node000007" href="$rapl__monitor_8hpp.html" title=" " alt="" coords="462,102,642,127"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="365,44,505,93,503,98,363,49"/>
+<area shape="rect" id="Node000010" href="$sysfs__reader_8hpp.html" title=" " alt="" coords="666,94,782,135"/>
+<area shape="poly" id="edge9_Node000001_Node000010" title=" " alt="" coords="374,35,499,58,651,91,650,96,498,64,373,41"/>
+<area shape="rect" id="Node000008" title=" " alt="" coords="524,183,580,208"/>
+<area shape="poly" id="edge7_Node000007_Node000008" title=" " alt="" coords="554,128,554,167,549,167,549,128"/>
+<area shape="rect" id="Node000009" title=" " alt="" coords="609,183,662,208"/>
+<area shape="poly" id="edge8_Node000007_Node000009" title=" " alt="" coords="566,126,614,170,610,174,563,130"/>
+<area shape="poly" id="edge11_Node000010_Node000009" title=" " alt="" coords="704,137,663,174,659,170,700,133"/>
+<area shape="rect" id="Node000011" title=" " alt="" coords="691,183,757,208"/>
+<area shape="poly" id="edge10_Node000010_Node000011" title=" " alt="" coords="726,135,726,167,721,167,721,135"/>
+</map>
