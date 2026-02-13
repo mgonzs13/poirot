@@ -1,0 +1,23 @@
+var searchData=
+[
+  ['scroll_5foffset_5f_0',['scroll_offset_',['../classpoirot__tui_1_1TuiRenderer.html#a97db754d1fc861fd28168f170fc17ed0',1,'poirot_tui::TuiRenderer']]],
+  ['selected_5frow_5f_1',['selected_row_',['../classpoirot__tui_1_1TuiRenderer.html#a67f3f185c3d9b49d332ae52d1c6c8831',1,'poirot_tui::TuiRenderer']]],
+  ['sort_5fascending_5f_2',['sort_ascending_',['../classpoirot__tui_1_1TuiRenderer.html#a547884d281fd077704bcfba8905751a1',1,'poirot_tui::TuiRenderer']]],
+  ['sort_5fcolumn_5f_3',['sort_column_',['../classpoirot__tui_1_1TuiRenderer.html#a625a9cc57a31ce36ace2249f070972f7',1,'poirot_tui::TuiRenderer']]],
+  ['start_5fcontext_5fswitches_4',['start_context_switches',['../structpoirot_1_1ThreadProfilingContext.html#af62279a23fa5f160b6523e53e5d7877e',1,'poirot::ThreadProfilingContext']]],
+  ['start_5fcpu_5fenergy_5fuj_5',['start_cpu_energy_uj',['../structpoirot_1_1ThreadProfilingContext.html#a9167ad80c43b18131b0d9e06b349de0d',1,'poirot::ThreadProfilingContext']]],
+  ['start_5fcpu_5ftime_5fus_6',['start_cpu_time_us',['../structpoirot_1_1ThreadProfilingContext.html#a14c77ab2085f9de522510ab42fae5aec',1,'poirot::ThreadProfilingContext']]],
+  ['start_5fgpu_5fenergy_5fuj_7',['start_gpu_energy_uj',['../structpoirot_1_1ThreadProfilingContext.html#a59830354560401c75cbb963ca152e70c',1,'poirot::ThreadProfilingContext']]],
+  ['start_5fgpu_5fmem_5fkb_8',['start_gpu_mem_kb',['../structpoirot_1_1ThreadProfilingContext.html#adf9e9f6b0af2e3d6aafdff2a68c60eda',1,'poirot::ThreadProfilingContext']]],
+  ['start_5fgpu_5futilization_5fpercent_9',['start_gpu_utilization_percent',['../structpoirot_1_1ThreadProfilingContext.html#a02661674ddbc28051abe18a8340e6355',1,'poirot::ThreadProfilingContext']]],
+  ['start_5fio_5fread_5fbytes_10',['start_io_read_bytes',['../structpoirot_1_1ThreadProfilingContext.html#a7e68746da9c6603043b8102aecd617cd',1,'poirot::ThreadProfilingContext']]],
+  ['start_5fio_5fwrite_5fbytes_11',['start_io_write_bytes',['../structpoirot_1_1ThreadProfilingContext.html#a53852eb991776dfe9d720d24c68b31e4',1,'poirot::ThreadProfilingContext']]],
+  ['start_5fmem_5fkb_12',['start_mem_kb',['../structpoirot_1_1ThreadProfilingContext.html#ab15beed9122399b61bfc66c06dd04d32',1,'poirot::ThreadProfilingContext']]],
+  ['start_5fprocess_5fcpu_5ftime_5fus_13',['start_process_cpu_time_us',['../structpoirot_1_1ThreadProfilingContext.html#a9fa70e32e3cee64ea459ee400ce36afe',1,'poirot::ThreadProfilingContext']]],
+  ['start_5ftime_14',['start_time',['../structpoirot_1_1ThreadProfilingContext.html#aecdeeb48b579fb5dcaa9e562dbfaae31',1,'poirot::ThreadProfilingContext']]],
+  ['start_5ftime_5f_15',['start_time_',['../classpoirot__tui_1_1DataManager.html#a5b2530f5f2b3fc2845cc97fc0f4048aa',1,'poirot_tui::DataManager']]],
+  ['statistics_5f_16',['statistics_',['../classpoirot_1_1Poirot.html#a71adc89fe6c70482b30c1652f32fcce5',1,'poirot::Poirot']]],
+  ['statistics_5fmutex_5f_17',['statistics_mutex_',['../classpoirot_1_1Poirot.html#a4d0c39e4ea8af41b9bed47f7217d4a40',1,'poirot::Poirot']]],
+  ['subscription_5f_18',['subscription_',['../classpoirot__tui_1_1TuiNode.html#a84c54361618b0d9e58f070ac7703ea6b',1,'poirot_tui::TuiNode::subscription_'],['../classpoirot__recorder_1_1PoirotRecorderNode.html#aaeaf7fe599973b40b738b10f761caeea',1,'poirot_recorder::PoirotRecorderNode::subscription_'],['../classSubscriberNode.html#aafe13271f69bc51a50edd55e79753009',1,'SubscriberNode::subscription_']]],
+  ['system_5finfo_5f_19',['system_info_',['../classpoirot_1_1Poirot.html#ac97449d30fb856263431a897f5e811fb',1,'poirot::Poirot']]]
+];

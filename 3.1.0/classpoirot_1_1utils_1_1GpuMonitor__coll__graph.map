@@ -1,0 +1,11 @@
+<map id="poirot::utils::GpuMonitor" name="poirot::utils::GpuMonitor">
+<area shape="rect" id="Node000001" title="Class for monitoring GPU metrics and energy consumption." alt="" coords="111,288,267,313"/>
+<area shape="rect" id="Node000002" href="$structpoirot_1_1utils_1_1GpuInfo.html" title="Structure to hold static GPU information." alt="" coords="5,199,141,225"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="103,232,174,285,171,289,100,236"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="34,95,112,121"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="76,137,76,199,70,199,70,137"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="11,5,135,46"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="76,61,76,95,70,95,70,61"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="164,199,304,225"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="223,240,198,289,193,286,219,237"/>
+</map>

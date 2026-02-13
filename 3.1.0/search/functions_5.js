@@ -1,0 +1,27 @@
+var searchData=
+[
+  ['generate_5fuuid_0',['generate_uuid',['../classpoirot_1_1utils_1_1StringUtils.html#a9236ad17ef6dc7d2ea78e9e8881a36a5',1,'poirot::utils::StringUtils']]],
+  ['get_5fall_5ffunction_5fkeys_1',['get_all_function_keys',['../classpoirot__tui_1_1DataManager.html#aba977e9e235ea4efd16ac85e6cb0e488',1,'poirot_tui::DataManager']]],
+  ['get_5fco2_5ffactor_2',['get_co2_factor',['../classpoirot_1_1utils_1_1Co2Manager.html#af6ad8fe90b38c1f623e5d84766132718',1,'poirot::utils::Co2Manager']]],
+  ['get_5fco2_5finfo_3',['get_co2_info',['../classpoirot_1_1utils_1_1Co2Manager.html#aefd7b7ffad2a32357cff32e8a771748e',1,'poirot::utils::Co2Manager']]],
+  ['get_5fcolumn_5fat_5fposition_4',['get_column_at_position',['../classpoirot__tui_1_1TuiRenderer.html#afabd96adcb584845d972911acefca025',1,'poirot_tui::TuiRenderer']]],
+  ['get_5fcolumn_5fname_5',['get_column_name',['../classpoirot__tui_1_1TuiRenderer.html#a0f54f84d4009aa59f6778d032caa6c94',1,'poirot_tui::TuiRenderer']]],
+  ['get_5fcountry_5ffrom_5ftimezone_6',['get_country_from_timezone',['../classpoirot_1_1utils_1_1Co2Manager.html#a8c439799e20585b7f4dc48729701fea8',1,'poirot::utils::Co2Manager']]],
+  ['get_5fcurrent_5ftab_7',['get_current_tab',['../classpoirot__tui_1_1TuiRenderer.html#afcc2acde79c460db1c4dbb339340a37a',1,'poirot_tui::TuiRenderer']]],
+  ['get_5fdata_5ftype_5fname_8',['get_data_type_name',['../classpoirot__tui_1_1TuiRenderer.html#a5a937c6a85e59c9af8cc5d5adb674043',1,'poirot_tui::TuiRenderer']]],
+  ['get_5fenabled_5ffunctions_9',['get_enabled_functions',['../classpoirot__tui_1_1DataManager.html#ab6105a66ce7fd65e4ac7c2fa68c344b5',1,'poirot_tui::DataManager']]],
+  ['get_5ffunction_5fcount_10',['get_function_count',['../classpoirot__tui_1_1DataManager.html#a7c230065f9f4dfe06d8fdf0be820f3fc',1,'poirot_tui::DataManager']]],
+  ['get_5fgpu_5finfo_11',['get_gpu_info',['../classpoirot_1_1utils_1_1GpuMonitor.html#a1e402a615a30ccb24680f2f4187db97e',1,'poirot::utils::GpuMonitor']]],
+  ['get_5fhistory_12',['get_history',['../classpoirot__tui_1_1DataManager.html#acb4db06ae36d9e7b106da8c931e19bb2',1,'poirot_tui::DataManager']]],
+  ['get_5finstance_13',['get_instance',['../classpoirot_1_1Poirot.html#a91cda6a0fc17a60e3985f4f4451981bb',1,'poirot::Poirot']]],
+  ['get_5fkey_14',['get_key',['../structpoirot__tui_1_1FunctionRow.html#ae04c2d451ecacb78ade6734ed67e6ac5',1,'poirot_tui::FunctionRow']]],
+  ['get_5fpid_15',['get_pid',['../classpoirot_1_1utils_1_1ThreadMetrics.html#a512c260be28d38c4a46276f1c5f11723',1,'poirot::utils::ThreadMetrics']]],
+  ['get_5fsorted_5frows_16',['get_sorted_rows',['../classpoirot__tui_1_1DataManager.html#a8d52d58957443cfcdd702c7072dd0a79',1,'poirot_tui::DataManager']]],
+  ['get_5fsystem_5ftimezone_17',['get_system_timezone',['../classpoirot_1_1utils_1_1Co2Manager.html#a1aadc8c590e4d05ee8d7af66707eb066',1,'poirot::utils::Co2Manager']]],
+  ['get_5ftab_5fat_5fposition_18',['get_tab_at_position',['../classpoirot__tui_1_1TuiRenderer.html#ac74bbd4f70c0e0ee1780eb44dce4c329',1,'poirot_tui::TuiRenderer']]],
+  ['get_5ftab_5fname_19',['get_tab_name',['../classpoirot__tui_1_1TuiRenderer.html#a40deee4023518ae18480a6ab8f401eb6',1,'poirot_tui::TuiRenderer']]],
+  ['get_5fthread_5fcontext_20',['get_thread_context',['../classpoirot_1_1Poirot.html#a395146db36a56a81072a539ccabac9cb',1,'poirot::Poirot']]],
+  ['get_5fthread_5fstatus_5fpath_21',['get_thread_status_path',['../classpoirot_1_1utils_1_1SysfsReader.html#ae20f5822152176a19bc56398da545d82',1,'poirot::utils::SysfsReader']]],
+  ['get_5fvalue_5fby_5ftype_22',['get_value_by_type',['../classpoirot__tui_1_1TuiRenderer.html#a189fc4c50f6f0c8c344f731afa003ab5',1,'poirot_tui::TuiRenderer']]],
+  ['gpumonitor_23',['GpuMonitor',['../classpoirot_1_1utils_1_1GpuMonitor.html#a16da9fee16816ca6114fde1b88a76b11',1,'poirot::utils::GpuMonitor']]]
+];

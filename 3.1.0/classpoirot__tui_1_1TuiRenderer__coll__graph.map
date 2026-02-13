@@ -1,0 +1,11 @@
+<map id="poirot_tui::TuiRenderer" name="poirot_tui::TuiRenderer">
+<area shape="rect" id="Node000001" title="Class responsible for rendering the TUI using ncurses." alt="" coords="589,46,739,72"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="294,5,422,46"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="438,32,589,48,588,53,438,37"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="32,13,156,38"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="171,23,294,23,294,28,171,28"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="287,71,430,111"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="445,84,565,73,588,69,589,75,565,78,446,89"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="5,78,183,104"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="198,88,286,88,286,94,198,94"/>
+</map>
