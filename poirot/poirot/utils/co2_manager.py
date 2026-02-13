@@ -31,6 +31,7 @@ class Co2Info:
     """Structure to hold CO2 information."""
 
     country_code: str = ""
+    date: str = ""
     co2_factor_loaded: bool = False
     co2_factor_kg_per_kwh: float = 0.0
 
@@ -103,12 +104,23 @@ class Co2Manager:
 
             with self._co2_factors_mutex:
                 try:
-                    factor = data["data"][-1]["emissions_intensity_gco2_per_kwh"] / 1000.0
+                    i = -1
+                    last_entry = data["data"][i]
+                    while (
+                        "emissions_intensity_gco2_per_kwh" not in last_entry
+                        or last_entry["emissions_intensity_gco2_per_kwh"] is None
+                    ):
+                        i -= 1
+                        last_entry = data["data"][i]
+
+                    factor = last_entry["emissions_intensity_gco2_per_kwh"] / 1000.0
+                    date = last_entry["date"]
                 except (KeyError, IndexError):
                     return co2_info
 
             co2_info.co2_factor_loaded = True
             co2_info.co2_factor_kg_per_kwh = factor
+            co2_info.date = date
             return co2_info
 
         except Exception:

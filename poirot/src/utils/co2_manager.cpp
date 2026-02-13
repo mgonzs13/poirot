@@ -102,12 +102,21 @@ Co2Info Co2Manager::get_co2_factor(const std::string &country_code) {
 
   if (j.HasMember("data") && j["data"].IsArray() && !j["data"].Empty()) {
     // Get the last (most recent) data point
-    const rapidjson::Value &last_entry = j["data"][j["data"].Size() - 1];
-    if (last_entry.HasMember("emissions_intensity_gco2_per_kwh") &&
-        last_entry["emissions_intensity_gco2_per_kwh"].IsNumber()) {
+    int i = j["data"].Size() - 1;
+    rapidjson::Value &last_entry = j["data"][i];
+
+    while (i >= 0 &&
+           !(last_entry.HasMember("emissions_intensity_gco2_per_kwh") &&
+             last_entry["emissions_intensity_gco2_per_kwh"].IsNumber())) {
+      i--;
+      last_entry = j["data"][i];
+    }
+
+    if (i >= 0) {
       double value = last_entry["emissions_intensity_gco2_per_kwh"].GetDouble();
       co2_info.co2_factor_loaded = true;
       co2_info.co2_factor_kg_per_kwh = value / 1000.0;
+      co2_info.date = last_entry["date"].GetString();
       return co2_info;
     }
   }

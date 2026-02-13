@@ -34,6 +34,8 @@ constexpr const char *EMBER_API_BASE_URL = "https://api.ember-energy.org/v1";
 struct Co2Info {
   /// @brief Country code (ISO 2-letter)
   std::string country_code;
+  /// @brief Date of the CO2 data
+  std::string date;
   /// @brief Flag indicating if CO2 factor was successfully loaded
   bool co2_factor_loaded = false;
   /// @brief CO2 factor in kg CO2 per kWh

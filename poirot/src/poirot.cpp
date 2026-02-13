@@ -104,6 +104,7 @@ void Poirot::detect_system_info() {
   // CO2 factor from timezone
   auto co2_info = this->co2_manager_.get_co2_info();
   this->system_info_.co2_info.country_code = co2_info.country_code;
+  this->system_info_.co2_info.date = co2_info.date;
   this->system_info_.co2_info.co2_factor_loaded = co2_info.co2_factor_loaded;
   this->system_info_.co2_info.co2_factor_kg_per_kwh =
       co2_info.co2_factor_kg_per_kwh;
