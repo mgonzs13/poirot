@@ -35,7 +35,7 @@ class PublisherNode(Node):
 
         # Create a publisher
         qos = QoSProfile(depth=10)
-        self.publisher = self.create_publisher(String, "demo_topic", qos)
+        self.publisher = self.create_publisher(String, "demo_topic_py", qos)
 
         # Create a timer that fires every 1 second
         self.timer = self.create_timer(1.0, self.timer_callback)
@@ -77,7 +77,7 @@ class SubscriberNode(Node):
         # Create a subscription
         qos = QoSProfile(depth=10)
         self.subscription = self.create_subscription(
-            String, "demo_topic", self.subscription_callback, qos
+            String, "demo_topic_py", self.subscription_callback, qos
         )
 
         # Persistent memory that grows
