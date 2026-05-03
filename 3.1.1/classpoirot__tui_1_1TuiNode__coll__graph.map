@@ -1,0 +1,45 @@
+<map id="poirot_tui::TuiNode" name="poirot_tui::TuiNode">
+<area shape="rect" id="Node000001" title="TUI Node for displaying profiling data." alt="" coords="1739,141,1868,167"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="1473,5,1566,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="1582,15,1649,23,1683,33,1716,48,1743,68,1767,93,1797,139,1793,142,1762,97,1740,72,1713,52,1682,38,1648,29,1581,20"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="1445,134,1594,174"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="1609,152,1738,152,1738,157,1609,157"/>
+<area shape="rect" id="Node000004" href="$classpoirot__tui_1_1DataManager.html" title="Manages profiling data for the TUI." alt="" coords="1217,171,1374,196"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="1390,169,1445,161,1445,167,1391,174"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="928,171,1008,196"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="1023,181,1217,181,1217,186,1023,186"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="883,106,1053,146"/>
+<area shape="poly" id="edge5_Node000004_Node000006" title=" " alt="" coords="1069,135,1194,154,1249,168,1248,173,1192,159,1068,140"/>
+<area shape="rect" id="Node000007" title=" " alt="" coords="275,176,352,202"/>
+<area shape="poly" id="edge23_Node000001_Node000007" title=" " alt="" coords="343,165,391,135,454,103,527,77,565,69,603,66,1521,66,1596,74,1668,93,1731,117,1778,138,1775,143,1729,122,1666,98,1595,79,1521,71,603,71,566,74,528,82,456,107,394,139,346,169"/>
+<area shape="poly" id="edge6_Node000006_Node000007" title=" " alt="" coords="362,168,398,158,530,139,662,128,784,123,882,122,882,127,784,128,663,133,531,144,400,163,363,173"/>
+<area shape="rect" id="Node000009" href="$structpoirot__tui_1_1FunctionRow.html" title="Represents a row of function profiling data." alt="" coords="526,177,683,203"/>
+<area shape="poly" id="edge9_Node000009_Node000007" title=" " alt="" coords="367,186,526,187,526,192,367,192"/>
+<area shape="rect" id="Node000010" title=" " alt="" coords="531,286,678,342"/>
+<area shape="poly" id="edge11_Node000010_Node000007" title=" " alt="" coords="330,214,359,256,378,276,400,292,432,305,465,313,531,318,531,323,464,319,430,310,398,297,374,280,354,260,326,217"/>
+<area shape="rect" id="Node000013" title=" " alt="" coords="717,231,859,256"/>
+<area shape="poly" id="edge15_Node000013_Node000007" title=" " alt="" coords="361,205,400,216,484,229,570,237,717,242,717,247,570,243,484,235,398,221,360,210"/>
+<area shape="rect" id="Node000008" title=" " alt="" coords="12,168,136,209"/>
+<area shape="poly" id="edge7_Node000007_Node000008" title=" " alt="" coords="152,186,274,186,274,192,152,192"/>
+<area shape="poly" id="edge8_Node000006_Node000009" title=" " alt="" coords="698,189,777,183,858,168,882,156,908,145,910,149,884,161,860,173,778,189,699,194"/>
+<area shape="poly" id="edge10_Node000004_Node000010" title=" " alt="" coords="694,311,798,306,924,293,1060,269,1127,252,1192,230,1269,194,1271,199,1194,235,1129,257,1061,274,925,299,798,311,694,317"/>
+<area shape="rect" id="Node000011" title=" " alt="" coords="252,328,375,369"/>
+<area shape="poly" id="edge12_Node000010_Node000011" title=" " alt="" coords="390,351,440,350,492,345,530,337,531,342,492,350,441,355,390,356"/>
+<area shape="rect" id="Node000012" href="$structpoirot__tui_1_1DataPoint.html" title="Represents a single data point in function history." alt="" coords="5,336,143,362"/>
+<area shape="poly" id="edge13_Node000011_Node000012" title=" " alt="" coords="158,346,251,346,251,352,158,352"/>
+<area shape="poly" id="edge14_Node000004_Node000013" title=" " alt="" coords="874,240,961,237,1053,229,1152,213,1239,194,1240,200,1153,218,1053,234,961,242,874,246"/>
+<area shape="rect" id="Node000014" title=" " alt="" coords="1445,199,1594,240"/>
+<area shape="poly" id="edge16_Node000001_Node000014" title=" " alt="" coords="1608,202,1714,180,1763,165,1765,170,1715,185,1610,208"/>
+<area shape="rect" id="Node000015" href="$classpoirot__tui_1_1TuiRenderer.html" title="Class responsible for rendering the TUI using ncurses." alt="" coords="1220,369,1371,395"/>
+<area shape="poly" id="edge17_Node000014_Node000015" title=" " alt="" coords="1318,356,1373,304,1444,249,1464,238,1467,243,1447,254,1376,308,1322,360"/>
+<area shape="rect" id="Node000016" title=" " alt="" coords="904,362,1032,402"/>
+<area shape="poly" id="edge18_Node000015_Node000016" title=" " alt="" coords="1048,380,1220,380,1220,385,1048,385"/>
+<area shape="rect" id="Node000017" title=" " alt="" coords="543,369,666,395"/>
+<area shape="poly" id="edge19_Node000016_Node000017" title=" " alt="" coords="682,380,903,380,903,385,682,385"/>
+<area shape="rect" id="Node000018" title=" " alt="" coords="896,427,1040,468"/>
+<area shape="poly" id="edge20_Node000015_Node000018" title=" " alt="" coords="1055,433,1192,408,1250,393,1251,398,1194,413,1056,438"/>
+<area shape="rect" id="Node000019" title=" " alt="" coords="516,435,693,460"/>
+<area shape="poly" id="edge21_Node000018_Node000019" title=" " alt="" coords="709,445,896,445,896,450,709,450"/>
+<area shape="rect" id="Node000020" title=" " alt="" coords="1454,264,1585,290"/>
+<area shape="poly" id="edge22_Node000001_Node000020" title=" " alt="" coords="1599,265,1657,252,1713,229,1757,198,1789,166,1793,169,1761,202,1716,234,1658,257,1600,270"/>
+</map>
