@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import time
 import threading
 
 from poirot.utils.sysfs_reader import SysfsReader
@@ -31,14 +32,16 @@ class RaplMonitor:
         """
         # Mutex for thread-safe RAPL readings
         self._rapl_mutex = threading.Lock()
-        # RAPL package domain
-        self._rapl_package = None
+        # RAPL package sysfs path (empty string means RAPL is not available)
+        self._rapl_package_path: str = ""
         # Accumulated energy in microjoules
         self._accumulated_energy_uj = 0.0
         # Last RAPL energy value (for delta calculation)
         self._last_rapl_energy_uj = 0.0
         # Maximum RAPL energy value before wrap-around
         self._rapl_max_energy_uj = 0.0
+        # Wall-clock time of the first successful RAPL read
+        self._start_time: float = 0.0
 
         self._load_rapl_package_path()
         self._initialize_rapl_max_energy()
@@ -63,6 +66,10 @@ class RaplMonitor:
     def _initialize_rapl_max_energy(self) -> None:
         """Initialize RAPL max energy range for wraparound detection."""
         with self._rapl_mutex:
+            if not self._rapl_package_path:
+                self._rapl_max_energy_uj = 0.0
+                return
+
             max_range_path = f"{self._rapl_package_path}/max_energy_range_uj"
 
             if os.path.exists(max_range_path):
@@ -81,6 +88,9 @@ class RaplMonitor:
             Accumulated energy consumption in microjoules.
         """
         with self._rapl_mutex:
+            if not self._rapl_package_path:
+                return 0.0
+
             energy_path = f"{self._rapl_package_path}/energy_uj"
             if not os.path.exists(energy_path):
                 return 0.0
@@ -88,6 +98,11 @@ class RaplMonitor:
             current = SysfsReader.read_double(energy_path)
             if current <= 0:
                 return 0.0
+
+            # Record wall-clock time on the very first successful RAPL read.
+            # This is used to compute the long-running average power.
+            if self._start_time == 0.0:
+                self._start_time = time.monotonic()
 
             # If we have a previous measurement, accumulate delta (handle wraparound)
             if self._last_rapl_energy_uj > 0.0:
@@ -110,52 +125,53 @@ class RaplMonitor:
             self._last_rapl_energy_uj = current
             return self._accumulated_energy_uj
 
+    def get_average_power_uj_per_us(self) -> float:
+        """
+        Get the long-running average RAPL power in uJ/us (= Watts).
+
+        Computes average power as total accumulated energy divided by total
+        elapsed wall time since the first RAPL read. Using this stable baseline
+        instead of a per-window RAPL delta guarantees that parent function
+        energy is always >= child function energy, because thread CPU time is a
+        cumulative monotonic counter that includes all nested calls.
+
+        Returns:
+            Average power in uJ/us, or 0.0 if unavailable.
+        """
+        with self._rapl_mutex:
+            if self._start_time == 0.0 or self._accumulated_energy_uj <= 0.0:
+                return 0.0
+            elapsed_us = (time.monotonic() - self._start_time) * 1_000_000.0
+            if elapsed_us <= 0.0:
+                return 0.0
+            return self._accumulated_energy_uj / elapsed_us
+
     def calculate_thread_energy_uj(
         self,
         thread_cpu_delta_us: float,
-        process_cpu_delta_us: float,
-        system_cpu_delta_us: float,
-        total_energy_delta_uj: float,
     ) -> float:
         """
-        Calculate thread energy consumption using hierarchical attribution.
+        Calculate thread energy consumption using average-power attribution.
 
-        This method calculates the energy attributed to a specific thread
-        based on its CPU time usage relative to the process and system.
+        Energy = avg_power x thread_cpu_time
+
+        The long-running average RAPL power is multiplied by the thread's own
+        CPU time delta (CLOCK_THREAD_CPUTIME_ID). Because that clock is a
+        cumulative monotonic counter, a parent function's delta always
+        encompasses any nested child's delta, so energy_parent >= energy_child
+        is guaranteed by definition — no child-tracking or clamping is needed.
 
         Args:
             thread_cpu_delta_us: Thread CPU time delta in microseconds.
-            process_cpu_delta_us: Process CPU time delta in microseconds.
-            system_cpu_delta_us: System CPU time delta in microseconds.
-            total_energy_delta_uj: Total energy delta in microjoules.
 
         Returns:
             Thread energy consumption in microjoules.
         """
-        # If no energy delta or no thread CPU time, return 0
-        if total_energy_delta_uj <= 0.0 or thread_cpu_delta_us <= 0.0:
+        if thread_cpu_delta_us <= 0.0:
             return 0.0
 
-        # Calculate thread's share of system energy using hierarchical attribution
-        thread_share = 0.0
+        avg_power_uj_per_us = self.get_average_power_uj_per_us()
+        if avg_power_uj_per_us <= 0.0:
+            return 0.0
 
-        if system_cpu_delta_us > 0.0 and process_cpu_delta_us > 0.0:
-            # Hierarchical attribution:
-            # thread_share = (thread_cpu / process_cpu) * (process_cpu / system_cpu)
-            #              = thread_cpu / system_cpu
-            # But we use the hierarchical form to be more accurate when there are
-            # multiple processes and threads
-            thread_process_share = thread_cpu_delta_us / process_cpu_delta_us
-            process_system_share = process_cpu_delta_us / system_cpu_delta_us
-            thread_share = thread_process_share * process_system_share
-        elif process_cpu_delta_us > 0.0:
-            # Fallback: attribute based on thread's share of process time
-            thread_share = thread_cpu_delta_us / process_cpu_delta_us
-        else:
-            # Last resort: assume thread gets all the energy
-            thread_share = 1.0
-
-        # Clamp share to valid range [0, 1]
-        thread_share = max(0.0, min(1.0, thread_share))
-
-        return total_energy_delta_uj * thread_share
+        return avg_power_uj_per_us * thread_cpu_delta_us

@@ -110,14 +110,6 @@ void Poirot::detect_system_info() {
       co2_info.co2_factor_kg_per_kwh;
 }
 
-ThreadProfilingContext &Poirot::get_thread_context() {
-  std::lock_guard<std::mutex> lock(this->contexts_mutex_);
-  auto thread_id = std::this_thread::get_id();
-  auto &ctx = this->thread_contexts_[thread_id];
-  ctx.thread_id = thread_id;
-  return ctx;
-}
-
 void Poirot::read_process_data() {
   this->process_info_.pid = this->thread_metrics_.get_pid();
   this->process_info_.threads = this->thread_metrics_.read_num_threads();
@@ -127,8 +119,8 @@ void Poirot::start_profiling(const std::string &function_name,
                              const std::string &file, int line) {
   this->read_process_data();
 
-  // Get thread-local context
-  ThreadProfilingContext &ctx = this->get_thread_context();
+  // Build context and push onto this thread's stack
+  ThreadProfilingContext ctx;
   ctx.function_name = function_name;
   ctx.file = file;
   ctx.line = line;
@@ -161,11 +153,17 @@ void Poirot::start_profiling(const std::string &function_name,
     ctx.start_gpu_mem_kb = 0;
     ctx.start_gpu_energy_uj = 0.0;
   }
+
+  {
+    std::lock_guard<std::mutex> lock(this->contexts_mutex_);
+    auto thread_id = std::this_thread::get_id();
+    ctx.thread_id = thread_id;
+    this->thread_contexts_[thread_id].push_back(std::move(ctx));
+  }
 }
 
 void Poirot::stop_profiling() {
-  this->read_process_data();
-
+  // Capture all end-of-function metrics first, before any admin overhead.
   auto end_time = std::chrono::steady_clock::now();
   int64_t end_cpu_time_us = this->thread_metrics_.read_cpu_time_us();
   int64_t end_process_cpu_time_us =
@@ -194,8 +192,25 @@ void Poirot::stop_profiling() {
     end_gpu_energy_uj = this->gpu_monitor_.read_process_energy_uj();
   }
 
-  // Get thread-local context
-  ThreadProfilingContext &ctx = this->get_thread_context();
+  // Update process info (pid, thread count) after all timing metrics are
+  // captured.
+  this->read_process_data();
+
+  // Pop context from this thread's stack
+  ThreadProfilingContext ctx;
+  {
+    std::lock_guard<std::mutex> lock(this->contexts_mutex_);
+    auto thread_id = std::this_thread::get_id();
+    auto &stack = this->thread_contexts_[thread_id];
+    if (stack.empty()) {
+      return;
+    }
+    ctx = std::move(stack.back());
+    stack.pop_back();
+    if (stack.empty()) {
+      this->thread_contexts_.erase(thread_id);
+    }
+  }
 
   // Calculate deltas
   double wall_time_delta_us =
@@ -214,9 +229,13 @@ void Poirot::stop_profiling() {
       end_cpu_energy_uj - ctx.start_cpu_energy_uj;
   double gpu_energy_delta_uj = end_gpu_energy_uj - ctx.start_gpu_energy_uj;
 
-  double thread_cpu_energy_uj = this->rapl_monitor_.calculate_thread_energy_uj(
-      thread_cpu_delta_us, process_cpu_delta_us, system_cpu_delta_us,
-      cpu_total_energy_delta_uj);
+  // Average-power formula: energy = avg_power × thread_cpu.
+  // avg_power is the long-running RAPL average since profiler start.
+  // CLOCK_THREAD_CPUTIME_ID is cumulative, so thread_cpu_parent >=
+  // thread_cpu_child always — energy_parent >= energy_child is guaranteed
+  // without any extra tracking.
+  double thread_cpu_energy_uj =
+      this->rapl_monitor_.calculate_thread_energy_uj(thread_cpu_delta_us);
 
   // Calculate total energy (CPU + GPU)
   double total_energy_uj = thread_cpu_energy_uj + gpu_energy_delta_uj;
@@ -332,10 +351,15 @@ void Poirot::print_system_info() {
 void Poirot::publish_stats(const std::string &function_name) {
   std::shared_lock<std::shared_mutex> lock(this->statistics_mutex_);
 
+  auto it = this->statistics_.find(function_name);
+  if (it == this->statistics_.end()) {
+    return;
+  }
+
   auto msg = poirot_msgs::msg::ProfilingData();
   msg.system_info = this->system_info_;
   msg.process_info = this->process_info_;
-  msg.function = this->statistics_[function_name];
+  msg.function = it->second;
   msg.timestamp = msg.function.call.timestamp;
 
   this->profiling_data_publisher_->publish(msg);

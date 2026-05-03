@@ -101,22 +101,23 @@ Co2Info Co2Manager::get_co2_factor(const std::string &country_code) {
   }
 
   if (j.HasMember("data") && j["data"].IsArray() && !j["data"].Empty()) {
-    // Get the last (most recent) data point
-    int i = j["data"].Size() - 1;
-    rapidjson::Value &last_entry = j["data"][i];
-
-    while (i >= 0 &&
-           !(last_entry.HasMember("emissions_intensity_gco2_per_kwh") &&
-             last_entry["emissions_intensity_gco2_per_kwh"].IsNumber())) {
+    // Walk backwards to find the most recent entry with the required field.
+    int i = static_cast<int>(j["data"].Size()) - 1;
+    while (i >= 0) {
+      const rapidjson::Value &entry = j["data"][i];
+      if (entry.HasMember("emissions_intensity_gco2_per_kwh") &&
+          entry["emissions_intensity_gco2_per_kwh"].IsNumber()) {
+        break;
+      }
       i--;
-      last_entry = j["data"][i];
     }
 
     if (i >= 0) {
-      double value = last_entry["emissions_intensity_gco2_per_kwh"].GetDouble();
+      const rapidjson::Value &entry = j["data"][i];
+      double value = entry["emissions_intensity_gco2_per_kwh"].GetDouble();
       co2_info.co2_factor_loaded = true;
       co2_info.co2_factor_kg_per_kwh = value / 1000.0;
-      co2_info.date = last_entry["date"].GetString();
+      co2_info.date = entry["date"].GetString();
       return co2_info;
     }
   }

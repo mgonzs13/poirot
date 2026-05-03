@@ -42,6 +42,12 @@ CpuInfo SystemInfoReader::read_cpu_info() {
           cpu_info.model = line.substr(pos + 2);
         }
 
+      } else if (line.find("physical id") != std::string::npos) {
+        size_t pos = line.find(':');
+        if (pos != std::string::npos) {
+          current_physical_id = std::stoi(line.substr(pos + 2));
+        }
+
       } else if (line.find("core id") != std::string::npos) {
         size_t pos = line.find(':');
         if (pos != std::string::npos) {

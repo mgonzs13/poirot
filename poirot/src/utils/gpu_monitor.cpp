@@ -198,8 +198,8 @@ bool GpuMonitor::detect_amd_gpu() {
           std::string mem_str = StringUtils::trim(parts[2]);
 
           try {
-            long mem_mb = std::stol(mem_str);
-            this->gpu_info_.mem_total_kb = mem_mb / 1024;
+            long mem_bytes = std::stol(mem_str);
+            this->gpu_info_.mem_total_kb = mem_bytes / 1024;
           } catch (...) {
             // ignore
           }
@@ -554,8 +554,8 @@ ProcessGpuMetrics GpuMonitor::read_amd_process_metrics(pid_t pid) {
             if (proc_pid == pid) {
               metrics.is_using_gpu = true;
               std::string mem_str = StringUtils::trim(parts[3]);
-              long mem_mb = std::stol(mem_str);
-              metrics.mem_used_kb = mem_mb / 1024;
+              long mem_bytes = std::stol(mem_str);
+              metrics.mem_used_kb = mem_bytes / 1024;
 
               if (this->gpu_info_.mem_total_kb > 0) {
                 metrics.estimated_utilization_percent =

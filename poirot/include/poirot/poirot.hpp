@@ -29,6 +29,7 @@
 #include <shared_mutex>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "rclcpp/rclcpp.hpp"
 
@@ -150,12 +151,6 @@ private:
    */
   void publish_stats(const std::string &function_name);
 
-  /**
-   * @brief Get the thread-local profiling context.
-   * @return Reference to the thread-local profiling context.
-   */
-  ThreadProfilingContext &get_thread_context();
-
   /// @brief System information
   poirot_msgs::msg::SystemInfo system_info_;
   /// @brief Process information
@@ -171,8 +166,9 @@ private:
 
   /// @brief Thread-local contexts storage
   mutable std::mutex contexts_mutex_;
-  /// @brief Map of thread IDs to their profiling contexts
-  std::map<std::thread::id, ThreadProfilingContext> thread_contexts_;
+  /// @brief Map of thread IDs to their profiling context stacks
+  std::map<std::thread::id, std::vector<ThreadProfilingContext>>
+      thread_contexts_;
 
   // ============================================================================
   // Utility Class Instances

@@ -19,7 +19,7 @@ import time
 import functools
 import threading
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Optional, TypeVar
+from typing import Any, Callable, Dict, List, Optional, TypeVar
 
 from rclpy.node import Node
 from rclpy.qos import QoSProfile
@@ -91,7 +91,7 @@ class Poirot:
         self._statistics_lock = threading.RLock()
 
         # Thread contexts
-        self._thread_contexts: Dict[int, ThreadProfilingContext] = {}
+        self._thread_contexts: Dict[int, List[ThreadProfilingContext]] = {}
         self._contexts_lock = threading.Lock()
 
         # Utility instances
@@ -172,16 +172,6 @@ class Poirot:
         self._system_info.co2_info.co2_factor_loaded = co2_info.co2_factor_loaded
         self._system_info.co2_info.co2_factor_kg_per_kwh = co2_info.co2_factor_kg_per_kwh
 
-    def _get_thread_context(self) -> ThreadProfilingContext:
-        """Get the thread-local profiling context."""
-        thread_id = threading.get_ident()
-        with self._contexts_lock:
-            if thread_id not in self._thread_contexts:
-                self._thread_contexts[thread_id] = ThreadProfilingContext()
-            ctx = self._thread_contexts[thread_id]
-            ctx.thread_id = thread_id
-            return ctx
-
     def _read_process_data(self) -> None:
         """Read process-level data."""
         self._process_info.pid = self._thread_metrics.get_pid()
@@ -198,7 +188,9 @@ class Poirot:
         """
         self._read_process_data()
 
-        ctx = self._get_thread_context()
+        # Build context for this call
+        ctx = ThreadProfilingContext()
+        ctx.thread_id = threading.get_ident()
         ctx.function_name = function_name
         ctx.file = file
         ctx.line = line
@@ -228,10 +220,16 @@ class Poirot:
             ctx.start_gpu_mem_kb = 0
             ctx.start_gpu_energy_uj = 0.0
 
+        # Push context onto this thread's stack
+        thread_id = threading.get_ident()
+        with self._contexts_lock:
+            if thread_id not in self._thread_contexts:
+                self._thread_contexts[thread_id] = []
+            self._thread_contexts[thread_id].append(ctx)
+
     def stop_profiling(self) -> None:
         """Stop profiling the current function."""
-        self._read_process_data()
-
+        # Capture all end-of-function metrics first, before any admin overhead.
         end_time = time.perf_counter()
         end_cpu_time_us = self._thread_metrics.read_cpu_time_us()
         end_process_cpu_time_us = self._thread_metrics.read_process_cpu_time_us()
@@ -258,7 +256,18 @@ class Poirot:
             end_gpu_mem_kb = process_metrics.mem_used_kb
             end_gpu_energy_uj = self._gpu_monitor.read_process_energy_uj()
 
-        ctx = self._get_thread_context()
+        # Update process info (pid, thread count) after all timing metrics are captured.
+        self._read_process_data()
+
+        # Pop context from this thread's stack
+        thread_id = threading.get_ident()
+        with self._contexts_lock:
+            stack = self._thread_contexts.get(thread_id, [])
+            if not stack:
+                return
+            ctx = stack.pop()
+            if not stack:
+                del self._thread_contexts[thread_id]
 
         # Calculate deltas
         wall_time_delta_us = (end_time - ctx.start_time) * 1_000_000.0
@@ -271,11 +280,12 @@ class Poirot:
         cpu_total_energy_delta_uj = end_cpu_energy_uj - ctx.start_cpu_energy_uj
         gpu_energy_delta_uj = end_gpu_energy_uj - ctx.start_gpu_energy_uj
 
+        # Average-power formula: energy = avg_power × thread_cpu.
+        # avg_power is the long-running RAPL average since profiler start.
+        # CLOCK_THREAD_CPUTIME_ID is cumulative, so thread_cpu_parent >= thread_cpu_child
+        # always — energy_parent >= energy_child is guaranteed without any extra tracking.
         thread_cpu_energy_uj = self._rapl_monitor.calculate_thread_energy_uj(
             thread_cpu_delta_us,
-            process_cpu_delta_us,
-            system_cpu_delta_us,
-            cpu_total_energy_delta_uj,
         )
 
         # Total energy

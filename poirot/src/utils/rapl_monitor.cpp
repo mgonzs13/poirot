@@ -86,6 +86,12 @@ double RaplMonitor::read_energy_uj() {
     return -1.0;
   }
 
+  // Record the wall-clock time on the very first successful RAPL read.
+  // This is used to compute the long-running average power.
+  if (this->start_time_.time_since_epoch().count() == 0) {
+    this->start_time_ = std::chrono::steady_clock::now();
+  }
+
   // Handle RAPL counter wraparound
   if (this->last_rapl_energy_uj_ > 0) {
     if (current_energy < this->last_rapl_energy_uj_) {
@@ -106,44 +112,47 @@ double RaplMonitor::read_energy_uj() {
   return this->accumulated_energy_uj_;
 }
 
-double RaplMonitor::calculate_thread_energy_uj(double thread_cpu_delta_us,
-                                               double process_cpu_delta_us,
-                                               double system_cpu_delta_us,
-                                               double total_energy_delta_uj) {
-  // If no energy delta, return 0
-  if (total_energy_delta_uj <= 0.0) {
+double RaplMonitor::get_average_power_uj_per_us() {
+  std::lock_guard<std::mutex> lock(this->rapl_mutex_);
+
+  if (this->start_time_.time_since_epoch().count() == 0 ||
+      this->accumulated_energy_uj_ <= 0.0) {
     return 0.0;
   }
 
-  // If no thread CPU time, return 0
+  auto now = std::chrono::steady_clock::now();
+  double elapsed_us =
+      static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(
+                              now - this->start_time_)
+                              .count());
+  if (elapsed_us <= 0.0) {
+    return 0.0;
+  }
+
+  return this->accumulated_energy_uj_ / elapsed_us;
+}
+
+double RaplMonitor::calculate_thread_energy_uj(double thread_cpu_delta_us) {
   if (thread_cpu_delta_us <= 0.0) {
     return 0.0;
   }
 
-  // Calculate thread's share of system energy using hierarchical attribution
-  double thread_share = 0.0;
-
-  if (system_cpu_delta_us > 0.0 && process_cpu_delta_us > 0.0) {
-    // Hierarchical attribution:
-    // thread_share = (thread_cpu / process_cpu) * (process_cpu / system_cpu)
-    //              = thread_cpu / system_cpu
-    // But we use the hierarchical form to be more accurate when there are
-    // multiple processes and threads
-    double thread_process_share = thread_cpu_delta_us / process_cpu_delta_us;
-    double process_system_share = process_cpu_delta_us / system_cpu_delta_us;
-    thread_share = thread_process_share * process_system_share;
-  } else if (process_cpu_delta_us > 0.0) {
-    // Fallback: attribute based on thread's share of process time
-    thread_share = thread_cpu_delta_us / process_cpu_delta_us;
-  } else {
-    // Last resort: assume thread gets all the energy
-    thread_share = 1.0;
+  // Use the long-running average RAPL power (total accumulated energy /
+  // total elapsed wall time since first read).  Multiplied by the thread's
+  // own CPU time (CLOCK_THREAD_CPUTIME_ID delta), this gives the energy
+  // attributed to this thread's actual compute work.
+  //
+  // Inclusivity proof: CLOCK_THREAD_CPUTIME_ID is a per-thread cumulative
+  // monotonic counter.  For any nested call A→B on the same thread,
+  // thread_cpu_delta_A >= thread_cpu_delta_B always.  Since avg_power is the
+  // same constant for both, energy_A >= energy_B holds unconditionally —
+  // no clamping or child-accumulation is needed.
+  double avg_power_uj_per_us = this->get_average_power_uj_per_us();
+  if (avg_power_uj_per_us <= 0.0) {
+    return 0.0;
   }
 
-  // Clamp share to valid range [0, 1]
-  thread_share = std::max(0.0, std::min(1.0, thread_share));
-
-  return total_energy_delta_uj * thread_share;
+  return avg_power_uj_per_us * thread_cpu_delta_us;
 }
 
 } // namespace utils

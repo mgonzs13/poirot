@@ -15,6 +15,7 @@
 #ifndef POIROT__UTILS__RAPL_MONITOR_HPP_
 #define POIROT__UTILS__RAPL_MONITOR_HPP_
 
+#include <chrono>
 #include <mutex>
 #include <string>
 
@@ -49,21 +50,34 @@ public:
   double read_energy_uj();
 
   /**
-   * @brief Calculate thread energy consumption using hierarchical attribution.
+   * @brief Get the long-running average RAPL power in microjoules per
+   * microsecond.
    *
-   * This method calculates the energy attributed to a specific thread
-   * based on its CPU time usage relative to the process and system.
+   * Computes the average power as total accumulated energy divided by total
+   * elapsed wall time since the first RAPL read. Using this stable baseline
+   * instead of a per-window RAPL delta guarantees that parent function energy
+   * is always >= child function energy, because thread CPU time (the other
+   * factor) is a cumulative monotonic counter that includes all nested calls.
+   *
+   * @return Average power in uJ/us (= Watts), or 0.0 if unavailable.
+   */
+  double get_average_power_uj_per_us();
+
+  /**
+   * @brief Calculate thread energy consumption using average-power attribution.
+   *
+   * Energy = avg_power × thread_cpu_time
+   *
+   * The long-running average RAPL power is multiplied by the thread's own CPU
+   * time delta (CLOCK_THREAD_CPUTIME_ID). Because that clock is a cumulative
+   * monotonic counter, a parent function's delta always encompasses any nested
+   * child's delta, so energy_parent >= energy_child is guaranteed by definition
+   * — no child-tracking or clamping is needed.
    *
    * @param thread_cpu_delta_us Thread CPU time delta in microseconds.
-   * @param process_cpu_delta_us Process CPU time delta in microseconds.
-   * @param system_cpu_delta_us System CPU time delta in microseconds.
-   * @param total_energy_delta_uj Total energy delta in microjoules.
    * @return Thread energy consumption in microjoules.
    */
-  double calculate_thread_energy_uj(double thread_cpu_delta_us,
-                                    double process_cpu_delta_us,
-                                    double system_cpu_delta_us,
-                                    double total_energy_delta_uj);
+  double calculate_thread_energy_uj(double thread_cpu_delta_us);
 
 protected:
   /**
@@ -81,6 +95,8 @@ private:
   mutable std::mutex rapl_mutex_;
   /// @brief RAPL package path
   std::string rapl_package_path_;
+  /// @brief Wall-clock time of the first successful RAPL read
+  std::chrono::steady_clock::time_point start_time_;
   /// @brief Accumulated energy in microjoules
   double accumulated_energy_uj_ = 0.0;
   /// @brief Last RAPL energy value (for delta calculation)
