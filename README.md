@@ -32,6 +32,7 @@
 |   **Iron**   |        [![Iron Build](https://github.com/mgonzs13/poirot/actions/workflows/iron-build-test.yml/badge.svg?branch=main)](https://github.com/mgonzs13/poirot/actions/workflows/iron-build-test.yml?branch=main)         |
 |  **Jazzy**   |       [![Jazzy Build](https://github.com/mgonzs13/poirot/actions/workflows/jazzy-build-test.yml/badge.svg?branch=main)](https://github.com/mgonzs13/poirot/actions/workflows/jazzy-build-test.yml?branch=main)       |
 |  **Kilted**  |     [![Kilted Build](https://github.com/mgonzs13/poirot/actions/workflows/kilted-build-test.yml/badge.svg?branch=main)](https://github.com/mgonzs13/poirot/actions/workflows/kilted-build-test.yml?branch=main)      |
+| **Lyrical**  |    [![Lyrical Build](https://github.com/mgonzs13/poirot/actions/workflows/lyrical-build-test.yml/badge.svg?branch=main)](https://github.com/mgonzs13/poirot/actions/workflows/lyrical-build-test.yml?branch=main)    |
 | **Rolling**  |    [![Rolling Build](https://github.com/mgonzs13/poirot/actions/workflows/rolling-build-test.yml/badge.svg?branch=main)](https://github.com/mgonzs13/poirot/actions/workflows/rolling-build-test.yml?branch=main)    |
 
 </div align="center">
