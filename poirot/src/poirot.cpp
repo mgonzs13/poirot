@@ -18,7 +18,16 @@
 #include <iomanip>
 #include <vector>
 
-#include "ament_index_cpp/get_package_share_directory.hpp"
+#if __has_include("rclcpp/version.h")
+#include "rclcpp/version.h"
+#if RCLCPP_VERSION_GTE(32, 0, 0)
+#include <ament_index_cpp/get_package_share_path.hpp>
+#else
+#include <ament_index_cpp/get_package_share_directory.hpp>
+#endif
+#else
+#include <ament_index_cpp/get_package_share_directory.hpp>
+#endif
 
 #include "poirot_msgs/msg/cpu_info.hpp"
 #include "poirot_msgs/msg/function_call.hpp"
@@ -31,8 +40,20 @@
 using namespace poirot;
 
 Poirot::Poirot()
-    : co2_manager_(ament_index_cpp::get_package_share_directory("poirot") +
-                   "/iso_country_codes.csv"),
+    : co2_manager_(
+#if __has_include("rclcpp/version.h")
+#if RCLCPP_VERSION_GTE(32, 0, 0)
+          ament_index_cpp::get_package_share_path("poirot").string() +
+          "/iso_country_codes.csv"
+#else
+          ament_index_cpp::get_package_share_directory("poirot") +
+          "/iso_country_codes.csv"
+#endif
+#else
+          ament_index_cpp::get_package_share_directory("poirot") +
+          "/iso_country_codes.csv"
+#endif
+          ),
       rapl_monitor_(), gpu_monitor_(), thread_metrics_() {
 
   // Create node options
