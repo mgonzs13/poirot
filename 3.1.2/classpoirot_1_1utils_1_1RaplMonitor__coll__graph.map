@@ -1,0 +1,9 @@
+<map id="poirot::utils::RaplMonitor" name="poirot::utils::RaplMonitor">
+<area shape="rect" id="Node000001" title=" " alt="" coords="21,192,179,218"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,95,86,121"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="44,137,45,152,50,167,60,179,74,189,71,194,57,183,45,169,40,153,39,137"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="116,95,194,121"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="145,136,128,169,111,193,107,190,123,167,141,134"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="93,5,216,46"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="158,61,158,95,152,95,152,61"/>
+</map>

@@ -1,0 +1,21 @@
+<map id="poirot_recorder::PoirotRecorderNode" name="poirot_recorder::PoirotRecorderNode">
+<area shape="rect" id="Node000001" title="Node that records profiling data to a CSV file." alt="" coords="101,432,331,458"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,335,99,361"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="87,367,196,429,194,434,85,371"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="122,335,219,361"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="170,376,171,392,175,407,184,419,196,429,193,433,181,423,171,409,166,393,165,377"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="82,245,216,286"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="161,300,170,334,165,336,156,302"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="84,155,214,196"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="152,212,152,245,147,245,147,212"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="75,80,224,106"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="152,122,152,155,147,155,147,122"/>
+<area shape="rect" id="Node000007" title=" " alt="" coords="101,5,198,31"/>
+<area shape="poly" id="edge6_Node000006_Node000007" title=" " alt="" coords="152,46,152,80,147,80,147,46"/>
+<area shape="rect" id="Node000008" title=" " alt="" coords="243,335,320,361"/>
+<area shape="poly" id="edge7_Node000001_Node000008" title=" " alt="" coords="267,375,227,433,222,430,262,372"/>
+<area shape="rect" id="Node000009" title=" " alt="" coords="241,245,364,286"/>
+<area shape="poly" id="edge8_Node000008_Node000009" title=" " alt="" coords="296,302,287,336,282,334,291,300"/>
+<area shape="rect" id="Node000010" title=" " alt="" coords="344,335,424,361"/>
+<area shape="poly" id="edge9_Node000001_Node000010" title=" " alt="" coords="378,377,369,395,355,410,333,424,308,434,306,429,330,419,352,406,364,391,373,374"/>
+</map>
