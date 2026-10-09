@@ -14,6 +14,7 @@
 
 
 import os
+import resource
 import sys
 import time
 import functools
@@ -45,6 +46,24 @@ from poirot.utils.thread_metrics import ThreadMetrics
 F = TypeVar("F", bound=Callable[..., Any])
 
 
+def rusage_cpu_delta_us(before: Any, after: Any) -> float:
+    """
+    CPU delta (user + system) between two RUSAGE_CHILDREN snapshots.
+
+    Args:
+        before: Snapshot taken at profiling start.
+        after: Snapshot taken at profiling stop.
+
+    Returns:
+        Delta in microseconds, clamped at zero.
+    """
+    if before is None or after is None:
+        return 0.0
+
+    delta_s = (after.ru_utime - before.ru_utime) + (after.ru_stime - before.ru_stime)
+    return max(0.0, delta_s * 1_000_000.0)
+
+
 @dataclass
 class ThreadProfilingContext:
     """Context structure to hold per-thread profiling data."""
@@ -63,6 +82,8 @@ class ThreadProfilingContext:
     start_context_switches: int = 0
     start_cpu_snapshot: EnergySnapshot = field(default_factory=EnergySnapshot)
     start_gpu_energy_uj: float = 0.0
+    include_children: bool = False
+    start_children_usage: Any = None
     thread_id: int = 0
 
 
@@ -177,7 +198,13 @@ class Poirot:
         self._process_info.pid = self._thread_metrics.get_pid()
         self._process_info.threads = self._thread_metrics.read_num_threads()
 
-    def start_profiling(self, function_name: str, file: str, line: int) -> None:
+    def start_profiling(
+        self,
+        function_name: str,
+        file: str,
+        line: int,
+        include_children: bool = False,
+    ) -> None:
         """
         Start profiling a function.
 
@@ -185,6 +212,11 @@ class Poirot:
             function_name: Name of the function being profiled.
             file: Source file where the function is defined.
             line: Line number in the source file.
+            include_children: When True, the CPU time and attributed energy of
+                any child process reaped during the call are folded into the
+                call's values. Uses resource.getrusage(RUSAGE_CHILDREN), which
+                is process-wide: overlapping profiled windows may
+                mis-attribute child usage.
         """
         self._read_process_data()
 
@@ -205,6 +237,16 @@ class Poirot:
 
         ctx.start_context_switches = self._thread_metrics.read_context_switches()
         ctx.start_cpu_snapshot = self._rapl_monitor.read_snapshot()
+        ctx.include_children = include_children
+        if include_children:
+            try:
+                ctx.start_children_usage = resource.getrusage(
+                    resource.RUSAGE_CHILDREN
+                )
+            except OSError:
+                # On failure, disable child accounting instead of
+                # mis-attributing.
+                ctx.include_children = False
 
         if self._gpu_monitor.is_available():
             process_metrics = self._gpu_monitor.read_process_metrics()
@@ -242,6 +284,20 @@ class Poirot:
         end_context_switches = self._thread_metrics.read_context_switches()
         end_cpu_snapshot = self._rapl_monitor.read_snapshot()
 
+        # Child usage must be read at the call boundary, together with the
+        # other end metrics. Peek at the top context's flag without popping it.
+        thread_id = threading.get_ident()
+        with self._contexts_lock:
+            stack = self._thread_contexts.get(thread_id, [])
+            include_children = bool(stack) and stack[-1].include_children
+
+        end_children_usage = None
+        if include_children:
+            try:
+                end_children_usage = resource.getrusage(resource.RUSAGE_CHILDREN)
+            except OSError:
+                end_children_usage = None
+
         # GPU metrics
         end_gpu_utilization_percent = 0.0
         end_gpu_mem_kb = 0
@@ -273,9 +329,22 @@ class Poirot:
                 del self._thread_contexts[thread_id]
             thread_cpu_delta_us = float(end_cpu_time_us - ctx.start_cpu_time_us)
 
-        cpu_energy_uj = self._rapl_monitor.calculate_call_energy_uj(
-            ctx.start_cpu_snapshot, end_cpu_snapshot, thread_cpu_delta_us
+        child_cpu_delta_us = (
+            rusage_cpu_delta_us(ctx.start_children_usage, end_children_usage)
+            if ctx.include_children
+            else 0.0
         )
+        combined_cpu_delta_us = thread_cpu_delta_us + child_cpu_delta_us
+
+        cpu_energy_uj = self._rapl_monitor.calculate_call_energy_uj(
+            ctx.start_cpu_snapshot, end_cpu_snapshot, combined_cpu_delta_us
+        )
+
+        child_energy_uj = 0.0
+        if ctx.include_children:
+            child_energy_uj = self._rapl_monitor.calculate_call_energy_uj(
+                ctx.start_cpu_snapshot, end_cpu_snapshot, child_cpu_delta_us
+            )
 
         # Calculate deltas
         wall_time_delta_us = (end_time - ctx.start_time) * 1_000_000.0
@@ -292,8 +361,8 @@ class Poirot:
             cpu_total_energy_delta_uj = 0.0
         gpu_energy_delta_uj = end_gpu_energy_uj - ctx.start_gpu_energy_uj
 
-        # CPU energy was attributed in the context-pop block above, including
-        # the parent-floor adjustment.
+        # CPU energy was attributed after the context pop, using the combined
+        # thread + child CPU basis when include_children is enabled.
         thread_cpu_energy_uj = cpu_energy_uj
 
         # Total energy
@@ -305,7 +374,7 @@ class Poirot:
             call.timestamp = self._node.get_clock().now().to_msg()
 
         call.data.wall_time_us = int(wall_time_delta_us)
-        call.data.cpu_time_us = int(thread_cpu_delta_us)
+        call.data.cpu_time_us = int(combined_cpu_delta_us)
         call.data.process_cpu_time_us = int(process_cpu_delta_us)
         call.data.system_cpu_time_us = int(system_cpu_delta_us)
         call.data.mem_kb = end_mem_kb - ctx.start_mem_kb
@@ -313,6 +382,8 @@ class Poirot:
         call.data.io_write_bytes = end_io_write_bytes - ctx.start_io_write_bytes
         call.data.ctx_switches = end_context_switches - ctx.start_context_switches
         call.data.cpu_energy_uj = thread_cpu_energy_uj
+        call.data.child_cpu_time_us = int(child_cpu_delta_us)
+        call.data.child_energy_uj = child_energy_uj
         call.data.cpu_total_energy_uj = cpu_total_energy_delta_uj
 
         # GPU data
@@ -347,10 +418,12 @@ class Poirot:
                 f"[PROFILE] {ctx.function_name} | "
                 f"Wall: {call.data.wall_time_us}us | "
                 f"CPU: {call.data.cpu_time_us}us | "
+                f"Child CPU: {call.data.child_cpu_time_us}us | "
                 f"Mem: {call.data.mem_kb}KB | "
                 f"IO R/W: {call.data.io_read_bytes}/{call.data.io_write_bytes}B | "
                 f"CtxSw: {call.data.ctx_switches} | "
                 f"CPU Energy: {call.data.cpu_energy_uj:.4f}uJ | "
+                f"Child Energy: {call.data.child_energy_uj:.4f}uJ | "
                 f"GPU Energy: {call.data.gpu_energy_uj:.4f}uJ | "
                 f"Total Energy: {call.data.total_energy_uj:.4f}uJ | "
                 f"CO2: {call.data.co2_ug:.4f}ug",
@@ -472,6 +545,41 @@ def profile_function(func: F) -> F:
         line = func.__code__.co_firstlineno
 
         profiler.start_profiling(qualname, file, line)
+        try:
+            return func(*args, **kwargs)
+        finally:
+            profiler.stop_profiling()
+
+    return wrapper  # type: ignore
+
+
+def profile_function_with_children(func: F) -> F:
+    """
+    Decorator to profile a function including its reaped child processes.
+
+    Like profile_function, but when the function blocks on a child process
+    (subprocess, popen, system), the child's CPU time and an attributed share
+    of CPU energy are folded into the call's metrics. Uses
+    resource.getrusage(RUSAGE_CHILDREN), which is process-wide: overlapping
+    profiled windows may mis-attribute child usage.
+
+    Args:
+        func: The function to profile.
+
+    Returns:
+        The wrapped function.
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        profiler = Poirot.get_instance()
+
+        qualname = func.__qualname__ if hasattr(func, "__qualname__") else func.__name__
+
+        file = os.path.abspath(func.__code__.co_filename)
+        line = func.__code__.co_firstlineno
+
+        profiler.start_profiling(qualname, file, line, include_children=True)
         try:
             return func(*args, **kwargs)
         finally:

@@ -16,3 +16,6 @@ float64 cpu_total_energy_uj           # Total CPU energy consumed in microjoules
 float64 gpu_energy_uj                 # GPU energy consumed in microjoules
 float64 total_energy_uj               # Total energy (CPU + GPU) in microjoules
 float64 co2_ug                        # CO2 emissions in micrograms
+
+int64 child_cpu_time_us               # Child-process CPU time in microseconds
+float64 child_energy_uj               # Child-process attributed CPU energy in microjoules

@@ -13,6 +13,6 @@
 # limitations under the License.
 
 
-from poirot.poirot import Poirot, profile_function
+from poirot.poirot import Poirot, profile_function, profile_function_with_children
 
-__all__ = ["Poirot", "profile_function"]
+__all__ = ["Poirot", "profile_function", "profile_function_with_children"]

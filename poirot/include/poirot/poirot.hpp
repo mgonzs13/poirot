@@ -71,6 +71,8 @@ struct ThreadProfilingContext {
   int64_t start_context_switches = 0;
   utils::EnergySnapshot start_cpu_snapshot;
   double start_gpu_energy_uj = 0.0;
+  bool include_children = false;
+  struct rusage start_children_usage {};
   std::thread::id thread_id;
 };
 
@@ -102,9 +104,15 @@ public:
    * @param function_name Name of the function being profiled.
    * @param file Source file name.
    * @param line Line number in the source file.
+   * @param include_children When true, the CPU time and attributed energy of
+   * any child process reaped during the call are folded into the call's values
+   * (see PROFILE_FUNCTION_WITH_CHILDREN). Uses getrusage(RUSAGE_CHILDREN),
+   * which is process-wide: overlapping profiled windows may mis-attribute
+   * child usage.
    */
   void start_profiling(const std::string &function_name,
-                       const std::string &file, int line);
+                       const std::string &file, int line,
+                       bool include_children = false);
 
   /**
    * @brief Stop profiling the current function.
@@ -122,6 +130,15 @@ public:
    * @param verbose True to enable verbose logging, false to disable.
    */
   static void set_verbose(bool verbose);
+
+  /**
+   * @brief CPU delta (user + system) between two RUSAGE_CHILDREN snapshots.
+   * @param before Snapshot taken at profiling start.
+   * @param after Snapshot taken at profiling stop.
+   * @return Delta in microseconds, clamped at zero.
+   */
+  static double rusage_cpu_delta_us(const struct rusage &before,
+                                    const struct rusage &after);
 
   /**
    * @brief Print system information to the console.
@@ -210,8 +227,11 @@ public:
    * @param func Pretty function name.
    * @param file Source file name.
    * @param line Line number in the source file.
+   * @param include_children When true, fold reaped child-process CPU time and
+   * attributed energy into this call.
    */
-  ScopedPoirot(Poirot &profiler, const char *func, const char *file, int line);
+  ScopedPoirot(Poirot &profiler, const char *func, const char *file, int line,
+               bool include_children = false);
 
   /**
    * @brief Destructor that stops profiling.
@@ -249,6 +269,11 @@ private:
 #define PROFILE_FUNCTION()                                                     \
   poirot::ScopedPoirot _profiler_guard_(                                       \
       poirot::Poirot::get_instance(), __PRETTY_FUNCTION__, __FILE__, __LINE__)
+
+#define PROFILE_FUNCTION_WITH_CHILDREN()                                       \
+  poirot::ScopedPoirot _profiler_guard_(                                       \
+      poirot::Poirot::get_instance(), __PRETTY_FUNCTION__, __FILE__, __LINE__, \
+      true)
 
 } // namespace poirot
 

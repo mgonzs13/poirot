@@ -137,7 +137,8 @@ void Poirot::read_process_data() {
 }
 
 void Poirot::start_profiling(const std::string &function_name,
-                             const std::string &file, int line) {
+                             const std::string &file, int line,
+                             bool include_children) {
   this->read_process_data();
 
   // Build context and push onto this thread's stack
@@ -157,6 +158,12 @@ void Poirot::start_profiling(const std::string &function_name,
 
   ctx.start_context_switches = this->thread_metrics_.read_context_switches();
   ctx.start_cpu_snapshot = this->rapl_monitor_.read_snapshot();
+  ctx.include_children = include_children;
+  if (include_children &&
+      getrusage(RUSAGE_CHILDREN, &ctx.start_children_usage) != 0) {
+    // On failure, disable child accounting instead of mis-attributing.
+    ctx.include_children = false;
+  }
 
   // Capture GPU energy start if GPU is available
   if (this->gpu_monitor_.is_available()) {
@@ -197,6 +204,22 @@ void Poirot::stop_profiling() {
 
   int64_t end_context_switches = this->thread_metrics_.read_context_switches();
   utils::EnergySnapshot end_cpu_snapshot = this->rapl_monitor_.read_snapshot();
+
+  // Child usage must be read at the call boundary, together with the other
+  // end metrics. Peek at the top context's flag without popping it.
+  bool include_children = false;
+  {
+    std::lock_guard<std::mutex> lock(this->contexts_mutex_);
+    auto it = this->thread_contexts_.find(std::this_thread::get_id());
+    if (it != this->thread_contexts_.end() && !it->second.empty()) {
+      include_children = it->second.back().include_children;
+    }
+  }
+
+  struct rusage end_children_usage {};
+  if (include_children) {
+    getrusage(RUSAGE_CHILDREN, &end_children_usage);
+  }
 
   // Read GPU metrics if available
   double end_gpu_utilization_percent = 0.0;
@@ -239,8 +262,21 @@ void Poirot::stop_profiling() {
         static_cast<double>(end_cpu_time_us - ctx.start_cpu_time_us);
   }
 
+  double child_cpu_delta_us = 0.0;
+  if (ctx.include_children) {
+    child_cpu_delta_us =
+        this->rusage_cpu_delta_us(ctx.start_children_usage, end_children_usage);
+  }
+  double combined_cpu_delta_us = thread_cpu_delta_us + child_cpu_delta_us;
+
   double cpu_energy_uj = this->rapl_monitor_.calculate_call_energy_uj(
-      ctx.start_cpu_snapshot, end_cpu_snapshot, thread_cpu_delta_us);
+      ctx.start_cpu_snapshot, end_cpu_snapshot, combined_cpu_delta_us);
+
+  double child_energy_uj = 0.0;
+  if (ctx.include_children) {
+    child_energy_uj = this->rapl_monitor_.calculate_call_energy_uj(
+        ctx.start_cpu_snapshot, end_cpu_snapshot, child_cpu_delta_us);
+  }
 
   // Calculate deltas
   double wall_time_delta_us =
@@ -259,8 +295,8 @@ void Poirot::stop_profiling() {
           : 0.0;
   double gpu_energy_delta_uj = end_gpu_energy_uj - ctx.start_gpu_energy_uj;
 
-  // CPU energy was attributed in the context-pop block above, including
-  // the parent-floor adjustment.
+  // CPU energy was attributed after the context pop, using the combined
+  // thread + child CPU basis when include_children is enabled.
   double thread_cpu_energy_uj = cpu_energy_uj;
 
   // Calculate total energy (CPU + GPU)
@@ -270,7 +306,7 @@ void Poirot::stop_profiling() {
   poirot_msgs::msg::FunctionCall call;
   call.timestamp = rclcpp::Clock().now();
   call.data.wall_time_us = static_cast<int64_t>(wall_time_delta_us);
-  call.data.cpu_time_us = static_cast<int64_t>(thread_cpu_delta_us);
+  call.data.cpu_time_us = static_cast<int64_t>(combined_cpu_delta_us);
   call.data.process_cpu_time_us = static_cast<int64_t>(process_cpu_delta_us);
   call.data.system_cpu_time_us = static_cast<int64_t>(system_cpu_delta_us);
   call.data.mem_kb = end_mem_kb - ctx.start_mem_kb;
@@ -278,6 +314,8 @@ void Poirot::stop_profiling() {
   call.data.io_write_bytes = end_io_write_bytes - ctx.start_io_write_bytes;
   call.data.ctx_switches = end_context_switches - ctx.start_context_switches;
   call.data.cpu_energy_uj = thread_cpu_energy_uj;
+  call.data.child_cpu_time_us = static_cast<int64_t>(child_cpu_delta_us);
+  call.data.child_energy_uj = child_energy_uj;
   call.data.cpu_total_energy_uj = cpu_total_energy_delta_uj;
 
   // GPU data (calculate deltas correctly: end - start)
@@ -309,19 +347,34 @@ void Poirot::stop_profiling() {
   if (this->verbose_.load()) {
     fprintf(
         stderr,
-        "[PROFILE] %s | Wall: %ldus | CPU: %ldus | Mem: %ldKB | IO R/W: "
-        "%ld/%ldB | CtxSw: %ld | CPU Energy: %.4fuJ | GPU Energy: %.4fuJ | "
-        "Total Energy: %.4fuJ | CO2: %.4fug\n",
+        "[PROFILE] %s | Wall: %ldus | CPU: %ldus | Child CPU: %ldus | "
+        "Mem: %ldKB | IO R/W: %ld/%ldB | CtxSw: %ld | CPU Energy: %.4fuJ | "
+        "Child Energy: %.4fuJ | GPU Energy: %.4fuJ | Total Energy: %.4fuJ | "
+        "CO2: %.4fug\n",
         ctx.function_name.c_str(), static_cast<long>(call.data.wall_time_us),
         static_cast<long>(call.data.cpu_time_us),
+        static_cast<long>(call.data.child_cpu_time_us),
         static_cast<long>(call.data.mem_kb),
         static_cast<long>(call.data.io_read_bytes),
         static_cast<long>(call.data.io_write_bytes),
         static_cast<long>(call.data.ctx_switches), call.data.cpu_energy_uj,
-        call.data.gpu_energy_uj, call.data.total_energy_uj, call.data.co2_ug);
+        call.data.child_energy_uj, call.data.gpu_energy_uj,
+        call.data.total_energy_uj, call.data.co2_ug);
   }
 
   this->publish_stats(ctx.function_name);
+}
+
+double Poirot::rusage_cpu_delta_us(const struct rusage &before,
+                                   const struct rusage &after) {
+  auto to_us = [](const struct timeval &tv) {
+    return static_cast<double>(tv.tv_sec) * 1e6 +
+           static_cast<double>(tv.tv_usec);
+  };
+
+  double delta = (to_us(after.ru_utime) - to_us(before.ru_utime)) +
+                 (to_us(after.ru_stime) - to_us(before.ru_stime));
+  return std::max(0.0, delta);
 }
 
 void Poirot::set_verbose(bool verbose) {
@@ -416,9 +469,10 @@ std::string ScopedPoirot::extract_function_name(const char *pretty_function) {
 }
 
 ScopedPoirot::ScopedPoirot(Poirot &profiler, const char *func, const char *file,
-                           int line)
+                           int line, bool include_children)
     : profiler_(profiler) {
-  profiler_.start_profiling(extract_function_name(func), file, line);
+  profiler_.start_profiling(extract_function_name(func), file, line,
+                            include_children);
 }
 
 ScopedPoirot::~ScopedPoirot() { profiler_.stop_profiling(); }
