@@ -240,9 +240,7 @@ class Poirot:
         ctx.include_children = include_children
         if include_children:
             try:
-                ctx.start_children_usage = resource.getrusage(
-                    resource.RUSAGE_CHILDREN
-                )
+                ctx.start_children_usage = resource.getrusage(resource.RUSAGE_CHILDREN)
             except OSError:
                 # On failure, disable child accounting instead of
                 # mis-attributing.

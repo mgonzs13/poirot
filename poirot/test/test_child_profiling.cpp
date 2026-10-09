@@ -67,8 +67,8 @@ TEST(RusageCpuDeltaTest, ClampsNegativeDeltaToZero) {
 namespace {
 
 void burn_cpu_child() {
-  FILE *pipe = popen(
-      "sh -c 'i=0; while [ $i -lt 2000000 ]; do i=$((i+1)); done'", "r");
+  FILE *pipe =
+      popen("sh -c 'i=0; while [ $i -lt 2000000 ]; do i=$((i+1)); done'", "r");
   ASSERT_NE(pipe, nullptr);
   char buffer[128];
   while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
@@ -114,7 +114,8 @@ TEST_F(ChildProfilingTest, FoldsReapedChildIntoCpuTime) {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
 
-  profiler.start_profiling("ChildProfilingTestWindow", __FILE__, __LINE__, true);
+  profiler.start_profiling("ChildProfilingTestWindow", __FILE__, __LINE__,
+                           true);
   burn_cpu_child();
   profiler.stop_profiling();
 

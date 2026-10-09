@@ -271,9 +271,9 @@ private:
       poirot::Poirot::get_instance(), __PRETTY_FUNCTION__, __FILE__, __LINE__)
 
 #define PROFILE_FUNCTION_WITH_CHILDREN()                                       \
-  poirot::ScopedPoirot _profiler_guard_(                                       \
-      poirot::Poirot::get_instance(), __PRETTY_FUNCTION__, __FILE__, __LINE__, \
-      true)
+  poirot::ScopedPoirot _profiler_guard_(poirot::Poirot::get_instance(),        \
+                                        __PRETTY_FUNCTION__, __FILE__,         \
+                                        __LINE__, true)
 
 } // namespace poirot
 
