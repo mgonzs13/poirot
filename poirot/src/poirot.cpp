@@ -156,7 +156,7 @@ void Poirot::start_profiling(const std::string &function_name,
   ctx.start_io_write_bytes = io_bytes.write_bytes;
 
   ctx.start_context_switches = this->thread_metrics_.read_context_switches();
-  ctx.start_cpu_energy_uj = this->rapl_monitor_.read_energy_uj();
+  ctx.start_cpu_snapshot = this->rapl_monitor_.read_snapshot();
 
   // Capture GPU energy start if GPU is available
   if (this->gpu_monitor_.is_available()) {
@@ -196,7 +196,7 @@ void Poirot::stop_profiling() {
   int64_t end_io_write_bytes = end_io_bytes.write_bytes;
 
   int64_t end_context_switches = this->thread_metrics_.read_context_switches();
-  double end_cpu_energy_uj = this->rapl_monitor_.read_energy_uj();
+  utils::EnergySnapshot end_cpu_snapshot = this->rapl_monitor_.read_snapshot();
 
   // Read GPU metrics if available
   double end_gpu_utilization_percent = 0.0;
@@ -217,8 +217,12 @@ void Poirot::stop_profiling() {
   // captured.
   this->read_process_data();
 
-  // Pop context from this thread's stack
+  // Pop context from this thread's stack and compute its attributed CPU
+  // energy. Attribution happens outside the context lock:
+  // calculate_call_energy_uj briefly takes the RAPL mutex, which other
+  // threads can hold while doing snapshot I/O.
   ThreadProfilingContext ctx;
+  double thread_cpu_delta_us = 0.0;
   {
     std::lock_guard<std::mutex> lock(this->contexts_mutex_);
     auto thread_id = std::this_thread::get_id();
@@ -231,15 +235,18 @@ void Poirot::stop_profiling() {
     if (stack.empty()) {
       this->thread_contexts_.erase(thread_id);
     }
+    thread_cpu_delta_us =
+        static_cast<double>(end_cpu_time_us - ctx.start_cpu_time_us);
   }
+
+  double cpu_energy_uj = this->rapl_monitor_.calculate_call_energy_uj(
+      ctx.start_cpu_snapshot, end_cpu_snapshot, thread_cpu_delta_us);
 
   // Calculate deltas
   double wall_time_delta_us =
       static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(
                               end_time - ctx.start_time)
                               .count());
-  double thread_cpu_delta_us =
-      static_cast<double>(end_cpu_time_us - ctx.start_cpu_time_us);
   double process_cpu_delta_us = static_cast<double>(
       end_process_cpu_time_us - ctx.start_process_cpu_time_us);
   double system_cpu_delta_us =
@@ -247,16 +254,14 @@ void Poirot::stop_profiling() {
       static_cast<double>(this->system_info_.cpu_info.cores);
 
   double cpu_total_energy_delta_uj =
-      end_cpu_energy_uj - ctx.start_cpu_energy_uj;
+      (ctx.start_cpu_snapshot.valid && end_cpu_snapshot.valid)
+          ? (end_cpu_snapshot.energy_uj - ctx.start_cpu_snapshot.energy_uj)
+          : 0.0;
   double gpu_energy_delta_uj = end_gpu_energy_uj - ctx.start_gpu_energy_uj;
 
-  // Average-power formula: energy = avg_power × thread_cpu.
-  // avg_power is the long-running RAPL average since profiler start.
-  // CLOCK_THREAD_CPUTIME_ID is cumulative, so thread_cpu_parent >=
-  // thread_cpu_child always — energy_parent >= energy_child is guaranteed
-  // without any extra tracking.
-  double thread_cpu_energy_uj =
-      this->rapl_monitor_.calculate_thread_energy_uj(thread_cpu_delta_us);
+  // CPU energy was attributed in the context-pop block above, including
+  // the parent-floor adjustment.
+  double thread_cpu_energy_uj = cpu_energy_uj;
 
   // Calculate total energy (CPU + GPU)
   double total_energy_uj = thread_cpu_energy_uj + gpu_energy_delta_uj;

@@ -66,4 +66,10 @@ ament_export_targets(${PROJECT_NAME})
 # Install Python package
 ament_python_install_package(${PROJECT_NAME})
 
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_rapl_monitor test/test_rapl_monitor.cpp)
+  target_link_libraries(test_rapl_monitor ${PROJECT_NAME})
+endif()
+
 ament_package()

@@ -16,6 +16,7 @@
 #define POIROT__UTILS__RAPL_MONITOR_HPP_
 
 #include <chrono>
+#include <cstdint>
 #include <mutex>
 #include <string>
 
@@ -23,6 +24,53 @@ namespace poirot {
 namespace utils {
 
 constexpr char RAPL_PATH[] = "/sys/class/powercap/intel-rapl";
+
+/**
+ * @struct EnergySnapshot
+ * @brief Point-in-time CPU energy and system busy-time reading.
+ */
+struct EnergySnapshot {
+  /// @brief Accumulated package energy in microjoules (wrap-handled).
+  double energy_uj = 0.0;
+  /// @brief Cumulative system busy CPU time in microseconds.
+  double busy_us = 0.0;
+  /// @brief False when RAPL is unavailable or unreadable.
+  bool valid = false;
+};
+
+/**
+ * @struct RateWindow
+ * @brief Lazy windowed estimator of energy per system busy microsecond.
+ *
+ * The window is opened on first use and refreshed only when it has been
+ * open for at least the configured window duration, so it can be driven
+ * by call-boundary reads without a dedicated sampler thread.
+ */
+struct RateWindow {
+  /// @brief Energy per system busy microsecond in uJ/us.
+  double rate_uj_per_busy_us = 0.0;
+  /// @brief Accumulated energy at window start in uJ.
+  double start_energy_uj = 0.0;
+  /// @brief System busy time at window start in us.
+  double start_busy_us = 0.0;
+  /// @brief Window start time in us (0 = uninitialized).
+  int64_t start_time_us = 0;
+
+  /**
+   * @brief Refresh the rate when the window has been open for window_us.
+   *
+   * Samples with no positive energy and busy-time deltas are discarded,
+   * but the window is always reset once it elapses so idle periods
+   * cannot poison the rate.
+   *
+   * @param now_us Current steady-clock time in microseconds.
+   * @param energy_uj Current accumulated energy in microjoules.
+   * @param busy_us Current cumulative system busy time in microseconds.
+   * @param window_us Window duration in microseconds.
+   */
+  void update(int64_t now_us, double energy_uj, double busy_us,
+              int64_t window_us);
+};
 
 /**
  * @class EnergyMonitor
@@ -49,35 +97,58 @@ public:
    */
   double read_energy_uj();
 
-  /**
-   * @brief Get the long-running average RAPL power in microjoules per
-   * microsecond.
-   *
-   * Computes the average power as total accumulated energy divided by total
-   * elapsed wall time since the first RAPL read. Using this stable baseline
-   * instead of a per-window RAPL delta guarantees that parent function energy
-   * is always >= child function energy, because thread CPU time (the other
-   * factor) is a cumulative monotonic counter that includes all nested calls.
-   *
-   * @return Average power in uJ/us (= Watts), or 0.0 if unavailable.
-   */
-  double get_average_power_uj_per_us();
+  /// @brief Minimum interval for the measured attribution path (20 ms).
+  static constexpr double MIN_INTERVAL_US = 20000.0;
 
   /**
-   * @brief Calculate thread energy consumption using average-power attribution.
+   * @brief Attribute a measured package-energy delta to a thread.
    *
-   * Energy = avg_power × thread_cpu_time
+   * Uses the interval path when a measurable energy delta and at least
+   * MIN_INTERVAL_US of system busy time are available; otherwise falls
+   * back to the measured rate. Returns 0 when no usable data exists.
    *
-   * The long-running average RAPL power is multiplied by the thread's own CPU
-   * time delta (CLOCK_THREAD_CPUTIME_ID). Because that clock is a cumulative
-   * monotonic counter, a parent function's delta always encompasses any nested
-   * child's delta, so energy_parent >= energy_child is guaranteed by definition
-   * — no child-tracking or clamping is needed.
-   *
-   * @param thread_cpu_delta_us Thread CPU time delta in microseconds.
-   * @return Thread energy consumption in microjoules.
+   * @param delta_energy_uj Package energy delta over the call interval.
+   * @param delta_busy_us System busy CPU time delta over the call interval.
+   * @param thread_cpu_delta_us Thread CPU time delta over the call interval.
+   * @param rate_uj_per_busy_us Fallback energy rate in uJ per busy us.
+   * @return Attributed thread energy in microjoules.
    */
-  double calculate_thread_energy_uj(double thread_cpu_delta_us);
+  static double attribute_energy(double delta_energy_uj, double delta_busy_us,
+                                 double thread_cpu_delta_us,
+                                 double rate_uj_per_busy_us);
+
+  /**
+   * @brief Parse the aggregate `cpu` line of /proc/stat into busy time.
+   *
+   * Busy time is user + nice + system + irq + softirq + steal; guest
+   * time is already included in user/nice and must not be added again.
+   *
+   * @param line The first line of /proc/stat (starting with "cpu").
+   * @param clk_tck Ticks per second (_SC_CLK_TCK); falls back to 100 if <= 0.
+   * @return Busy CPU time in microseconds, or 0.0 on parse failure.
+   */
+  static double parse_proc_stat_busy_us(const std::string &line, long clk_tck);
+
+  /**
+   * @brief Read a combined CPU energy and system busy-time snapshot.
+   *
+   * Also refreshes the lazy fallback rate window when it has elapsed.
+   *
+   * @return Snapshot; `valid` is false when RAPL is unreadable.
+   */
+  EnergySnapshot read_snapshot();
+
+  /**
+   * @brief Calculate the CPU energy attributed to a profiled call.
+   *
+   * @param start Snapshot taken at function start.
+   * @param end Snapshot taken at function end.
+   * @param thread_cpu_delta_us Thread CPU time consumed by the call.
+   * @return Attributed energy in microjoules (never negative).
+   */
+  double calculate_call_energy_uj(const EnergySnapshot &start,
+                                  const EnergySnapshot &end,
+                                  double thread_cpu_delta_us);
 
 protected:
   /**
@@ -91,12 +162,27 @@ protected:
   void initialize_rapl_max_energy();
 
 private:
+  /// @brief Lazy fallback rate window.
+  RateWindow rate_window_;
+  /// @brief Rate window duration in microseconds.
+  static constexpr int64_t RATE_WINDOW_US = 250000;
+
+  /**
+   * @brief Read accumulated RAPL energy; caller must hold rapl_mutex_.
+   * @return Accumulated energy in uJ, or -1.0 when unavailable.
+   */
+  double read_energy_uj_locked();
+
+  /**
+   * @brief Read system busy time from /proc/stat; caller holds rapl_mutex_.
+   * @return Cumulative busy time in microseconds, or 0.0 on failure.
+   */
+  double read_system_busy_us_locked() const;
+
   /// @brief Mutex for thread-safe RAPL readings
   mutable std::mutex rapl_mutex_;
   /// @brief RAPL package path
   std::string rapl_package_path_;
-  /// @brief Wall-clock time of the first successful RAPL read
-  std::chrono::steady_clock::time_point start_time_;
   /// @brief Accumulated energy in microjoules
   double accumulated_energy_uj_ = 0.0;
   /// @brief Last RAPL energy value (for delta calculation)

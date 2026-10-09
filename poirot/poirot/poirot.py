@@ -18,7 +18,7 @@ import sys
 import time
 import functools
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, TypeVar
 
 from rclpy.node import Node
@@ -35,7 +35,7 @@ from poirot_msgs.msg import (
 )
 
 from poirot.utils.co2_manager import Co2Manager
-from poirot.utils.rapl_monitor import RaplMonitor
+from poirot.utils.rapl_monitor import RaplMonitor, EnergySnapshot
 from poirot.utils.gpu_monitor import GpuMonitor, GpuTdpType
 from poirot.utils.string_utils import StringUtils
 from poirot.utils.system_info_reader import SystemInfoReader
@@ -61,7 +61,7 @@ class ThreadProfilingContext:
     start_io_read_bytes: int = 0
     start_io_write_bytes: int = 0
     start_context_switches: int = 0
-    start_cpu_energy_uj: float = 0.0
+    start_cpu_snapshot: EnergySnapshot = field(default_factory=EnergySnapshot)
     start_gpu_energy_uj: float = 0.0
     thread_id: int = 0
 
@@ -204,7 +204,7 @@ class Poirot:
         ctx.start_io_write_bytes = io_bytes.write_bytes
 
         ctx.start_context_switches = self._thread_metrics.read_context_switches()
-        ctx.start_cpu_energy_uj = self._rapl_monitor.read_energy_uj()
+        ctx.start_cpu_snapshot = self._rapl_monitor.read_snapshot()
 
         if self._gpu_monitor.is_available():
             process_metrics = self._gpu_monitor.read_process_metrics()
@@ -240,7 +240,7 @@ class Poirot:
         end_io_write_bytes = end_io_bytes.write_bytes
 
         end_context_switches = self._thread_metrics.read_context_switches()
-        end_cpu_energy_uj = self._rapl_monitor.read_energy_uj()
+        end_cpu_snapshot = self._rapl_monitor.read_snapshot()
 
         # GPU metrics
         end_gpu_utilization_percent = 0.0
@@ -259,7 +259,10 @@ class Poirot:
         # Update process info (pid, thread count) after all timing metrics are captured.
         self._read_process_data()
 
-        # Pop context from this thread's stack
+        # Pop context from this thread's stack and compute its attributed CPU
+        # energy. The context lock is released before attribution, which
+        # briefly takes the RAPL lock (other threads can hold it during
+        # snapshot I/O).
         thread_id = threading.get_ident()
         with self._contexts_lock:
             stack = self._thread_contexts.get(thread_id, [])
@@ -268,25 +271,30 @@ class Poirot:
             ctx = stack.pop()
             if not stack:
                 del self._thread_contexts[thread_id]
+            thread_cpu_delta_us = float(end_cpu_time_us - ctx.start_cpu_time_us)
+
+        cpu_energy_uj = self._rapl_monitor.calculate_call_energy_uj(
+            ctx.start_cpu_snapshot, end_cpu_snapshot, thread_cpu_delta_us
+        )
 
         # Calculate deltas
         wall_time_delta_us = (end_time - ctx.start_time) * 1_000_000.0
-        thread_cpu_delta_us = float(end_cpu_time_us - ctx.start_cpu_time_us)
         process_cpu_delta_us = float(
             end_process_cpu_time_us - ctx.start_process_cpu_time_us
         )
         system_cpu_delta_us = wall_time_delta_us * float(self._system_info.cpu_info.cores)
 
-        cpu_total_energy_delta_uj = end_cpu_energy_uj - ctx.start_cpu_energy_uj
+        if ctx.start_cpu_snapshot.valid and end_cpu_snapshot.valid:
+            cpu_total_energy_delta_uj = (
+                end_cpu_snapshot.energy_uj - ctx.start_cpu_snapshot.energy_uj
+            )
+        else:
+            cpu_total_energy_delta_uj = 0.0
         gpu_energy_delta_uj = end_gpu_energy_uj - ctx.start_gpu_energy_uj
 
-        # Average-power formula: energy = avg_power × thread_cpu.
-        # avg_power is the long-running RAPL average since profiler start.
-        # CLOCK_THREAD_CPUTIME_ID is cumulative, so thread_cpu_parent >= thread_cpu_child
-        # always — energy_parent >= energy_child is guaranteed without any extra tracking.
-        thread_cpu_energy_uj = self._rapl_monitor.calculate_thread_energy_uj(
-            thread_cpu_delta_us,
-        )
+        # CPU energy was attributed in the context-pop block above, including
+        # the parent-floor adjustment.
+        thread_cpu_energy_uj = cpu_energy_uj
 
         # Total energy
         total_energy_uj = thread_cpu_energy_uj + gpu_energy_delta_uj
