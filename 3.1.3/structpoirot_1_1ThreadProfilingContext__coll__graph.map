@@ -1,0 +1,9 @@
+<map id="poirot::ThreadProfilingContext" name="poirot::ThreadProfilingContext">
+<area shape="rect" id="Node000001" title="Context structure to hold per&#45;thread profiling data. This structure maintains the starting metrics fo..." alt="" coords="50,212,239,238"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="28,95,106,121"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="76,135,87,161,101,187,127,210,123,214,97,190,82,163,71,136"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="5,5,129,46"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="70,61,70,95,64,95,64,61"/>
+<area shape="rect" id="Node000004" href="$structpoirot_1_1utils_1_1EnergySnapshot.html" title="Point&#45;in&#45;time CPU energy and system busy&#45;time reading." alt="" coords="130,95,313,121"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="219,137,209,163,194,190,167,214,164,210,190,187,204,161,213,135"/>
+</map>
