@@ -17,6 +17,7 @@
 
 #include <chrono>
 #include <cstdio>
+#include <map>
 #include <memory>
 #include <string>
 #include <thread>
@@ -78,13 +79,70 @@ void burn_cpu_child() {
 
 class ChildProfilingTest : public ::testing::Test {
 protected:
-  static void SetUpTestSuite() {
+  static void SetUpTestCase() {
     int argc = 0;
     rclcpp::init(argc, nullptr);
+
+    // A single node and subscription live for the whole suite. Creating and
+    // destroying ROS 2 participants between tests is unreliable on Foxy's
+    // FastRTPS (its discovery listener thread can shut down), which prevents
+    // later tests from receiving published messages.
+    node_ = rclcpp::Node::make_shared("child_profiling_test_node");
+    subscription_ = node_->create_subscription<poirot_msgs::msg::ProfilingData>(
+        "poirot/data", rclcpp::QoS(100),
+        [](poirot_msgs::msg::ProfilingData::SharedPtr msg) {
+          received_[msg->function.name] = msg;
+        });
   }
 
-  static void TearDownTestSuite() { rclcpp::shutdown(); }
+  static void TearDownTestCase() {
+    subscription_.reset();
+    node_.reset();
+    received_.clear();
+    if (rclcpp::ok()) {
+      rclcpp::shutdown();
+    }
+  }
+
+  void TearDown() override { received_.clear(); }
+
+  static void wait_for_publisher() {
+    auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (subscription_->get_publisher_count() == 0 &&
+           std::chrono::steady_clock::now() < deadline) {
+      rclcpp::spin_some(node_);
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+  }
+
+  static bool
+  wait_for_message(const std::string &function_name,
+                   poirot_msgs::msg::ProfilingData::SharedPtr &received) {
+    auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (std::chrono::steady_clock::now() < deadline) {
+      rclcpp::spin_some(node_);
+      auto it = received_.find(function_name);
+      if (it != received_.end()) {
+        received = it->second;
+        return true;
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    return false;
+  }
+
+  static rclcpp::Node::SharedPtr node_;
+  static rclcpp::Subscription<poirot_msgs::msg::ProfilingData>::SharedPtr
+      subscription_;
+  static std::map<std::string, poirot_msgs::msg::ProfilingData::SharedPtr>
+      received_;
 };
+
+rclcpp::Node::SharedPtr ChildProfilingTest::node_;
+rclcpp::Subscription<poirot_msgs::msg::ProfilingData>::SharedPtr
+    ChildProfilingTest::subscription_;
+std::map<std::string, poirot_msgs::msg::ProfilingData::SharedPtr>
+    ChildProfilingTest::received_;
 
 } // namespace
 
@@ -94,38 +152,16 @@ void profiled_busy_child() {
 }
 
 TEST_F(ChildProfilingTest, FoldsReapedChildIntoCpuTime) {
-  auto node = rclcpp::Node::make_shared("child_profiling_fold_node");
-  poirot_msgs::msg::ProfilingData::SharedPtr received;
-  auto subscription =
-      node->create_subscription<poirot_msgs::msg::ProfilingData>(
-          "poirot/data", rclcpp::QoS(100),
-          [&received](poirot_msgs::msg::ProfilingData::SharedPtr msg) {
-            if (msg->function.name == "ChildProfilingTestWindow") {
-              received = msg;
-            }
-          });
-
   auto &profiler = poirot::Poirot::get_instance();
-
-  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-  while (subscription->get_publisher_count() == 0 &&
-         std::chrono::steady_clock::now() < deadline) {
-    rclcpp::spin_some(node);
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  }
+  wait_for_publisher();
 
   profiler.start_profiling("ChildProfilingTestWindow", __FILE__, __LINE__,
                            true);
   burn_cpu_child();
   profiler.stop_profiling();
 
-  deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-  while (!received && std::chrono::steady_clock::now() < deadline) {
-    rclcpp::spin_some(node);
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  }
-
-  ASSERT_NE(received, nullptr);
+  poirot_msgs::msg::ProfilingData::SharedPtr received;
+  ASSERT_TRUE(wait_for_message("ChildProfilingTestWindow", received));
   EXPECT_GT(received->function.call.data.child_cpu_time_us, 0);
   EXPECT_GE(received->function.call.data.cpu_time_us,
             received->function.call.data.child_cpu_time_us);
@@ -134,70 +170,26 @@ TEST_F(ChildProfilingTest, FoldsReapedChildIntoCpuTime) {
 }
 
 TEST_F(ChildProfilingTest, FlagOffReportsNoChildUsage) {
-  auto node = rclcpp::Node::make_shared("child_profiling_off_node");
-  poirot_msgs::msg::ProfilingData::SharedPtr received;
-  auto subscription =
-      node->create_subscription<poirot_msgs::msg::ProfilingData>(
-          "poirot/data", rclcpp::QoS(100),
-          [&received](poirot_msgs::msg::ProfilingData::SharedPtr msg) {
-            if (msg->function.name == "ChildProfilingOffWindow") {
-              received = msg;
-            }
-          });
-
   auto &profiler = poirot::Poirot::get_instance();
-
-  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-  while (subscription->get_publisher_count() == 0 &&
-         std::chrono::steady_clock::now() < deadline) {
-    rclcpp::spin_some(node);
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  }
+  wait_for_publisher();
 
   profiler.start_profiling("ChildProfilingOffWindow", __FILE__, __LINE__);
   burn_cpu_child();
   profiler.stop_profiling();
 
-  deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-  while (!received && std::chrono::steady_clock::now() < deadline) {
-    rclcpp::spin_some(node);
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  }
-
-  ASSERT_NE(received, nullptr);
+  poirot_msgs::msg::ProfilingData::SharedPtr received;
+  ASSERT_TRUE(wait_for_message("ChildProfilingOffWindow", received));
   EXPECT_EQ(received->function.call.data.child_cpu_time_us, 0);
   EXPECT_DOUBLE_EQ(received->function.call.data.child_energy_uj, 0.0);
 }
 
 TEST_F(ChildProfilingTest, MacroWithChildrenProfilesBusyChild) {
-  auto node = rclcpp::Node::make_shared("child_profiling_macro_node");
-  poirot_msgs::msg::ProfilingData::SharedPtr received;
-  auto subscription =
-      node->create_subscription<poirot_msgs::msg::ProfilingData>(
-          "poirot/data", rclcpp::QoS(100),
-          [&received](poirot_msgs::msg::ProfilingData::SharedPtr msg) {
-            if (msg->function.name == "profiled_busy_child") {
-              received = msg;
-            }
-          });
-
   poirot::Poirot::get_instance();
-
-  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-  while (subscription->get_publisher_count() == 0 &&
-         std::chrono::steady_clock::now() < deadline) {
-    rclcpp::spin_some(node);
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  }
+  wait_for_publisher();
 
   profiled_busy_child();
 
-  deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-  while (!received && std::chrono::steady_clock::now() < deadline) {
-    rclcpp::spin_some(node);
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  }
-
-  ASSERT_NE(received, nullptr);
+  poirot_msgs::msg::ProfilingData::SharedPtr received;
+  ASSERT_TRUE(wait_for_message("profiled_busy_child", received));
   EXPECT_GT(received->function.call.data.child_cpu_time_us, 0);
 }
