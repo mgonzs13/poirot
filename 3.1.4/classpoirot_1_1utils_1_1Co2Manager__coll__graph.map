@@ -1,0 +1,9 @@
+<map id="poirot::utils::Co2Manager" name="poirot::utils::Co2Manager">
+<area shape="rect" id="Node000001" title="Class for managing CO2 emission factors." alt="" coords="5,344,168,370"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="16,212,157,253"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="89,269,89,344,84,344,84,269"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="48,95,125,121"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="89,137,89,212,84,212,84,137"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="25,5,148,46"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="89,61,89,95,84,95,84,61"/>
+</map>

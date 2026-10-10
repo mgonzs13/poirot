@@ -1,0 +1,11 @@
+<map id="NvmlLoader" name="NvmlLoader">
+<area shape="rect" id="Node000001" title="Minimal runtime loader for the NVIDIA Management Library." alt="" coords="320,87,412,112"/>
+<area shape="rect" id="Node000002" href="$structpoirot_1_1utils_1_1NvmlMemory.html" title="NVML device memory information in bytes." alt="" coords="11,5,177,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="193,25,245,35,297,52,326,67,350,84,347,88,323,72,295,57,244,41,192,30"/>
+<area shape="rect" id="Node000003" href="$structpoirot_1_1utils_1_1NvmlUtilization.html" title="NVML device utilization rates (GPU and memory), in percent." alt="" coords="5,56,183,82"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="199,78,319,92,319,97,198,83"/>
+<area shape="rect" id="Node000004" href="$structpoirot_1_1utils_1_1NvmlProcessInfoV2.html" title="NVML process information (stable v2 layout)." alt="" coords="10,106,178,146"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="194,129,245,127,295,121,332,110,334,116,296,126,245,132,194,134"/>
+<area shape="rect" id="Node000005" href="$structpoirot_1_1utils_1_1NvmlProcessUtilizationSample.html" title="NVML per&#45;process utilization sample." alt="" coords="10,171,178,212"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="193,184,245,175,294,157,327,136,351,111,355,115,330,140,297,162,246,180,194,190"/>
+</map>

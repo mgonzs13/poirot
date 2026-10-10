@@ -1,0 +1,19 @@
+<map id="poirot/include/poirot/utils/gpu_monitor.hpp" name="poirot/include/poirot/utils/gpu_monitor.hpp">
+<area shape="rect" id="Node000001" title=" " alt="" coords="238,5,387,46"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,94,92,120"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="247,49,105,92,103,86,246,44"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="116,94,176,120"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="272,49,186,89,184,85,270,44"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="200,94,260,120"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="294,48,256,85,252,81,290,44"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="284,94,341,120"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="315,46,315,78,310,78,310,46"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="426,168,479,193"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="332,44,433,154,429,158,328,48"/>
+<area shape="rect" id="Node000007" title=" " alt="" coords="526,168,584,193"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="388,31,451,39,516,52,572,69,593,80,608,92,614,110,610,127,599,144,585,159,581,155,595,141,605,125,609,110,604,96,590,84,570,74,515,57,450,45,387,36"/>
+<area shape="rect" id="Node000008" href="$nvml__loader_8hpp.html" title=" " alt="" coords="415,94,594,120"/>
+<area shape="poly" id="edge7_Node000001_Node000008" title=" " alt="" coords="361,44,462,85,460,90,359,49"/>
+<area shape="poly" id="edge8_Node000008_Node000006" title=" " alt="" coords="498,121,472,157,468,153,494,118"/>
+<area shape="poly" id="edge9_Node000008_Node000007" title=" " alt="" coords="515,118,540,153,536,156,511,121"/>
+</map>

@@ -1,0 +1,11 @@
+<map id="poirot::utils::RaplMonitor" name="poirot::utils::RaplMonitor">
+<area shape="rect" id="Node000001" title=" " alt="" coords="153,192,311,218"/>
+<area shape="rect" id="Node000002" href="$structpoirot_1_1utils_1_1RateWindow.html" title="Lazy windowed estimator of energy per system busy microsecond." alt="" coords="5,95,168,121"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="105,132,121,150,140,166,164,179,188,189,186,194,161,184,137,170,118,154,101,135"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="192,95,272,121"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="234,136,234,191,229,191,229,136"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="302,95,380,121"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="335,137,326,154,314,170,295,184,274,194,272,189,292,179,310,166,322,151,330,134"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="280,5,403,46"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="344,61,344,95,338,95,338,61"/>
+</map>

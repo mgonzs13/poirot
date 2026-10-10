@@ -1,0 +1,20 @@
+var searchData=
+[
+  ['g_5fnode_0',['g_node',['../main_8cpp.html#a7632a7732ebd6c3850ee00d816c4b165',1,'main.cpp']]],
+  ['get_5fhandle_5f_1',['get_handle_',['../classpoirot_1_1utils_1_1NvmlLoader.html#a0934582745f806dc41a1448b58dafef7',1,'poirot::utils::NvmlLoader::get_handle_'],['../classNvmlLoader.html#a0934582745f806dc41a1448b58dafef7',1,'NvmlLoader::get_handle_']]],
+  ['get_5flimit_5f_2',['get_limit_',['../classpoirot_1_1utils_1_1NvmlLoader.html#a41c4d5141af76441123402559f7cb7fe',1,'poirot::utils::NvmlLoader::get_limit_'],['../classNvmlLoader.html#a41c4d5141af76441123402559f7cb7fe',1,'NvmlLoader::get_limit_']]],
+  ['get_5fmemory_5f_3',['get_memory_',['../classpoirot_1_1utils_1_1NvmlLoader.html#a5522a96dd802d9c61151ece774d72586',1,'poirot::utils::NvmlLoader::get_memory_'],['../classNvmlLoader.html#a5522a96dd802d9c61151ece774d72586',1,'NvmlLoader::get_memory_']]],
+  ['get_5fname_5f_4',['get_name_',['../classpoirot_1_1utils_1_1NvmlLoader.html#a468d422aaf9d46c3f37d65ac0433504e',1,'poirot::utils::NvmlLoader::get_name_'],['../classNvmlLoader.html#a468d422aaf9d46c3f37d65ac0433504e',1,'NvmlLoader::get_name_']]],
+  ['get_5fpower_5f_5',['get_power_',['../classpoirot_1_1utils_1_1NvmlLoader.html#a0e011c3a70704ee8bbf8ad1f29dd0398',1,'poirot::utils::NvmlLoader::get_power_'],['../classNvmlLoader.html#a0e011c3a70704ee8bbf8ad1f29dd0398',1,'NvmlLoader::get_power_']]],
+  ['get_5fproc_5futil_5f_6',['get_proc_util_',['../classpoirot_1_1utils_1_1NvmlLoader.html#a51569ce7225f0d47a4b4e9505f0ebc23',1,'poirot::utils::NvmlLoader::get_proc_util_'],['../classNvmlLoader.html#a51569ce7225f0d47a4b4e9505f0ebc23',1,'NvmlLoader::get_proc_util_']]],
+  ['get_5frunning_5f_7',['get_running_',['../classpoirot_1_1utils_1_1NvmlLoader.html#a7168a86aa20e35d5c2ecd9d388e41297',1,'poirot::utils::NvmlLoader::get_running_'],['../classNvmlLoader.html#a7168a86aa20e35d5c2ecd9d388e41297',1,'NvmlLoader::get_running_']]],
+  ['get_5futil_5f_8',['get_util_',['../classpoirot_1_1utils_1_1NvmlLoader.html#a684dbade3d2268d61cc4ae12b68feeff',1,'poirot::utils::NvmlLoader::get_util_'],['../classNvmlLoader.html#a684dbade3d2268d61cc4ae12b68feeff',1,'NvmlLoader::get_util_']]],
+  ['gpu_9',['gpu',['../structpoirot_1_1utils_1_1NvmlUtilization.html#ad4a3908e2c0264f8f6e69107a83f3ff6',1,'poirot::utils::NvmlUtilization']]],
+  ['gpu_5fenergy_5fuj_10',['gpu_energy_uj',['../structpoirot__tui_1_1DataPoint.html#a4c3ad006c276a82ea1bae5bb0a602c91',1,'poirot_tui::DataPoint::gpu_energy_uj'],['../structpoirot__tui_1_1FunctionRow.html#ad0be04615d7ddc368c004f5d072068b5',1,'poirot_tui::FunctionRow::gpu_energy_uj']]],
+  ['gpu_5finfo_5f_11',['gpu_info_',['../classpoirot_1_1utils_1_1GpuMonitor.html#a97e3955781d1eb2421dfdc7f822859ab',1,'poirot::utils::GpuMonitor::gpu_info_'],['../classGpuMonitor.html#a97e3955781d1eb2421dfdc7f822859ab',1,'GpuMonitor::gpu_info_']]],
+  ['gpu_5finstance_5fid_12',['gpu_instance_id',['../structpoirot_1_1utils_1_1NvmlProcessInfoV2.html#acea9bd281af595b1c4c06397d4d90867',1,'poirot::utils::NvmlProcessInfoV2::gpu_instance_id'],['../structNvmlProcessInfoV2.html#acea9bd281af595b1c4c06397d4d90867',1,'NvmlProcessInfoV2::gpu_instance_id']]],
+  ['gpu_5fmem_5fkb_13',['gpu_mem_kb',['../structpoirot__tui_1_1DataPoint.html#a164c01f6ea9d33115c8a9fe6a2d142e8',1,'poirot_tui::DataPoint::gpu_mem_kb'],['../structpoirot__tui_1_1FunctionRow.html#a24aae06d48d282d6e2fef11a8e97727d',1,'poirot_tui::FunctionRow::gpu_mem_kb']]],
+  ['gpu_5fmonitor_5f_14',['gpu_monitor_',['../classpoirot_1_1Poirot.html#aad20ab5abd66e00b1dea31318d1b5c39',1,'poirot::Poirot']]],
+  ['gpu_5fvendor_5f_15',['gpu_vendor_',['../classpoirot_1_1utils_1_1GpuMonitor.html#a3ad3b3eccd6f380e4bde84822c1219e4',1,'poirot::utils::GpuMonitor::gpu_vendor_'],['../classGpuMonitor.html#a3ad3b3eccd6f380e4bde84822c1219e4',1,'GpuMonitor::gpu_vendor_']]],
+  ['graph_5fscroll_5foffset_5f_16',['graph_scroll_offset_',['../classpoirot__tui_1_1TuiRenderer.html#afd1cba8fad0e89314829f5cda1c4e808',1,'poirot_tui::TuiRenderer']]]
+];

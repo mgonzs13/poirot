@@ -1,0 +1,11 @@
+var searchData=
+[
+  ['initialize_0',['initialize',['../classpoirot_1_1utils_1_1GpuMonitor.html#a8407bb05f33dffa5da322c63dc8e40c3',1,'poirot::utils::GpuMonitor::initialize()'],['../classpoirot_1_1utils_1_1NvmlLoader.html#a784df399a2ab2afe2aafbe6520809ad0',1,'poirot::utils::NvmlLoader::initialize()'],['../classpoirot__tui_1_1TuiRenderer.html#aede66f993072347d045f9adb44adaa07',1,'poirot_tui::TuiRenderer::initialize()'],['../classGpuMonitor.html#a8407bb05f33dffa5da322c63dc8e40c3',1,'GpuMonitor::initialize()'],['../classNvmlLoader.html#a784df399a2ab2afe2aafbe6520809ad0',1,'NvmlLoader::initialize()']]],
+  ['initialize_5frapl_5fmax_5fenergy_1',['initialize_rapl_max_energy',['../classpoirot_1_1utils_1_1RaplMonitor.html#af977a0a073185ff37d6058a5033f2f5c',1,'poirot::utils::RaplMonitor::initialize_rapl_max_energy()'],['../classRaplMonitor.html#af977a0a073185ff37d6058a5033f2f5c',1,'RaplMonitor::initialize_rapl_max_energy()']]],
+  ['integrate_5fgap_2',['integrate_gap',['../classpoirot_1_1utils_1_1GpuMonitor.html#a5ff8cc80858c77e9d18aad44ef90fd05',1,'poirot::utils::GpuMonitor::integrate_gap()'],['../classGpuMonitor.html#a5ff8cc80858c77e9d18aad44ef90fd05',1,'GpuMonitor::integrate_gap()']]],
+  ['is_5favailable_3',['is_available',['../classpoirot_1_1utils_1_1GpuMonitor.html#a58cab6180b6b850e19930753d4a8c07b',1,'poirot::utils::GpuMonitor::is_available()'],['../classGpuMonitor.html#a58cab6180b6b850e19930753d4a8c07b',1,'GpuMonitor::is_available()']]],
+  ['is_5ffunction_5fenabled_4',['is_function_enabled',['../classpoirot__tui_1_1DataManager.html#aab884c6b4ff4ab63608a9dddb53618df',1,'poirot_tui::DataManager']]],
+  ['is_5finitialized_5',['is_initialized',['../classpoirot__tui_1_1TuiRenderer.html#a76807c1d55e2252031192c8887dd5567',1,'poirot_tui::TuiRenderer']]],
+  ['is_5fprocess_5fusing_5fgpu_6',['is_process_using_gpu',['../classpoirot_1_1utils_1_1GpuMonitor.html#a80af74bd2aa83289e223954a1e93f9af',1,'poirot::utils::GpuMonitor::is_process_using_gpu()'],['../classGpuMonitor.html#a80af74bd2aa83289e223954a1e93f9af',1,'GpuMonitor::is_process_using_gpu()']]],
+  ['is_5frunning_7',['is_running',['../classpoirot__tui_1_1TuiNode.html#a4de6970c16f740b4be097b23cabc1d55',1,'poirot_tui::TuiNode']]]
+];

@@ -1,0 +1,15 @@
+<map id="poirot/include/poirot/utils/gpu_monitor.hpp" name="poirot/include/poirot/utils/gpu_monitor.hpp">
+<area shape="rect" id="Node000001" title=" " alt="" coords="316,5,464,46"/>
+<area shape="rect" id="Node000002" href="$poirot_8hpp.html" title=" " alt="" coords="167,94,302,135"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="343,56,271,96,268,91,340,51"/>
+<area shape="rect" id="Node000006" href="$gpu__monitor_8cpp.html" title=" " alt="" coords="326,94,454,135"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="393,62,393,94,388,94,388,62"/>
+<area shape="rect" id="Node000007" href="$test__gpu__monitor_8cpp.html" title=" " alt="" coords="478,94,612,135"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="440,51,511,91,509,96,437,56"/>
+<area shape="rect" id="Node000003" href="$poirot_8cpp.html" title=" " alt="" coords="5,190,141,216"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="185,145,97,192,94,187,183,140"/>
+<area shape="rect" id="Node000004" href="$test__child__profiling_8cpp.html" title=" " alt="" coords="165,183,304,223"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="237,150,237,182,232,182,232,150"/>
+<area shape="rect" id="Node000005" href="$demo__node_8cpp.html" title=" " alt="" coords="328,183,485,223"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="288,140,369,180,366,185,286,144"/>
+</map>
