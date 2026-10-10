@@ -63,7 +63,7 @@ struct ThreadProfilingContext {
   std::chrono::steady_clock::time_point start_time;
   int64_t start_cpu_time_us = 0;
   int64_t start_process_cpu_time_us = 0;
-  double start_gpu_utilization_percent = 0.0;
+  double start_gpu_utilization_us = 0.0;
   int64_t start_mem_kb = 0;
   int64_t start_gpu_mem_kb = 0;
   int64_t start_io_read_bytes = 0;

@@ -74,7 +74,7 @@ class ThreadProfilingContext:
     start_time: float = 0.0
     start_cpu_time_us: int = 0
     start_process_cpu_time_us: int = 0
-    start_gpu_utilization_percent: float = 0.0
+    start_gpu_utilization_us: float = 0.0
     start_mem_kb: int = 0
     start_gpu_mem_kb: int = 0
     start_io_read_bytes: int = 0
@@ -248,15 +248,11 @@ class Poirot:
 
         if self._gpu_monitor.is_available():
             process_metrics = self._gpu_monitor.read_process_metrics()
-            ctx.start_gpu_utilization_percent = (
-                process_metrics.estimated_utilization_percent
-                if process_metrics.is_using_gpu
-                else 0.0
-            )
-            ctx.start_gpu_mem_kb = process_metrics.mem_used_kb
             ctx.start_gpu_energy_uj = self._gpu_monitor.read_process_energy_uj()
+            ctx.start_gpu_utilization_us = self._gpu_monitor.read_process_utilization_us()
+            ctx.start_gpu_mem_kb = process_metrics.mem_used_kb
         else:
-            ctx.start_gpu_utilization_percent = 0.0
+            ctx.start_gpu_utilization_us = 0.0
             ctx.start_gpu_mem_kb = 0
             ctx.start_gpu_energy_uj = 0.0
 
@@ -297,18 +293,14 @@ class Poirot:
                 end_children_usage = None
 
         # GPU metrics
-        end_gpu_utilization_percent = 0.0
+        end_gpu_utilization_us = 0.0
         end_gpu_mem_kb = 0
         end_gpu_energy_uj = 0.0
         if self._gpu_monitor.is_available():
             process_metrics = self._gpu_monitor.read_process_metrics()
-            end_gpu_utilization_percent = (
-                process_metrics.estimated_utilization_percent
-                if process_metrics.is_using_gpu
-                else 0.0
-            )
-            end_gpu_mem_kb = process_metrics.mem_used_kb
             end_gpu_energy_uj = self._gpu_monitor.read_process_energy_uj()
+            end_gpu_utilization_us = self._gpu_monitor.read_process_utilization_us()
+            end_gpu_mem_kb = process_metrics.mem_used_kb
 
         # Update process info (pid, thread count) after all timing metrics are captured.
         self._read_process_data()
@@ -386,7 +378,17 @@ class Poirot:
 
         # GPU data
         call.data.gpu_utilization_percent = (
-            end_gpu_utilization_percent - ctx.start_gpu_utilization_percent
+            max(
+                0.0,
+                min(
+                    100.0,
+                    (end_gpu_utilization_us - ctx.start_gpu_utilization_us)
+                    / wall_time_delta_us
+                    * 100.0,
+                ),
+            )
+            if wall_time_delta_us > 0.0
+            else 0.0
         )
         call.data.gpu_mem_kb = end_gpu_mem_kb - ctx.start_gpu_mem_kb
         call.data.gpu_energy_uj = gpu_energy_delta_uj

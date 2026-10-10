@@ -169,15 +169,13 @@ void Poirot::start_profiling(const std::string &function_name,
   if (this->gpu_monitor_.is_available()) {
     // Read per-process GPU metrics instead of system-wide
     auto process_metrics = this->gpu_monitor_.read_process_metrics();
-    ctx.start_gpu_utilization_percent =
-        process_metrics.is_using_gpu
-            ? process_metrics.estimated_utilization_percent
-            : 0.0;
-    ctx.start_gpu_mem_kb = process_metrics.mem_used_kb;
     ctx.start_gpu_energy_uj = this->gpu_monitor_.read_process_energy_uj();
+    ctx.start_gpu_utilization_us =
+        this->gpu_monitor_.read_process_utilization_us();
+    ctx.start_gpu_mem_kb = process_metrics.mem_used_kb;
 
   } else {
-    ctx.start_gpu_utilization_percent = 0.0;
+    ctx.start_gpu_utilization_us = 0.0;
     ctx.start_gpu_mem_kb = 0;
     ctx.start_gpu_energy_uj = 0.0;
   }
@@ -222,18 +220,15 @@ void Poirot::stop_profiling() {
   }
 
   // Read GPU metrics if available
-  double end_gpu_utilization_percent = 0.0;
+  double end_gpu_utilization_us = 0.0;
   int64_t end_gpu_mem_kb = 0;
   double end_gpu_energy_uj = 0.0;
   if (this->gpu_monitor_.is_available()) {
     // Read per-process GPU metrics instead of system-wide
     auto process_metrics = this->gpu_monitor_.read_process_metrics();
-    end_gpu_utilization_percent =
-        process_metrics.is_using_gpu
-            ? process_metrics.estimated_utilization_percent
-            : 0.0;
-    end_gpu_mem_kb = process_metrics.mem_used_kb;
     end_gpu_energy_uj = this->gpu_monitor_.read_process_energy_uj();
+    end_gpu_utilization_us = this->gpu_monitor_.read_process_utilization_us();
+    end_gpu_mem_kb = process_metrics.mem_used_kb;
   }
 
   // Update process info (pid, thread count) after all timing metrics are
@@ -318,9 +313,14 @@ void Poirot::stop_profiling() {
   call.data.child_energy_uj = child_energy_uj;
   call.data.cpu_total_energy_uj = cpu_total_energy_delta_uj;
 
-  // GPU data (calculate deltas correctly: end - start)
+  // GPU data: utilization is the time-averaged attributed share over the
+  // call, clamped to a percentage ([0, 100]).
   call.data.gpu_utilization_percent =
-      end_gpu_utilization_percent - ctx.start_gpu_utilization_percent;
+      wall_time_delta_us > 0.0
+          ? std::clamp((end_gpu_utilization_us - ctx.start_gpu_utilization_us) /
+                           wall_time_delta_us * 100.0,
+                       0.0, 100.0)
+          : 0.0;
   call.data.gpu_mem_kb = end_gpu_mem_kb - ctx.start_gpu_mem_kb;
   call.data.gpu_energy_uj = gpu_energy_delta_uj;
 

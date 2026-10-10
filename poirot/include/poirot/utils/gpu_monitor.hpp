@@ -23,6 +23,8 @@
 #include <string>
 #include <vector>
 
+#include "poirot/utils/nvml_loader.hpp"
+
 namespace poirot {
 namespace utils {
 
@@ -135,6 +137,60 @@ public:
    */
   double read_process_energy_uj(pid_t pid = 0);
 
+  /**
+   * @brief Read the accumulated attributed GPU utilization x time.
+   *
+   * Monotonic accumulator in microseconds of attributed share time. The
+   * per-call utilization is (end - start) / wall time.
+   *
+   * @note The accumulator is per-monitor; the pid argument is accepted for
+   * API symmetry.
+   *
+   * @return Accumulated attributed share time in microseconds.
+   */
+  double read_process_utilization_us(pid_t pid = 0);
+
+  /// @brief Freshness window for per-process utilization samples (5 s).
+  static constexpr uint64_t FRESH_SAMPLE_WINDOW_US = 5000000;
+
+  /**
+   * @brief Compute a process's share of GPU work.
+   *
+   * Keeps only the newest fresh sample per PID. Uses the process's fresh SM
+   * utilization sample normalized over the newest fresh samples of all PIDs.
+   * When the process has no fresh sample, falls back to its memory ratio over
+   * the running-process list.
+   *
+   * @param pid Process ID.
+   * @param now_us Current time in microseconds in the SAME clock domain as
+   * sample timestamps (system/realtime epoch microseconds, not steady clock).
+   * @param samples Per-process utilization samples.
+   * @param running Processes with GPU compute contexts.
+   * @return Share in [0, 1].
+   */
+  static double compute_process_share(
+      pid_t pid, uint64_t now_us,
+      const std::vector<NvmlProcessUtilizationSample> &samples,
+      const std::vector<NvmlProcessInfoV2> &running);
+
+  /**
+   * @brief Integrate attributed energy over a gap using a trapezoid.
+   * @return Attributed energy in microjoules (W x us).
+   */
+  static double integrate_gap(double power_prev_w, double share_prev,
+                              double power_now_w, double share_now,
+                              double dt_us);
+
+  /**
+   * @brief Select the device power estimate.
+   *
+   * Prefers a valid power reading; otherwise estimates from the power limit
+   * scaled by device utilization.
+   */
+  static double select_power_w(bool power_valid, double power_w,
+                               double power_limit_w,
+                               double device_utilization_percent);
+
 protected:
   /**
    * @brief Initialize GPU monitoring and detect available GPUs.
@@ -148,6 +204,32 @@ private:
    * @return True if NVIDIA GPU was detected.
    */
   bool detect_nvidia_gpu();
+
+  /**
+   * @brief Detect an NVIDIA GPU through NVML.
+   * @return True if NVML is usable and device information was read.
+   */
+  bool detect_nvidia_gpu_nvml();
+
+  /**
+   * @brief Read NVIDIA GPU metrics through NVML.
+   * @return GpuMetrics structure with current values.
+   */
+  GpuMetrics read_nvml_metrics();
+
+  /**
+   * @brief Read NVIDIA per-process GPU metrics through NVML.
+   * @param pid Process ID to query.
+   * @return ProcessGpuMetrics structure with current values.
+   */
+  ProcessGpuMetrics read_nvml_process_metrics(pid_t pid);
+
+  /**
+   * @brief Legacy per-process energy integration (nvidia-smi / rocm-smi).
+   * @param pid Process ID to query.
+   * @return Accumulated energy attributed to the process in microjoules.
+   */
+  double read_process_energy_uj_legacy(pid_t pid);
 
   /**
    * @brief Detect AMD GPU using rocm-smi.
@@ -216,6 +298,20 @@ private:
   std::chrono::steady_clock::time_point last_energy_read_time_;
   /// @brief Last per-process energy read time point
   std::chrono::steady_clock::time_point last_process_energy_read_time_;
+  /// @brief NVML runtime loader (unused when NVML is unavailable)
+  NvmlLoader nvml_;
+  /// @brief Whether the NVML path is active
+  bool use_nvml_ = false;
+  /// @brief Device power management limit in watts (0 when unknown)
+  double power_limit_w_ = 0.0;
+  /// @brief Last lazy energy read time in microseconds (0 = uninitialized)
+  uint64_t last_process_read_us_ = 0;
+  /// @brief Device power estimate at the last read in watts
+  double last_power_w_ = 0.0;
+  /// @brief Attributed share at the last read
+  double last_share_ = 0.0;
+  /// @brief Accumulated attributed share x time in microseconds
+  double accumulated_share_us_ = 0.0;
 };
 
 } // namespace utils

@@ -23,6 +23,7 @@
 #include <memory>
 #include <regex>
 #include <sstream>
+#include <unordered_map>
 #include <vector>
 
 #include "poirot/utils/gpu_monitor.hpp"
@@ -34,6 +35,84 @@ namespace utils {
 
 namespace fs = std::filesystem;
 
+double GpuMonitor::compute_process_share(
+    pid_t pid, uint64_t now_us,
+    const std::vector<NvmlProcessUtilizationSample> &samples,
+    const std::vector<NvmlProcessInfoV2> &running) {
+  // Keep only the newest fresh sample per PID so PIDs with multiple buffered
+  // samples contribute exactly once to the normalizer.
+  std::unordered_map<unsigned int, std::pair<unsigned long long, unsigned int>>
+      newest_samples;
+
+  for (const auto &sample : samples) {
+    if (now_us < sample.time_stamp_us ||
+        now_us - sample.time_stamp_us > FRESH_SAMPLE_WINDOW_US) {
+      continue;
+    }
+
+    auto it = newest_samples.find(sample.pid);
+    if (it == newest_samples.end() || sample.time_stamp_us > it->second.first) {
+      newest_samples[sample.pid] = {sample.time_stamp_us, sample.sm_util};
+    }
+  }
+
+  auto ours = newest_samples.find(static_cast<unsigned int>(pid));
+
+  if (ours != newest_samples.end()) {
+    double total_utilization = 0.0;
+    for (const auto &entry : newest_samples) {
+      total_utilization += static_cast<double>(entry.second.second);
+    }
+
+    if (total_utilization <= 0.0) {
+      return 0.0;
+    }
+
+    double process_utilization = static_cast<double>(ours->second.second);
+    return std::max(0.0,
+                    std::min(1.0, process_utilization / total_utilization));
+  }
+
+  double process_memory = 0.0;
+  double total_memory = 0.0;
+  for (const auto &process : running) {
+    total_memory += static_cast<double>(process.used_gpu_memory);
+    if (static_cast<pid_t>(process.pid) == pid) {
+      process_memory = static_cast<double>(process.used_gpu_memory);
+    }
+  }
+
+  if (process_memory <= 0.0 || total_memory <= 0.0) {
+    return 0.0;
+  }
+
+  return std::max(0.0, std::min(1.0, process_memory / total_memory));
+}
+
+double GpuMonitor::integrate_gap(double power_prev_w, double share_prev,
+                                 double power_now_w, double share_now,
+                                 double dt_us) {
+  if (dt_us <= 0.0) {
+    return 0.0;
+  }
+
+  return 0.5 * (power_prev_w * share_prev + power_now_w * share_now) * dt_us;
+}
+
+double GpuMonitor::select_power_w(bool power_valid, double power_w,
+                                  double power_limit_w,
+                                  double device_utilization_percent) {
+  if (power_valid && power_w > 0.0) {
+    return power_w;
+  }
+
+  if (power_limit_w > 0.0 && device_utilization_percent > 0.0) {
+    return power_limit_w * device_utilization_percent / 100.0;
+  }
+
+  return 0.0;
+}
+
 GpuMonitor::GpuMonitor()
     : last_energy_read_time_(std::chrono::steady_clock::now()),
       last_process_energy_read_time_(std::chrono::steady_clock::now()) {
@@ -41,7 +120,13 @@ GpuMonitor::GpuMonitor()
 }
 
 bool GpuMonitor::initialize() {
-  // Try to detect GPUs in order of preference
+  // Try NVML first (no subprocess, per-process utilization available)
+  if (this->detect_nvidia_gpu_nvml()) {
+    this->gpu_vendor_ = GpuVendor::NVIDIA;
+    return true;
+  }
+
+  // Fall back to the subprocess-based detection paths
   if (this->detect_nvidia_gpu()) {
     this->gpu_vendor_ = GpuVendor::NVIDIA;
     return true;
@@ -68,6 +153,41 @@ std::string GpuMonitor::exec_command(const std::string &cmd) {
   }
 
   return result;
+}
+
+bool GpuMonitor::detect_nvidia_gpu_nvml() {
+  if (!this->nvml_.initialize()) {
+    return false;
+  }
+
+  std::string gpu_name = this->nvml_.name();
+  if (gpu_name.empty()) {
+    return false;
+  }
+
+  NvmlMemory memory;
+  if (this->nvml_.read_memory(memory)) {
+    this->gpu_info_.mem_total_kb = static_cast<int64_t>(memory.total / 1024);
+  }
+
+  double power_limit_w = 0.0;
+  if (this->nvml_.read_power_limit_w(power_limit_w) && power_limit_w > 0.0) {
+    this->gpu_info_.tdp_watts = power_limit_w;
+    this->gpu_info_.tdp_type = GpuTdpType::NVIDIA_TDP_TYPE;
+  }
+
+  double power_w = 0.0;
+  this->gpu_info_.power_monitoring =
+      this->nvml_.read_power_w(power_w) && power_w > 0.0;
+
+  this->gpu_info_.model = gpu_name;
+  this->gpu_info_.vendor = "NVIDIA";
+  this->gpu_info_.index = 0;
+  this->gpu_info_.available = true;
+  this->power_limit_w_ = power_limit_w;
+  this->use_nvml_ = true;
+
+  return true;
 }
 
 bool GpuMonitor::detect_nvidia_gpu() {
@@ -252,6 +372,14 @@ bool GpuMonitor::detect_amd_gpu() {
 }
 
 GpuMetrics GpuMonitor::read_metrics() {
+  if (!this->gpu_info_.available) {
+    return GpuMetrics{};
+  }
+
+  if (this->use_nvml_) {
+    return this->read_nvml_metrics();
+  }
+
   switch (this->gpu_vendor_) {
   case GpuVendor::NVIDIA:
     return this->read_nvidia_metrics();
@@ -449,6 +577,14 @@ ProcessGpuMetrics GpuMonitor::read_process_metrics(pid_t pid) {
     pid = getpid();
   }
 
+  if (!this->gpu_info_.available) {
+    return ProcessGpuMetrics{};
+  }
+
+  if (this->use_nvml_) {
+    return this->read_nvml_process_metrics(pid);
+  }
+
   switch (this->gpu_vendor_) {
   case GpuVendor::NVIDIA:
     return this->read_nvidia_process_metrics(pid);
@@ -524,6 +660,80 @@ ProcessGpuMetrics GpuMonitor::read_nvidia_process_metrics(pid_t pid) {
   return metrics;
 }
 
+GpuMetrics GpuMonitor::read_nvml_metrics() {
+  GpuMetrics metrics;
+
+  double utilization_percent = 0.0;
+  if (this->nvml_.read_device_utilization(utilization_percent)) {
+    metrics.utilization_percent = utilization_percent;
+  }
+
+  NvmlMemory memory;
+  if (this->nvml_.read_memory(memory)) {
+    metrics.mem_used_kb = static_cast<int64_t>(memory.used / 1024);
+  }
+
+  double power_w = 0.0;
+  if (this->nvml_.read_power_w(power_w)) {
+    metrics.power_w = power_w;
+  }
+
+  // metrics.energy_uj stays 0 in the NVML path: it is not consumed
+  // downstream; per-call energy uses read_process_energy_uj().
+  return metrics;
+}
+
+ProcessGpuMetrics GpuMonitor::read_nvml_process_metrics(pid_t pid) {
+  ProcessGpuMetrics metrics;
+
+  std::vector<NvmlProcessInfoV2> running;
+  this->nvml_.read_running_processes(running);
+  for (const auto &process : running) {
+    if (static_cast<pid_t>(process.pid) == pid) {
+      metrics.is_using_gpu = true;
+      metrics.mem_used_kb =
+          static_cast<int64_t>(process.used_gpu_memory / 1024);
+      break;
+    }
+  }
+
+  std::vector<NvmlProcessUtilizationSample> samples;
+  this->nvml_.read_process_utilization(samples);
+  // NVML sample timestamps are realtime epoch microseconds, not steady clock.
+  uint64_t realtime_us =
+      std::chrono::duration_cast<std::chrono::microseconds>(
+          std::chrono::system_clock::now().time_since_epoch())
+          .count();
+
+  unsigned long long newest_timestamp = 0;
+  for (const auto &sample : samples) {
+    if (static_cast<pid_t>(sample.pid) != pid) {
+      continue;
+    }
+
+    if (realtime_us < sample.time_stamp_us ||
+        realtime_us - sample.time_stamp_us > FRESH_SAMPLE_WINDOW_US) {
+      continue;
+    }
+
+    if (sample.time_stamp_us >= newest_timestamp) {
+      newest_timestamp = sample.time_stamp_us;
+      metrics.estimated_utilization_percent =
+          static_cast<double>(sample.sm_util);
+      metrics.is_using_gpu = true;
+    }
+  }
+
+  if (newest_timestamp == 0 && metrics.is_using_gpu &&
+      this->gpu_info_.mem_total_kb > 0) {
+    metrics.estimated_utilization_percent =
+        static_cast<double>(metrics.mem_used_kb) /
+        static_cast<double>(this->gpu_info_.mem_total_kb) * 100.0;
+  }
+
+  return metrics;
+}
+
 ProcessGpuMetrics GpuMonitor::read_amd_process_metrics(pid_t pid) {
   ProcessGpuMetrics metrics;
 
@@ -585,6 +795,69 @@ double GpuMonitor::read_process_energy_uj(pid_t pid) {
 
   std::lock_guard<std::recursive_mutex> lock(this->energy_mutex_);
 
+  if (!this->use_nvml_) {
+    return this->read_process_energy_uj_legacy(pid);
+  }
+
+  uint64_t now_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                        std::chrono::steady_clock::now().time_since_epoch())
+                        .count();
+  uint64_t realtime_us =
+      std::chrono::duration_cast<std::chrono::microseconds>(
+          std::chrono::system_clock::now().time_since_epoch())
+          .count();
+
+  if (this->last_process_read_us_ == 0) {
+    // Initialize the integration state from a live sample so the first
+    // interval is not half-charged by a zero trapezoid endpoint.
+    double power_w = 0.0;
+    bool power_valid = this->nvml_.read_power_w(power_w);
+    double device_utilization = 0.0;
+    this->nvml_.read_device_utilization(device_utilization);
+
+    std::vector<NvmlProcessUtilizationSample> samples;
+    std::vector<NvmlProcessInfoV2> running;
+    this->nvml_.read_process_utilization(samples);
+    this->nvml_.read_running_processes(running);
+
+    this->last_power_w_ = select_power_w(
+        power_valid, power_w, this->power_limit_w_, device_utilization);
+    this->last_share_ =
+        compute_process_share(pid, realtime_us, samples, running);
+    this->last_process_read_us_ = now_us;
+    return this->accumulated_process_energy_uj_;
+  }
+
+  double dt_us = static_cast<double>(now_us - this->last_process_read_us_);
+  if (dt_us <= 0.0) {
+    return this->accumulated_process_energy_uj_;
+  }
+
+  double power_w = 0.0;
+  bool power_valid = this->nvml_.read_power_w(power_w);
+  double device_utilization = 0.0;
+  this->nvml_.read_device_utilization(device_utilization);
+  double power = select_power_w(power_valid, power_w, this->power_limit_w_,
+                                device_utilization);
+
+  std::vector<NvmlProcessUtilizationSample> samples;
+  std::vector<NvmlProcessInfoV2> running;
+  this->nvml_.read_process_utilization(samples);
+  this->nvml_.read_running_processes(running);
+  double share = compute_process_share(pid, realtime_us, samples, running);
+
+  this->accumulated_process_energy_uj_ += integrate_gap(
+      this->last_power_w_, this->last_share_, power, share, dt_us);
+  this->accumulated_share_us_ += share * dt_us;
+
+  this->last_power_w_ = power;
+  this->last_share_ = share;
+  this->last_process_read_us_ = now_us;
+
+  return this->accumulated_process_energy_uj_;
+}
+
+double GpuMonitor::read_process_energy_uj_legacy(pid_t pid) {
   auto now = std::chrono::steady_clock::now();
 
   // Initialize timestamp on first call
@@ -623,6 +896,10 @@ double GpuMonitor::read_process_energy_uj(pid_t pid) {
     return this->accumulated_process_energy_uj_;
   }
 
+  // Accrue attributed utilization x time for the utilization metric.
+  this->accumulated_share_us_ +=
+      (proc_metrics.estimated_utilization_percent / 100.0) * elapsed_us;
+
   // Get system-wide GPU metrics for power/utilization
   GpuMetrics sys_metrics = this->read_metrics();
 
@@ -654,6 +931,11 @@ double GpuMonitor::read_process_energy_uj(pid_t pid) {
   }
 
   return this->accumulated_process_energy_uj_;
+}
+
+double GpuMonitor::read_process_utilization_us(pid_t) {
+  std::lock_guard<std::recursive_mutex> lock(this->energy_mutex_);
+  return this->accumulated_share_us_;
 }
 
 } // namespace utils

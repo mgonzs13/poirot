@@ -24,6 +24,7 @@ add_library(${PROJECT_NAME} SHARED
   src/utils/thread_metrics.cpp
   src/utils/rapl_monitor.cpp
   src/utils/gpu_monitor.cpp
+  src/utils/nvml_loader.cpp
   src/utils/co2_manager.cpp
   src/utils/system_info_reader.cpp
   src/utils/string_utils.cpp
@@ -38,6 +39,7 @@ target_link_libraries(${PROJECT_NAME}
   rclcpp::rclcpp
   ${poirot_msgs_TARGETS}
   ament_index_cpp::ament_index_cpp
+  ${CMAKE_DL_LIBS}
 )
 
 ament_export_include_directories(include)
@@ -72,8 +74,11 @@ if(BUILD_TESTING)
   target_link_libraries(test_rapl_monitor ${PROJECT_NAME})
   ament_add_gtest(test_child_profiling test/test_child_profiling.cpp)
   target_link_libraries(test_child_profiling ${PROJECT_NAME})
+  ament_add_gtest(test_gpu_monitor test/test_gpu_monitor.cpp)
+  target_link_libraries(test_gpu_monitor ${PROJECT_NAME})
   find_package(ament_cmake_pytest REQUIRED)
   ament_add_pytest_test(test_child_profiling_py test/test_child_profiling.py)
+  ament_add_pytest_test(test_gpu_monitor_py test/test_gpu_monitor.py)
 endif()
 
 ament_package()
